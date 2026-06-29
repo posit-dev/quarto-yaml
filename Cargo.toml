@@ -1,0 +1,35 @@
+[workspace]
+resolver = "3"
+members = ["crates/*"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+authors = ["Posit Software, PBC"]
+license = "MIT"
+repository = "https://github.com/posit-dev/quarto-yaml"
+homepage = "https://github.com/posit-dev/quarto-yaml"
+
+[workspace.lints.clippy]
+# The error types carry an `Option<SourceInfo>` for source-located diagnostics,
+# which makes the `Err` variant large. Boxing to satisfy these lints would change
+# the crates' public `Result`/`Error` API; we keep the ergonomic by-value error.
+# (Same policy the upstream Quarto monorepo applies to this code.)
+result_large_err = "allow"
+large_enum_variant = "allow"
+
+[workspace.dependencies]
+# Intra-workspace
+quarto-yaml = { version = "0.1.0", path = "crates/quarto-yaml" }
+
+# Published foundation crate
+quarto-source-map = "0.1.0"
+
+# Shared third-party deps (versions pinned to match the q2 monorepo at
+# extraction time, 2026-06-29)
+yaml-rust2 = "0.11"
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.149"
+thiserror = "2.0"
+anyhow = "1.0.101"
+regex = "1.12"

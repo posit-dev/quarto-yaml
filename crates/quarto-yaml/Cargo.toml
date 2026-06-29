@@ -1,0 +1,32 @@
+[package]
+name = "quarto-yaml"
+description = "A YAML 1.2 parser that preserves fine-grained source locations (byte ranges) for every node."
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+readme = "README.md"
+keywords = ["yaml", "parser", "source-map", "spans", "diagnostics"]
+categories = ["parsing", "development-tools"]
+
+[dependencies]
+yaml-rust2 = { workspace = true }
+serde = { workspace = true }
+thiserror = { workspace = true }
+quarto-source-map = { workspace = true }
+
+[dev-dependencies]
+regex = { workspace = true }
+
+[[bench]]
+name = "memory_overhead"
+harness = false
+
+[[bench]]
+name = "scaling_overhead"
+harness = false
+
+[lints]
+workspace = true
