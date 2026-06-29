@@ -33,3 +33,9 @@ serde_json = "1.0.149"
 thiserror = "2.0"
 anyhow = "1.0.101"
 regex = "1.12"
+
+# Published foundation crate (diagnostics host); json wire shape not needed here.
+quarto-error-reporting = "0.1.0"
+
+# Dev-only
+insta = "1.46.3"
