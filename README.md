@@ -1,5 +1,7 @@
 # quarto-yaml
 
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/posit-dev/quarto-yaml)
+
 A Rust workspace for parsing and validating YAML 1.2 with fine-grained source
 locations, extracted from [Quarto](https://github.com/quarto-dev/quarto) so it
 can be used standalone.
