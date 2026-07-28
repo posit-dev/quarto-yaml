@@ -26,6 +26,26 @@ if let Some(title) = yaml.get_hash_value("title") {
 }
 ```
 
+## Scalar resolution
+
+Scalars are typed by the YAML 1.2 core schema, so quoting means what the spec
+says it means:
+
+- A quoted or block scalar is always a string: `"1"` is `Yaml::String("1")`,
+  not an integer, and `""` is the empty string, not null.
+- An explicit standard tag decides the type, overriding both quoting and
+  implicit resolution: `!!str 5` is a string, `!!int "7"` is an integer. A value
+  that contradicts its tag (`!!int abc`) resolves to `Yaml::BadValue`.
+- Only `true`/`false` (and their `True`, `TRUE` spellings) are booleans. YAML
+  1.1's `yes`, `no`, `on` and `off` are plain strings in 1.2.
+- Application-specific tags (`!expr`, `!path`, …) don't affect resolution; they
+  are reported in `YamlWithSourceInfo::tag`, alongside the tag's own span, for
+  consumers to interpret.
+
+Spans are measured against the source rather than the decoded value, so a
+quoted scalar's span covers its quotes and escapes, and a multi-line plain or
+block scalar's span covers every line it occupies.
+
 ## Design
 
 Uses an **owned-data** approach: it wraps owned `Yaml` values with a parallel

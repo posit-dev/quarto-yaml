@@ -1,5 +1,6 @@
 ---
 source: crates/quarto-yaml-validation/src/diagnostic.rs
+assertion_line: 592
 expression: combined
 ---
 === compact ===
@@ -30,9 +31,9 @@ test.yaml:1:6 [Q-1-11] age: Expected number, got string (Hint: Use a numeric val
     "number"
   ],
   "source_range": {
-    "end_column": 18,
+    "end_column": 20,
     "end_line": 1,
-    "end_offset": 17,
+    "end_offset": 19,
     "filename": "test.yaml",
     "start_column": 6,
     "start_line": 1,
@@ -45,8 +46,8 @@ Error: [Q-1-11] YAML Validation Failed
    ╭─[ test.yaml:1:6 ]
    │
  1 │ age: "not a number"
-   │      ──────┬─────  
-   │            ╰─────── Expected number, got string
+   │      ───────┬──────  
+   │             ╰──────── Expected number, got string
 ───╯
 ✖ At document path: `age`
 ℹ Schema constraint: object > number
