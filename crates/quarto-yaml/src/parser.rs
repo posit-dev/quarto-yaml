@@ -2,8 +2,11 @@
 
 use crate::{Error, Result, SourceInfo, YamlHashEntry, YamlWithSourceInfo};
 use yaml_rust2::Yaml;
-use yaml_rust2::parser::{Event, MarkedEventReceiver, Parser};
-use yaml_rust2::scanner::Marker;
+use yaml_rust2::parser::{Event, MarkedEventReceiver, Parser, Tag};
+use yaml_rust2::scanner::{Marker, TScalarStyle};
+
+/// The handle of the standard YAML tags, written `!!str`, `!!int`, … in source.
+const STANDARD_TAG_HANDLE: &str = "tag:yaml.org,2002:";
 
 /// Parse YAML from a string, producing a YamlWithSourceInfo tree.
 ///
@@ -279,27 +282,14 @@ impl<'a> YamlBuilder<'a> {
             // We're parsing a substring - create a Substring mapping
             SourceInfo::substring(parent.clone(), start_offset, end_offset)
         } else {
-            // We're parsing an original file - create an Original mapping
-            use quarto_source_map::{Location, Range};
-
-            let start_row = marker.line(); // yaml-rust2 uses 0-based
-            let start_column = marker.col(); // yaml-rust2 uses 0-based
-
-            SourceInfo::from_range(
+            // We're parsing an original file - create an Original mapping.
+            // SourceInfo records byte offsets only; rows and columns are
+            // derived from them (and the file's content) by SourceContext at
+            // render time, so there is nothing to compute here.
+            SourceInfo::original(
                 quarto_source_map::FileId(0), // Dummy FileId for now
-                Range {
-                    start: Location {
-                        offset: start_offset,
-                        row: start_row,
-                        column: start_column,
-                    },
-                    end: Location {
-                        offset: end_offset,
-                        // TODO: Calculate accurate end row/column based on content
-                        row: start_row,
-                        column: start_column + len,
-                    },
-                },
+                start_offset,
+                end_offset,
             )
         }
     }
@@ -311,77 +301,82 @@ impl<'a> YamlBuilder<'a> {
             // We're parsing a substring - create a Substring mapping
             SourceInfo::substring(parent.clone(), start_offset, end_offset)
         } else {
-            // We're parsing an original file - create an Original mapping
-            // We don't have row/column info without a marker, so we need to compute it
-            // from the content
-            use quarto_source_map::{Location, Range};
-
-            // For now, create a minimal SourceInfo without accurate row/column
-            // This should still work correctly because SourceContext can map offsets
-            SourceInfo::from_range(
-                quarto_source_map::FileId(0),
-                Range {
-                    start: Location {
-                        offset: start_offset,
-                        row: 0, // Will be computed from offset by SourceContext
-                        column: 0,
-                    },
-                    end: Location {
-                        offset: end_offset,
-                        row: 0,
-                        column: 0,
-                    },
-                },
-            )
+            // We're parsing an original file - create an Original mapping.
+            // Offsets are all SourceInfo carries; see make_source_info above.
+            SourceInfo::original(quarto_source_map::FileId(0), start_offset, end_offset)
         }
     }
 
-    fn compute_scalar_len(&self, _marker: &Marker, value: &str) -> usize {
-        // For now, use the value length
-        // TODO: This should be computed more accurately from the source
-        // considering quotes, escapes, etc.
-        value.len()
+    /// Compute how many bytes of source a scalar occupies.
+    ///
+    /// The scalar's *value* is not a reliable measure: quotes are not part of
+    /// it, escapes are already decoded, and line breaks in multi-line scalars
+    /// have been folded away. So the extent is measured against the source
+    /// text, using the style to know what to look for. Quoted scalars include
+    /// their quotes, which is what a diagnostic wants to underline.
+    fn compute_scalar_len(&self, marker: &Marker, value: &str, style: TScalarStyle) -> usize {
+        let start = marker.index();
+        let Some(rest) = self.source.get(start..) else {
+            return 0;
+        };
+
+        let len = match style {
+            TScalarStyle::Plain => plain_scalar_len(rest, value),
+            TScalarStyle::SingleQuoted => quoted_scalar_len(rest, b'\'').unwrap_or(value.len()),
+            TScalarStyle::DoubleQuoted => quoted_scalar_len(rest, b'"').unwrap_or(value.len()),
+            // For block scalars the marker points at the first content
+            // character, so the `|`/`>` header is not covered by the span.
+            TScalarStyle::Literal | TScalarStyle::Folded => block_scalar_len(rest, marker.col()),
+        };
+
+        len.min(rest.len())
     }
 
-    /// Find the byte offset of a tag before a scalar value.
+    /// Find the source extent of the tag preceding a scalar value.
     ///
     /// When yaml-rust2 emits a Scalar event with a tag, the marker points to the
-    /// start of the VALUE, not the tag. We need to search backwards in the source
-    /// to find where the tag actually is.
+    /// start of the VALUE, not the tag, and the tag's source spelling is not
+    /// recoverable from the parsed `Tag` (`!!str`, `!str` and
+    /// `!<tag:yaml.org,2002:str>` can all arrive with suffix `"str"`). So we
+    /// look at the whitespace-delimited tokens before the value: a tag is a
+    /// single token starting with `!`.
     ///
     /// For example, in "key: !expr x + 1", if marker points to "x", we need to
     /// find "!expr" which comes before it.
     ///
-    /// Returns the byte offset of the '!' character.
-    fn find_tag_start_offset(&self, value_marker: &Marker, tag_suffix: &str) -> Option<usize> {
-        let value_pos = value_marker.index();
+    /// Returns the byte offset of the '!' character and the tag's byte length.
+    fn find_tag_span(&self, value_marker: &Marker) -> Option<(usize, usize)> {
+        let mut before = self.source.get(..value_marker.index())?;
 
-        // The tag format is: !<suffix>
-        let tag_text = format!("!{}", tag_suffix);
-        let tag_len = tag_text.len();
+        // A node can carry both a tag and an anchor, in either order
+        // (`!tag &name value` and `&name !tag value` are both valid), so walk
+        // back over the properties instead of looking only at the token next to
+        // the value.
+        loop {
+            // Back up over the whitespace before the value, then over the
+            // token itself.
+            let token_end = before.trim_end().len();
+            let token_start = before[..token_end]
+                .char_indices()
+                .rev()
+                .find(|(_, c)| c.is_whitespace())
+                .map_or(0, |(i, c)| i + c.len_utf8());
+            let token = &before[token_start..token_end];
 
-        // Search backwards from value_pos for the tag
-        // We need at least enough characters for the tag
-        if value_pos < tag_len {
-            return None;
-        }
+            // In flow context a property can be glued to the opening indicator
+            // (`[!tag a]`), which is not part of the property itself.
+            let property = token.trim_start_matches(['[', '{', ',']);
+            let offset = token_start + (token.len() - property.len());
 
-        // Look in a reasonable window before the value (tag + some whitespace)
-        let search_start = value_pos.saturating_sub(tag_len + 10);
-        let search_end = value_pos;
-
-        if search_end > self.source.len() {
-            return None;
-        }
-
-        let search_slice = &self.source[search_start..search_end];
-
-        // Find the last occurrence of the tag in this slice
-        if let Some(relative_pos) = search_slice.rfind(&tag_text) {
-            let absolute_pos = search_start + relative_pos;
-            Some(absolute_pos)
-        } else {
-            None
+            if property.starts_with('!') {
+                return Some((offset, property.len()));
+            }
+            if !property.starts_with('&') {
+                // Not a node property, so we've walked past the tag without
+                // finding it.
+                return None;
+            }
+            before = &before[..token_start];
         }
     }
 
@@ -410,32 +405,33 @@ impl<'a> MarkedEventReceiver for YamlBuilder<'a> {
             Event::DocumentStart => {}
             Event::DocumentEnd => {}
 
-            Event::Scalar(value, _style, _anchor_id, tag) => {
+            Event::Scalar(value, style, _anchor_id, tag) => {
                 // Capture tag information if present
                 let tag_info = tag.as_ref().map(|t| {
                     // The marker points to the start of the VALUE, not the tag
                     // We need to find where the tag actually is in the source
-                    let tag_len = 1 + t.suffix.len(); // ! + suffix
-
-                    // Find the tag position by searching backwards in the source
-                    if let Some(tag_offset) = self.find_tag_start_offset(&marker, &t.suffix) {
+                    if let Some((tag_offset, tag_len)) = self.find_tag_span(&marker) {
                         let tag_source_info = self.make_tag_source_info(tag_offset, tag_len);
                         (t.suffix.clone(), tag_source_info)
                     } else {
-                        // Fallback: if we can't find the tag, use the marker position
-                        // This will be wrong but at least we won't panic
-                        let tag_source_info = self.make_source_info(&marker, tag_len);
+                        // Fallback: if we can't find the tag, point at the value
+                        // and guess the length from the suffix. That's wrong,
+                        // but it stays inside the source, so consumers can
+                        // still slice with it.
+                        let guess = 1 + t.suffix.len();
+                        let len = guess.min(self.source.len().saturating_sub(marker.index()));
+                        let tag_source_info = self.make_source_info(&marker, len);
                         (t.suffix.clone(), tag_source_info)
                     }
                 });
 
                 // Compute source info for the value itself
                 // The marker points to the start of the value
-                let len = self.compute_scalar_len(&marker, &value);
+                let len = self.compute_scalar_len(&marker, &value, style);
                 let source_info = self.make_source_info(&marker, len);
 
                 // Create the Yaml value
-                let yaml = parse_scalar_value(&value);
+                let yaml = resolve_scalar(&value, style, tag.as_ref());
                 let node = YamlWithSourceInfo::new_scalar_with_tag(yaml, source_info, tag_info);
 
                 self.push_complete(node);
@@ -549,10 +545,87 @@ impl<'a> MarkedEventReceiver for YamlBuilder<'a> {
     }
 }
 
-/// Parse a scalar string value into the appropriate Yaml type.
+/// Resolve a scalar to a `Yaml` value the way the YAML 1.2 spec says to.
+///
+/// Three things decide the type, in this order:
+///
+/// 1. An explicit standard tag (`!!int`, `!!str`, …). An explicit tag *is* the
+///    node's type, so it wins over everything else: `!!int "7"` is the integer
+///    7 and `!!str 5` is the string `"5"`. A value that does not fit its tag
+///    (`!!int abc`) becomes `Yaml::BadValue`, matching yaml-rust2's loader.
+/// 2. The scalar's style. Quoting is precisely how YAML says "this is text,
+///    not a number", so any non-plain scalar — quoted or block — is a string.
+/// 3. Failing both, the core schema resolves the plain text (see
+///    [`resolve_plain_scalar`]).
+///
+/// Application-specific tags (`!expr`, `!path`, …) do not affect resolution.
+/// Every tag, standard or not, is reported in [`YamlWithSourceInfo::tag`] with
+/// its own span, for consumers to interpret.
+fn resolve_scalar(value: &str, style: TScalarStyle, tag: Option<&Tag>) -> Yaml {
+    if let Some(suffix) = tag.and_then(standard_tag_suffix) {
+        return resolve_tagged_scalar(value, suffix);
+    }
+
+    if style != TScalarStyle::Plain {
+        return Yaml::String(value.to_string());
+    }
+
+    resolve_plain_scalar(value)
+}
+
+/// The suffix of a standard (`tag:yaml.org,2002:`) tag, if this is one.
+///
+/// The `!!x` shorthand arrives with the standard handle and suffix `x`; the
+/// verbatim form `!<tag:yaml.org,2002:x>` arrives with an empty handle and the
+/// whole URI as the suffix.
+fn standard_tag_suffix(tag: &Tag) -> Option<&str> {
+    if tag.handle == STANDARD_TAG_HANDLE {
+        Some(&tag.suffix)
+    } else if tag.handle.is_empty() {
+        tag.suffix.strip_prefix(STANDARD_TAG_HANDLE)
+    } else {
+        None
+    }
+}
+
+/// Resolve a scalar carrying an explicit standard tag, e.g. `!!int 5`.
+///
+/// Standard tags that don't apply to scalars (`!!map`, `!!binary`, …) leave the
+/// text alone; a value that contradicts its tag becomes `Yaml::BadValue`.
+fn resolve_tagged_scalar(value: &str, suffix: &str) -> Yaml {
+    match suffix {
+        "str" => Yaml::String(value.to_string()),
+        "bool" => match value {
+            "true" | "True" | "TRUE" => Yaml::Boolean(true),
+            "false" | "False" | "FALSE" => Yaml::Boolean(false),
+            _ => Yaml::BadValue,
+        },
+        "int" => match value.parse::<i64>() {
+            Ok(i) => Yaml::Integer(i),
+            Err(_) => Yaml::BadValue,
+        },
+        "float" => {
+            if is_yaml_float(value) {
+                Yaml::Real(value.to_string())
+            } else {
+                Yaml::BadValue
+            }
+        }
+        "null" => match value {
+            "null" | "Null" | "NULL" | "~" | "" => Yaml::Null,
+            _ => Yaml::BadValue,
+        },
+        _ => Yaml::String(value.to_string()),
+    }
+}
+
+/// Resolve an untagged plain scalar with the YAML 1.2 core schema.
 ///
 /// This handles type inference: integers, floats, booleans, null, and strings.
-fn parse_scalar_value(value: &str) -> Yaml {
+/// Note that the core schema recognises only `true`/`false` (and their `True`,
+/// `TRUE` spellings) as booleans — YAML 1.1's `yes`, `no`, `on` and `off` are
+/// plain strings in 1.2.
+fn resolve_plain_scalar(value: &str) -> Yaml {
     // Try to parse as integer
     if let Ok(i) = value.parse::<i64>() {
         return Yaml::Integer(i);
@@ -567,10 +640,10 @@ fn parse_scalar_value(value: &str) -> Yaml {
 
     // Check for boolean
     match value {
-        "true" | "True" | "TRUE" | "yes" | "Yes" | "YES" | "on" | "On" | "ON" => {
+        "true" | "True" | "TRUE" => {
             return Yaml::Boolean(true);
         }
-        "false" | "False" | "FALSE" | "no" | "No" | "NO" | "off" | "Off" | "OFF" => {
+        "false" | "False" | "FALSE" => {
             return Yaml::Boolean(false);
         }
         "null" | "Null" | "NULL" | "~" | "" => {
@@ -581,6 +654,109 @@ fn parse_scalar_value(value: &str) -> Yaml {
 
     // Default to string
     Yaml::String(value.to_string())
+}
+
+/// Length in bytes of a quoted scalar in the source, quotes included.
+///
+/// `rest` must start at the opening quote. Returns `None` if it doesn't, or if
+/// the closing quote is missing (which yaml-rust2 would have rejected already).
+fn quoted_scalar_len(rest: &str, quote: u8) -> Option<usize> {
+    let bytes = rest.as_bytes();
+    if bytes.first() != Some(&quote) {
+        return None;
+    }
+
+    let mut i = 1;
+    while i < bytes.len() {
+        if bytes[i] == b'\\' && quote == b'"' {
+            // Escapes only exist in double-quoted scalars, where the escaped
+            // byte is always ASCII, so skipping it can't land mid-character.
+            i += 2;
+        } else if bytes[i] == quote {
+            // A single-quoted scalar escapes its quote by doubling it.
+            if quote == b'\'' && bytes.get(i + 1) == Some(&quote) {
+                i += 2;
+            } else {
+                return Some(i + 1);
+            }
+        } else {
+            i += 1;
+        }
+    }
+
+    None
+}
+
+/// Length in bytes of a plain scalar in the source.
+///
+/// A plain scalar can span lines, and the parser folds those breaks into single
+/// spaces (or newlines, for blank lines), so the value is shorter than its
+/// source. Since plain scalars have no escapes, the value can be walked back
+/// onto the source character by character, letting a folded space match a run
+/// of source whitespace. If the two ever fail to line up we fall back to the
+/// value's length rather than guess.
+fn plain_scalar_len(rest: &str, value: &str) -> usize {
+    // Bytes of `rest` consumed so far, and the end of the last content
+    // character matched (which excludes any trailing fold whitespace).
+    let mut consumed = 0;
+    let mut end = 0;
+
+    for ch in value.chars() {
+        let tail = &rest[consumed..];
+
+        // A space or newline in the value may be a folded line break, which is
+        // a whole run of whitespace in the source.
+        if matches!(ch, ' ' | '\n') {
+            let run: usize = tail
+                .chars()
+                .take_while(|c| c.is_whitespace())
+                .map(char::len_utf8)
+                .sum();
+            if run > 0 && tail[..run].contains('\n') {
+                consumed += run;
+                continue;
+            }
+        }
+
+        if !tail.starts_with(ch) {
+            return value.len();
+        }
+        consumed += ch.len_utf8();
+        end = consumed;
+    }
+
+    end
+}
+
+/// Length in bytes of a block scalar's content in the source.
+///
+/// `rest` starts at the block's first content character, which sits at column
+/// `indent`; the block continues over following lines while they are blank or
+/// indented at least that far. Trailing blank lines are left out of the span.
+fn block_scalar_len(rest: &str, indent: usize) -> usize {
+    let mut consumed = 0;
+    let mut end = 0;
+    let mut first = true;
+
+    while consumed < rest.len() {
+        let line_end = rest[consumed..]
+            .find('\n')
+            .map_or(rest.len(), |i| consumed + i);
+        let line = &rest[consumed..line_end];
+        let blank = line.trim().is_empty();
+
+        if !first && !blank && line.len() - line.trim_start().len() < indent {
+            break;
+        }
+        if !blank {
+            end = consumed + line.trim_end().len();
+        }
+
+        consumed = (line_end + 1).min(rest.len());
+        first = false;
+    }
+
+    end
 }
 
 /// Returns `true` if `value` is a YAML 1.2 core-schema float.
@@ -1483,5 +1659,364 @@ file: !path ./data.csv
 
         let file = yaml.get_hash_value("file").expect("file not found");
         assert_eq!(file.tag.as_ref().map(|(t, _)| t.as_str()), Some("path"));
+    }
+
+    // =========== SCALAR RESOLUTION TESTS ===========
+
+    /// Parse `source` and return the value of its single `key` entry.
+    fn parse_value(source: &str) -> YamlWithSourceInfo {
+        parse(source)
+            .unwrap_or_else(|e| panic!("{source:?} should parse: {e}"))
+            .get_hash_value("key")
+            .unwrap_or_else(|| panic!("{source:?} should have a `key` entry"))
+            .clone()
+    }
+
+    /// The source text a node's span covers.
+    fn span_text(source: &str, node: &YamlWithSourceInfo) -> String {
+        source[node.source_info.start_offset()..node.source_info.end_offset()].to_string()
+    }
+
+    #[test]
+    fn test_quoted_scalars_are_strings() {
+        // Quoting is how YAML says "this is text": a quoted scalar never
+        // resolves to a number, bool, or null. See posit-dev/quarto-yaml#2.
+        for (source, expected) in [
+            ("key: \"1\"", "1"),
+            ("key: '1'", "1"),
+            ("key: \"\"", ""),
+            ("key: ''", ""),
+            ("key: 'null'", "null"),
+            ("key: \"~\"", "~"),
+            ("key: \"true\"", "true"),
+            ("key: 'false'", "false"),
+            ("key: \"1.5\"", "1.5"),
+            ("key: \".inf\"", ".inf"),
+        ] {
+            let value = parse_value(source);
+            assert_eq!(
+                value.yaml,
+                Yaml::String(expected.to_string()),
+                "{source:?} should resolve to the string {expected:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_block_scalars_are_strings() {
+        // Block scalars are strings too, including the chomped forms whose
+        // value has no trailing newline to give them away.
+        for source in [
+            "key: |-\n  true",
+            "key: >-\n  42",
+            "key: |\n  null\n",
+            "key: >\n  1.5\n",
+        ] {
+            let value = parse_value(source);
+            assert!(
+                matches!(value.yaml, Yaml::String(_)),
+                "{source:?} should resolve to a string, got {:?}",
+                value.yaml
+            );
+        }
+    }
+
+    #[test]
+    fn test_plain_booleans_follow_yaml_12_core_schema() {
+        // The 1.2 core schema recognises only `true`/`false`; YAML 1.1's
+        // `yes`, `no`, `on`, `off` are plain strings.
+        for text in ["true", "True", "TRUE"] {
+            assert_eq!(
+                parse(text).unwrap().yaml.as_bool(),
+                Some(true),
+                "{text:?} should be true"
+            );
+        }
+        for text in ["false", "False", "FALSE"] {
+            assert_eq!(
+                parse(text).unwrap().yaml.as_bool(),
+                Some(false),
+                "{text:?} should be false"
+            );
+        }
+        for text in [
+            "yes", "Yes", "YES", "no", "No", "NO", "on", "On", "ON", "off", "Off", "OFF", "y", "n",
+        ] {
+            let yaml = parse(text).unwrap();
+            assert_eq!(
+                yaml.yaml,
+                Yaml::String(text.to_string()),
+                "{text:?} is a string in YAML 1.2, got {:?}",
+                yaml.yaml
+            );
+        }
+    }
+
+    #[test]
+    fn test_explicit_standard_tags_are_honoured() {
+        // An explicit tag *is* the node's type, so it overrides both implicit
+        // resolution and the quoting style.
+        for (source, expected) in [
+            ("key: !!str 5", Yaml::String("5".to_string())),
+            ("key: !!str true", Yaml::String("true".to_string())),
+            ("key: !!int \"7\"", Yaml::Integer(7)),
+            ("key: !!int -7", Yaml::Integer(-7)),
+            ("key: !!float \"1.5\"", Yaml::Real("1.5".to_string())),
+            ("key: !!bool \"true\"", Yaml::Boolean(true)),
+            ("key: !!bool 'false'", Yaml::Boolean(false)),
+            ("key: !!null \"~\"", Yaml::Null),
+            // The verbatim spelling of the same tags.
+            (
+                "key: !<tag:yaml.org,2002:str> 5",
+                Yaml::String("5".to_string()),
+            ),
+            ("key: !<tag:yaml.org,2002:int> \"7\"", Yaml::Integer(7)),
+        ] {
+            assert_eq!(
+                parse_value(source).yaml,
+                expected,
+                "{source:?} should resolve to {expected:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_standard_tag_that_does_not_fit_its_value() {
+        // A value contradicting its tag is a bad value, as in yaml-rust2's own
+        // loader — we don't silently re-type it.
+        for source in [
+            "key: !!int abc",
+            "key: !!float abc",
+            "key: !!bool maybe",
+            "key: !!null 5",
+        ] {
+            assert_eq!(
+                parse_value(source).yaml,
+                Yaml::BadValue,
+                "{source:?} should resolve to BadValue"
+            );
+        }
+    }
+
+    #[test]
+    fn test_application_tags_do_not_change_resolution() {
+        // Application-specific tags are reported in `tag` for consumers to
+        // interpret; they leave resolution alone.
+        let value = parse_value("key: !expr 42");
+        assert_eq!(value.yaml, Yaml::Integer(42));
+        assert_eq!(value.tag.as_ref().map(|(t, _)| t.as_str()), Some("expr"));
+
+        // …but the quoting style still applies under an application tag.
+        let value = parse_value("key: !expr \"42\"");
+        assert_eq!(value.yaml, Yaml::String("42".to_string()));
+        assert_eq!(value.tag.as_ref().map(|(t, _)| t.as_str()), Some("expr"));
+    }
+
+    // =========== SCALAR SPAN TESTS ===========
+
+    #[test]
+    fn test_quoted_scalar_spans_cover_the_whole_scalar() {
+        // Spans start at the opening quote, so they have to end at the closing
+        // one: `"1"` is three bytes of source even though its value is one.
+        for (source, expected) in [
+            ("key: \"1\"", "\"1\""),
+            ("key: 'null'", "'null'"),
+            ("key: \"true\"", "\"true\""),
+            ("key: \"\"", "\"\""),
+            ("key: ''", "''"),
+            // Escapes: the value is shorter than the source.
+            ("key: \"a\\nb\"", "\"a\\nb\""),
+            ("key: \"esc \\\" quote\"", "\"esc \\\" quote\""),
+            ("key: 'it''s'", "'it''s'"),
+            // A trailing comment is not part of the scalar.
+            ("key: \"x\" # comment", "\"x\""),
+            // Multi-byte characters.
+            ("key: \"日本 語\"", "\"日本 語\""),
+            // A quoted scalar can be folded over several lines.
+            ("key: \"multi\n  line\"", "\"multi\n  line\""),
+        ] {
+            let value = parse_value(source);
+            assert_eq!(
+                span_text(source, &value),
+                expected,
+                "span of the value in {source:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_plain_scalar_spans() {
+        for (source, expected) in [
+            ("key: 42", "42"),
+            ("key: hello world", "hello world"),
+            ("key: two  spaces", "two  spaces"),
+            ("key: x # comment", "x"),
+            // Folded over lines: the source is longer than the value.
+            ("key: plain\n  continued", "plain\n  continued"),
+            ("key: a \n  b", "a \n  b"),
+            ("key: a\n\n  b", "a\n\n  b"),
+            // Flow context: the scalar stops at the closing bracket.
+            ("key: [a, b]", "a"),
+        ] {
+            let value = parse_value(source);
+            let value = value.as_array().map_or(value.clone(), |i| i[0].clone());
+            assert_eq!(
+                span_text(source, &value),
+                expected,
+                "span of the value in {source:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_block_scalar_spans_cover_their_content() {
+        // The marker points at the first content character, so the `|`/`>`
+        // header is outside the span, but the content lines are all inside it.
+        for (source, expected) in [
+            ("key: |\n  a\n  b\n", "a\n  b"),
+            ("key: |-\n  a\n  b\nnext: 1\n", "a\n  b"),
+            ("key: >\n  folded\n  text\n", "folded\n  text"),
+            // Blank lines inside the block belong to it; trailing ones don't.
+            ("key: >-\n  a\n\n  b\n\nnext: 1\n", "a\n\n  b"),
+            ("key: |\n  a\n\n", "a"),
+            // A less-indented line ends the block.
+            ("key: |\n  a\n# comment\nnext: 1\n", "a"),
+        ] {
+            let value = parse_value(source);
+            assert_eq!(
+                span_text(source, &value),
+                expected,
+                "span of the value in {source:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_quoted_key_spans() {
+        let source = "\"quoted key\": v";
+        let entries = parse(source).unwrap();
+        let entries = entries.as_hash().expect("should be a hash");
+        assert_eq!(entries.len(), 1);
+        assert_eq!(
+            &source[entries[0].key_span.start_offset()..entries[0].key_span.end_offset()],
+            "\"quoted key\""
+        );
+    }
+
+    #[test]
+    fn test_standard_tag_span_covers_both_bangs() {
+        let source = "key: !!str 5";
+        let value = parse_value(source);
+        let (suffix, tag_span) = value.tag.as_ref().expect("tag should be present");
+        assert_eq!(suffix, "str");
+        assert_eq!(
+            &source[tag_span.start_offset()..tag_span.end_offset()],
+            "!!str"
+        );
+    }
+
+    #[test]
+    fn test_verbatim_tag_span() {
+        let source = "key: !<tag:yaml.org,2002:str> 5";
+        let value = parse_value(source);
+        let (_, tag_span) = value.tag.as_ref().expect("tag should be present");
+        assert_eq!(
+            &source[tag_span.start_offset()..tag_span.end_offset()],
+            "!<tag:yaml.org,2002:str>"
+        );
+    }
+
+    #[test]
+    fn test_tag_span_in_flow_sequence() {
+        let source = "key: [!expr 1]";
+        let items = parse_value(source);
+        let items = items.as_array().expect("should be an array");
+        let (_, tag_span) = items[0].tag.as_ref().expect("tag should be present");
+        assert_eq!(
+            &source[tag_span.start_offset()..tag_span.end_offset()],
+            "!expr"
+        );
+    }
+
+    #[test]
+    fn test_tag_span_with_an_anchor_in_the_way() {
+        // A node can carry a tag and an anchor in either order, so the tag is
+        // not always the token next to the value.
+        for (source, expected) in [
+            ("key: !expr &name value", "!expr"),
+            ("key: &name !expr value", "!expr"),
+            ("key: !!str &name 5", "!!str"),
+            (
+                "key: &name !<tag:example.com,2000:x> value",
+                "!<tag:example.com,2000:x>",
+            ),
+            ("key: [&a !expr 1]", "!expr"),
+            ("key: [!expr &a 1]", "!expr"),
+        ] {
+            let value = parse_value(source);
+            let value = value.as_array().map_or(value.clone(), |i| i[0].clone());
+            let (_, tag_span) = value
+                .tag
+                .as_ref()
+                .unwrap_or_else(|| panic!("{source:?} should have a tag"));
+            assert_eq!(
+                &source[tag_span.start_offset()..tag_span.end_offset()],
+                expected,
+                "tag span in {source:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_spans_stay_within_the_source() {
+        // Whatever the shape of the input, no span may run past the end of the
+        // source — consumers slice the source with these offsets.
+        for source in [
+            "key:",
+            "key: |\n",
+            "key: >\n",
+            "[a, 'b', \"c\"]",
+            "- 1\n- \"2\"\n",
+            "{}",
+            "[]",
+            "key: !!str",
+            "key: !expr",
+            "key: !!str &name 5",
+            "key: &name !!str",
+            "!!str 5",
+        ] {
+            let parsed = parse(source).unwrap_or_else(|e| panic!("{source:?} should parse: {e}"));
+            assert_spans_within(source, &parsed);
+        }
+    }
+
+    fn assert_spans_within(source: &str, node: &YamlWithSourceInfo) {
+        let (start, end) = (
+            node.source_info.start_offset(),
+            node.source_info.end_offset(),
+        );
+        assert!(
+            start <= end && end <= source.len(),
+            "span {start}..{end} of {:?} is outside {source:?}",
+            node.yaml
+        );
+        if let Some((suffix, tag_span)) = &node.tag {
+            let (start, end) = (tag_span.start_offset(), tag_span.end_offset());
+            assert!(
+                start <= end && end <= source.len(),
+                "tag span {start}..{end} of !{suffix} is outside {source:?}"
+            );
+        }
+        if let Some(items) = node.as_array() {
+            for item in items {
+                assert_spans_within(source, item);
+            }
+        }
+        if let Some(entries) = node.as_hash() {
+            for entry in entries {
+                assert_spans_within(source, &entry.key);
+                assert_spans_within(source, &entry.value);
+            }
+        }
     }
 }
