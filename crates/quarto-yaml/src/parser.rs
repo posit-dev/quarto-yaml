@@ -600,9 +600,9 @@ fn resolve_tagged_scalar(value: &str, suffix: &str) -> Yaml {
             "false" | "False" | "FALSE" => Yaml::Boolean(false),
             _ => Yaml::BadValue,
         },
-        "int" => match value.parse::<i64>() {
-            Ok(i) => Yaml::Integer(i),
-            Err(_) => Yaml::BadValue,
+        "int" => match parse_core_schema_int(value) {
+            Some(i) => Yaml::Integer(i),
+            None => Yaml::BadValue,
         },
         "float" => {
             if is_yaml_float(value) {
@@ -619,15 +619,39 @@ fn resolve_tagged_scalar(value: &str, suffix: &str) -> Yaml {
     }
 }
 
+/// Parse an integer in one of the YAML 1.2 core schema's three `!!int` forms:
+/// `[-+]?[0-9]+`, `0o[0-7]+` or `0x[0-9a-fA-F]+`.
+///
+/// The prefixed forms are lower-case and unsigned — `0X1f` and `-0x1f` are
+/// strings — and `i64::from_str_radix` accepts a sign the schema doesn't, so
+/// the digit runs are checked by hand rather than left to the parse. A value
+/// that matches a form but overflows `i64` is `None`, like any non-match.
+fn parse_core_schema_int(value: &str) -> Option<i64> {
+    if let Some(digits) = value.strip_prefix("0x") {
+        if digits.is_empty() || !digits.bytes().all(|b| b.is_ascii_hexdigit()) {
+            return None;
+        }
+        return i64::from_str_radix(digits, 16).ok();
+    }
+    if let Some(digits) = value.strip_prefix("0o") {
+        if digits.is_empty() || !digits.bytes().all(|b| (b'0'..=b'7').contains(&b)) {
+            return None;
+        }
+        return i64::from_str_radix(digits, 8).ok();
+    }
+    value.parse::<i64>().ok()
+}
+
 /// Resolve an untagged plain scalar with the YAML 1.2 core schema.
 ///
-/// This handles type inference: integers, floats, booleans, null, and strings.
-/// Note that the core schema recognises only `true`/`false` (and their `True`,
+/// This handles type inference: integers (in the three core-schema forms —
+/// see [`parse_core_schema_int`]), floats, booleans, null, and strings. Note
+/// that the core schema recognises only `true`/`false` (and their `True`,
 /// `TRUE` spellings) as booleans — YAML 1.1's `yes`, `no`, `on` and `off` are
 /// plain strings in 1.2.
 fn resolve_plain_scalar(value: &str) -> Yaml {
     // Try to parse as integer
-    if let Ok(i) = value.parse::<i64>() {
+    if let Some(i) = parse_core_schema_int(value) {
         return Yaml::Integer(i);
     }
 
@@ -1753,6 +1777,56 @@ file: !path ./data.csv
     }
 
     #[test]
+    fn test_plain_integers_follow_yaml_12_core_schema() {
+        // The core schema's `!!int` matches `[-+]?[0-9]+`, `0x[0-9a-fA-F]+`
+        // and `0o[0-7]+`.
+        for (text, expected) in [
+            ("42", 42),
+            ("-7", -7),
+            ("+7", 7),
+            ("0x1f", 31),
+            ("0xFF", 255),
+            ("0o17", 15),
+            ("0o0", 0),
+        ] {
+            assert_eq!(
+                parse(text).unwrap().yaml.as_i64(),
+                Some(expected),
+                "{text:?} should be the integer {expected}"
+            );
+        }
+        // The prefixed forms are lower-case and unsigned, there is no binary
+        // form, and a value that overflows i64 falls back to a string.
+        for text in [
+            "0X1f",
+            "-0x1f",
+            "+0x1f",
+            "0b101",
+            "0x",
+            "0o",
+            "0o8",
+            "0o18",
+            "0xg1",
+            "0o+7",
+            "0x-1f",
+            "0xFFFFFFFFFFFFFFFF",
+        ] {
+            let yaml = parse(text).unwrap();
+            assert_eq!(
+                yaml.yaml,
+                Yaml::String(text.to_string()),
+                "{text:?} should stay a string, got {:?}",
+                yaml.yaml
+            );
+        }
+        // Quoting still wins: a quoted hex spelling is text.
+        assert_eq!(
+            parse_value("key: \"0x1f\"").yaml,
+            Yaml::String("0x1f".to_string())
+        );
+    }
+
+    #[test]
     fn test_explicit_standard_tags_are_honoured() {
         // An explicit tag *is* the node's type, so it overrides both implicit
         // resolution and the quoting style.
@@ -1761,6 +1835,8 @@ file: !path ./data.csv
             ("key: !!str true", Yaml::String("true".to_string())),
             ("key: !!int \"7\"", Yaml::Integer(7)),
             ("key: !!int -7", Yaml::Integer(-7)),
+            ("key: !!int 0x1f", Yaml::Integer(31)),
+            ("key: !!int 0o17", Yaml::Integer(15)),
             ("key: !!float \"1.5\"", Yaml::Real("1.5".to_string())),
             ("key: !!bool \"true\"", Yaml::Boolean(true)),
             ("key: !!bool 'false'", Yaml::Boolean(false)),
@@ -1786,6 +1862,8 @@ file: !path ./data.csv
         // loader — we don't silently re-type it.
         for source in [
             "key: !!int abc",
+            "key: !!int 0X1f",
+            "key: !!int 0xFFFFFFFFFFFFFFFF",
             "key: !!float abc",
             "key: !!bool maybe",
             "key: !!null 5",
