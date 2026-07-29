@@ -102,7 +102,8 @@ scalar resolution but deliberately left this divergence for a follow-up.
   - Decimal regression guard: `42`, `-7`, `+7` still integers.
 - [x] `cargo test` across the workspace (346 tests pass); `cargo clippy`
       clean.
-- [ ] Close `qy-3g25mtzw` and open a PR referencing GH #3.
+- [x] Close `qy-3g25mtzw` and open a PR referencing GH #3.
+      (PR: https://github.com/posit-dev/quarto-yaml/pull/5)
 
 ## Open questions
 
