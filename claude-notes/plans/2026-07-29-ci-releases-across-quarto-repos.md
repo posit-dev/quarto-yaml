@@ -127,15 +127,21 @@ intra-workspace `quarto-yaml` dep version) → merge → CI does the rest.
       with auth/publish/tag skipped.)
 
 ### Phase 3 — trusted publishing config (Carlos)
-- [ ] Configure the 4 crates on crates.io as above.
+- [x] Configure the 4 crates on crates.io as above. (Done 2026-07-30, and
+      "require trusted publishing" enabled on all four — token publishes
+      are now rejected; the checkbox is owner-reversible if CI is wedged.)
 
 ### Phase 4 — documentation and memory
 - [x] Add a short "Releasing" section to each repo's README or CLAUDE.md
       describing the bump-PR process. (CLAUDE.md in quarto-yaml and
       quarto-error-reporting, README in quarto-source-map; in the PRs.)
 - [x] Update my project memory (release-process.md) to the new process.
-- [ ] First real release through the pipeline (whenever one is next due)
-      confirms end-to-end; until then dry-run coverage is the validation.
+- [x] First real release through the pipeline confirms end-to-end:
+      quarto-source-map 0.1.1 (docs-only patch, PR #2, run 30573352670) —
+      OIDC auth, publish under require-trusted-publishing, tag v0.1.1, and
+      GitHub Release all succeeded. **Plan complete; epic qy-j7jz8rxi
+      closed.** Follow-up suggested to Carlos: revoke the old workstation
+      API token, now pure liability.
 
 ## Open questions
 
