@@ -33,6 +33,12 @@ concurrency:
 jobs:
   check:
     name: compare workspace version with crates.io
+    # Skip in forks: releases only make sense in the canonical repos (a
+    # fork's OIDC identity couldn't publish anyway, but this avoids noisy
+    # failed runs and wasted cycles for fork owners). Owner-level rather
+    # than repo-level so this file stays byte-identical across the
+    # quarto-* repos. Gates the release job too, via `needs`.
+    if: github.repository_owner == 'posit-dev'
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.plan.outputs.version }}
