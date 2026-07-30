@@ -59,7 +59,11 @@ Release. No long-lived tokens — crates.io Trusted Publishing (OIDC).
 One `release.yml`, byte-identical across the three repos:
 
 - **Triggers:** `push` to `main`, and `workflow_dispatch` with a `dry_run`
-  boolean input.
+  boolean input. The check job is guarded by
+  `github.repository_owner == 'posit-dev'` (Carlos's suggestion) so forks
+  don't run noisy, doomed release jobs — owner-level rather than repo-level
+  to keep the file byte-identical across repos. Not a security boundary;
+  trusted publishing's repo binding is.
 - **Gate:** read the workspace version via `cargo metadata`; query crates.io
   for each publishable member; if every member already has that version, the
   run is a cheap no-op. A release is triggered *by merging a version bump* —
