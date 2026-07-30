@@ -111,17 +111,20 @@ intra-workspace `quarto-yaml` dep version) → merge → CI does the rest.
       (Validated locally: actionlint clean; planner script tested against
       all three repos and against a synthetic unpublished bump.)
 - [x] Create the `release` environment in the repo.
-- [ ] PR, review, merge. (PR #7 open.)
-- [ ] Validate via `workflow_dispatch` dry-run. (Requires the workflow on
-      the default branch, i.e. after #7 merges.)
+- [x] PR, review, merge. (PR #7, merged 2026-07-30.)
+- [x] Validate via `workflow_dispatch` dry-run. (Run 30568414988: check +
+      test + package succeeded, auth/publish/tag correctly skipped. The
+      push-triggered run on merge also no-opped correctly: "version 0.1.1;
+      to publish: nothing", release job skipped.)
 
 ### Phase 2 — replicate to siblings
 - [x] Same file + environment + PR in `quarto-source-map`.
       (quarto-source-map#1 open; environment created.)
 - [x] Same file + environment + PR in `quarto-error-reporting`.
       (quarto-error-reporting#2 open; environment created.)
-- [ ] Dry-run dispatch in each. (After the PRs merge; suggest merging
-      quarto-yaml#7 and dry-running it first.)
+- [x] Dry-run dispatch in each. (Both merged 2026-07-30; push runs no-op
+      correctly, dry-runs 30572702191 / 30572704835 validate test+package
+      with auth/publish/tag skipped.)
 
 ### Phase 3 — trusted publishing config (Carlos)
 - [ ] Configure the 4 crates on crates.io as above.
@@ -130,8 +133,7 @@ intra-workspace `quarto-yaml` dep version) → merge → CI does the rest.
 - [x] Add a short "Releasing" section to each repo's README or CLAUDE.md
       describing the bump-PR process. (CLAUDE.md in quarto-yaml and
       quarto-error-reporting, README in quarto-source-map; in the PRs.)
-- [ ] Update my project memory (release-process.md) to the new process.
-      (After the pipeline is merged and dry-run-validated.)
+- [x] Update my project memory (release-process.md) to the new process.
 - [ ] First real release through the pipeline (whenever one is next due)
       confirms end-to-end; until then dry-run coverage is the validation.
 
