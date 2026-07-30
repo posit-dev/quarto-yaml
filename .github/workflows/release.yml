@@ -1,0 +1,173 @@
+# Publish to crates.io, tag, and create a GitHub Release whenever main's
+# version is ahead of the registry. A release is made by merging a
+# version-bump PR; every other push to main is a cheap no-op here.
+#
+# Publishing authenticates via crates.io Trusted Publishing (OIDC) — no
+# stored tokens. Each crate must list this repo + workflow file (and the
+# `release` environment) under Settings → Trusted Publishing on crates.io.
+#
+# The workflow is repo-agnostic: the crates to publish, their dependency
+# order, and the shared version all come from `cargo metadata`. A failed run
+# is safe to re-run — already-published crates are skipped.
+
+name: Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Verify and package only; do not publish, tag, or create a release"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+# Serialize releases; never cancel one mid-publish.
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  check:
+    name: compare workspace version with crates.io
+    # Skip in forks: releases only make sense in the canonical repos (a
+    # fork's OIDC identity couldn't publish anyway, but this avoids noisy
+    # failed runs and wasted cycles for fork owners). Owner-level rather
+    # than repo-level so this file stays byte-identical across the
+    # quarto-* repos. Gates the release job too, via `needs`.
+    if: github.repository_owner == 'posit-dev'
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.plan.outputs.version }}
+      to_publish: ${{ steps.plan.outputs.to_publish }}
+      release_needed: ${{ steps.plan.outputs.release_needed }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Rust (stable)
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Plan the release
+        id: plan
+        run: |
+          python3 - <<'EOF'
+          import json, os, subprocess, sys, urllib.error, urllib.request
+
+          meta = json.loads(subprocess.check_output(
+              ["cargo", "metadata", "--format-version", "1", "--no-deps"]))
+          # `publish: []` is Cargo's encoding of `publish = false`.
+          publishable = {p["name"]: p for p in meta["packages"] if p["publish"] != []}
+
+          # Dependency order: publish a crate only after the workspace crates
+          # it depends on. Dev-dependencies don't gate publishing.
+          order = []
+          remaining = dict(publishable)
+          while remaining:
+              ready = [
+                  name for name, pkg in remaining.items()
+                  if not any(
+                      d["name"] in remaining
+                      for d in pkg["dependencies"]
+                      if d.get("kind") != "dev" and d["name"] in publishable
+                  )
+              ]
+              if not ready:
+                  sys.exit(f"dependency cycle among workspace crates: {sorted(remaining)}")
+              for name in sorted(ready):
+                  order.append(name)
+                  del remaining[name]
+
+          # The repos release in lockstep: one version for every crate.
+          versions = {name: publishable[name]["version"] for name in order}
+          if len(set(versions.values())) != 1:
+              sys.exit(f"workspace crates disagree on version: {versions}")
+          version = versions[order[0]]
+
+          def published(name):
+              req = urllib.request.Request(
+                  f"https://crates.io/api/v1/crates/{name}/{version}",
+                  headers={"User-Agent":
+                           f"{os.environ['GITHUB_REPOSITORY']} release workflow "
+                           "(github actions)"})
+              try:
+                  urllib.request.urlopen(req)
+                  return True
+              except urllib.error.HTTPError as e:
+                  if e.code == 404:
+                      return False
+                  raise
+
+          to_publish = [name for name in order if not published(name)]
+          with open(os.environ["GITHUB_OUTPUT"], "a") as out:
+              out.write(f"version={version}\n")
+              out.write(f"to_publish={json.dumps(to_publish)}\n")
+              out.write(f"release_needed={json.dumps(bool(to_publish))}\n")
+          print(f"version {version}; to publish: {', '.join(to_publish) or 'nothing'}")
+          EOF
+
+  release:
+    name: publish, tag, and release
+    needs: check
+    # workflow_dispatch always runs this job so the pipeline can be exercised
+    # (dry or not) even when there is nothing to publish.
+    if: needs.check.outputs.release_needed == 'true' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      id-token: write # OIDC exchange with crates.io
+      contents: write # tag + GitHub Release
+    env:
+      DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
+      VERSION: ${{ needs.check.outputs.version }}
+      TO_PUBLISH: ${{ needs.check.outputs.to_publish }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Rust (stable)
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo build
+        uses: Swatinem/rust-cache@v2
+
+      - name: Test at the release commit
+        run: cargo test --workspace --locked
+
+      # Verifies every crate packages cleanly before anything is uploaded,
+      # so a mid-publish failure can't be caused by a packaging problem in a
+      # later crate. Also the whole of the publish step under dry_run.
+      - name: Package all crates
+        run: cargo package --workspace --locked
+
+      - name: Authenticate with crates.io (OIDC)
+        if: env.DRY_RUN != 'true' && needs.check.outputs.release_needed == 'true'
+        id: auth
+        uses: rust-lang/crates-io-auth-action@v1
+
+      - name: Publish to crates.io
+        if: env.DRY_RUN != 'true' && needs.check.outputs.release_needed == 'true'
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
+        run: |
+          echo "$TO_PUBLISH" | jq -r '.[]' | while read -r crate; do
+            echo "::group::publish $crate@$VERSION"
+            cargo publish -p "$crate" --locked
+            echo "::endgroup::"
+          done
+
+      - name: Tag and create GitHub Release
+        if: env.DRY_RUN != 'true' && needs.check.outputs.release_needed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "v$VERSION" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "release v$VERSION already exists"
+          else
+            gh release create "v$VERSION" \
+              --repo "$GITHUB_REPOSITORY" \
+              --target "$GITHUB_SHA" \
+              --title "v$VERSION" \
+              --generate-notes
+          fi
