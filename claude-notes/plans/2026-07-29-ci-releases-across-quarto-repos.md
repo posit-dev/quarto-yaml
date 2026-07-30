@@ -112,17 +112,22 @@ intra-workspace `quarto-yaml` dep version) → merge → CI does the rest.
       the default branch, i.e. after #7 merges.)
 
 ### Phase 2 — replicate to siblings
-- [ ] Same file + environment + PR in `quarto-source-map`.
-- [ ] Same file + environment + PR in `quarto-error-reporting`.
-- [ ] Dry-run dispatch in each.
+- [x] Same file + environment + PR in `quarto-source-map`.
+      (quarto-source-map#1 open; environment created.)
+- [x] Same file + environment + PR in `quarto-error-reporting`.
+      (quarto-error-reporting#2 open; environment created.)
+- [ ] Dry-run dispatch in each. (After the PRs merge; suggest merging
+      quarto-yaml#7 and dry-running it first.)
 
 ### Phase 3 — trusted publishing config (Carlos)
 - [ ] Configure the 4 crates on crates.io as above.
 
 ### Phase 4 — documentation and memory
-- [ ] Add a short "Releasing" section to each repo's README or CLAUDE.md
-      describing the bump-PR process.
+- [x] Add a short "Releasing" section to each repo's README or CLAUDE.md
+      describing the bump-PR process. (CLAUDE.md in quarto-yaml and
+      quarto-error-reporting, README in quarto-source-map; in the PRs.)
 - [ ] Update my project memory (release-process.md) to the new process.
+      (After the pipeline is merged and dry-run-validated.)
 - [ ] First real release through the pipeline (whenever one is next due)
       confirms end-to-end; until then dry-run coverage is the validation.
 
