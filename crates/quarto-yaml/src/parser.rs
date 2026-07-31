@@ -272,6 +272,24 @@ impl<'a> YamlBuilder<'a> {
         }
     }
 
+    /// The end byte offset of a collection whose start byte offset is `start`.
+    ///
+    /// yaml-rust2's SequenceEnd/MappingEnd markers point *at* a flow
+    /// collection's closing `]`/`}`, not past it, so the closer has to be
+    /// pulled into the span by hand. A flow collection is recognised by its
+    /// opener sitting at `start`; block collections (which cannot appear
+    /// inside flow context) end wherever the next token begins and are left
+    /// alone.
+    fn collection_end(&self, start: usize, end_marker: &Marker, open: u8, close: u8) -> usize {
+        let end = self.byte_offset(end_marker);
+        let bytes = self.source.as_bytes();
+        if bytes.get(start) == Some(&open) && bytes.get(end) == Some(&close) {
+            end + 1
+        } else {
+            end
+        }
+    }
+
     fn result(self) -> Result<YamlWithSourceInfo> {
         self.root.ok_or_else(|| Error::ParseError {
             message: "No YAML document found".into(),
@@ -486,11 +504,12 @@ impl<'a> MarkedEventReceiver for YamlBuilder<'a> {
                     items,
                 } = build_node
                 {
-                    // Compute the length from start to current marker
-                    let len = self
-                        .byte_offset(&marker)
-                        .saturating_sub(self.byte_offset(&start_marker));
-                    let source_info = self.make_source_info(&start_marker, len);
+                    // Compute the length from start to current marker,
+                    // pulling in the closing `]` of a flow sequence.
+                    let start = self.byte_offset(&start_marker);
+                    let end = self.collection_end(start, &marker, b'[', b']');
+                    let source_info =
+                        self.make_source_info_at_offset(start, end.saturating_sub(start));
 
                     // Build the Yaml::Array
                     let yaml_items: Vec<Yaml> = items.iter().map(|n| n.yaml.clone()).collect();
@@ -544,22 +563,26 @@ impl<'a> MarkedEventReceiver for YamlBuilder<'a> {
                         yaml_pairs.push((key.yaml.clone(), value.yaml.clone()));
                     }
 
-                    // Compute source_info for the entire object
-                    // If we have entries, use the first key's start and the current marker's end
-                    // Otherwise, use start_marker to current marker
-                    let source_info = if let Some(first_entry) = hash_entries.first() {
-                        // Get the start offset from the first key
+                    // Compute source_info for the entire object, pulling in
+                    // the closing `}` of a flow mapping.
+                    let start = self.byte_offset(&start_marker);
+                    let end = self.collection_end(start, &marker, b'{', b'}');
+
+                    let source_info = if self.source.as_bytes().get(start) == Some(&b'{') {
+                        // Flow mapping: the start marker points at the `{`,
+                        // so the span covers the whole collection.
+                        self.make_source_info_at_offset(start, end.saturating_sub(start))
+                    } else if let Some(first_entry) = hash_entries.first() {
+                        // Block mapping: the start marker points at the first
+                        // entry's `:`, so anchor the span at the first key.
                         let first_key_start = first_entry.key.source_info.start_offset();
-                        // Compute length from first key start to current marker
-                        let len = self.byte_offset(&marker).saturating_sub(first_key_start);
-                        // Create SourceInfo starting from first key
-                        self.make_source_info_at_offset(first_key_start, len)
+                        self.make_source_info_at_offset(
+                            first_key_start,
+                            end.saturating_sub(first_key_start),
+                        )
                     } else {
-                        // Empty object: use start_marker to current marker
-                        let len = self
-                            .byte_offset(&marker)
-                            .saturating_sub(self.byte_offset(&start_marker));
-                        self.make_source_info(&start_marker, len)
+                        // Empty block mapping: start_marker to current marker
+                        self.make_source_info_at_offset(start, end.saturating_sub(start))
                     };
 
                     // Build the Yaml::Hash
@@ -2042,15 +2065,13 @@ file: !path ./data.csv
         let parsed = parse(source).unwrap();
 
         let list = parsed.get_hash_value("list").expect("list not found");
-        // The missing `]` is a separate, pre-existing quirk: yaml-rust2's
-        // SequenceEnd marker points at the closing bracket, not past it, so
-        // flow-collection spans stop just short of it even in pure ASCII.
-        assert_eq!(span_text(source, list), "[é, deux");
+        assert_eq!(span_text(source, list), "[é, deux]");
         let items = list.as_array().expect("list should be an array");
         assert_eq!(span_text(source, &items[0]), "é");
         assert_eq!(span_text(source, &items[1]), "deux");
 
         let map = parsed.get_hash_value("map").expect("map not found");
+        assert_eq!(span_text(source, map), "{a: ç}");
         let entries = map.as_hash().expect("map should be a hash");
         assert_eq!(span_text(source, &entries[0].value), "ç");
 
@@ -2060,6 +2081,44 @@ file: !path ./data.csv
         // The root mapping runs from the first key to the end of the content.
         assert_eq!(parsed.source_info.start_offset(), 0);
         assert_eq!(parsed.source_info.end_offset(), source.len());
+    }
+
+    #[test]
+    fn test_flow_collection_spans_include_the_closing_bracket() {
+        // yaml-rust2's SequenceEnd/MappingEnd markers point at a flow
+        // collection's `]`/`}`, not past it; the span must include the
+        // closer. See posit-dev/quarto-yaml#10.
+        for (source, expected) in [
+            ("key: [a, b]", "[a, b]"),
+            ("key: []", "[]"),
+            ("key: [ a, b ]", "[ a, b ]"),
+            ("key: [a, b] # comment", "[a, b]"),
+            ("key: {a: 1}", "{a: 1}"),
+            ("key: {}", "{}"),
+            ("key: [[1], [2]]", "[[1], [2]]"),
+            ("key: [{a: 1}, b]", "[{a: 1}, b]"),
+        ] {
+            let value = parse_value(source);
+            assert_eq!(
+                span_text(source, &value),
+                expected,
+                "span of the value in {source:?}"
+            );
+        }
+
+        // Nested flow collections get the same treatment.
+        let source = "key: [[1], {a: 2}]";
+        let items = parse_value(source);
+        let items = items.as_array().expect("should be an array");
+        assert_eq!(span_text(source, &items[0]), "[1]");
+        assert_eq!(span_text(source, &items[1]), "{a: 2}");
+
+        // A flow mapping at the root spans its braces, while a block mapping
+        // still starts at its first key (its start marker points at the first
+        // `:`, and there is no closer to include).
+        let source = "{a: 1}";
+        let parsed = parse(source).unwrap();
+        assert_eq!(span_text(source, &parsed), "{a: 1}");
     }
 
     #[test]
