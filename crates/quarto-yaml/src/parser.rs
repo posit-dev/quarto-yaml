@@ -204,6 +204,11 @@ struct YamlBuilder<'a> {
     /// The source text being parsed
     source: &'a str,
 
+    /// Byte offset of each character index in `source`, with one extra entry
+    /// for `source.len()`. `None` when the source is pure ASCII, where the two
+    /// units coincide. See [`Self::byte_offset`].
+    char_to_byte: Option<Vec<usize>>,
+
     /// Optional parent source info for substring tracking
     parent: Option<SourceInfo>,
 
@@ -231,11 +236,39 @@ enum BuildNode {
 
 impl<'a> YamlBuilder<'a> {
     fn new(source: &'a str, parent: Option<SourceInfo>) -> Self {
+        let char_to_byte = if source.is_ascii() {
+            None
+        } else {
+            Some(
+                source
+                    .char_indices()
+                    .map(|(byte, _)| byte)
+                    .chain([source.len()])
+                    .collect(),
+            )
+        };
         Self {
             source,
+            char_to_byte,
             parent,
             stack: Vec::new(),
             root: None,
+        }
+    }
+
+    /// The byte offset in `source` of a marker's position.
+    ///
+    /// `Marker::index()` counts **characters** (its doc comment says bytes,
+    /// but the scanner increments it once per popped `char`), while SourceInfo
+    /// spans are byte offsets that consumers slice the source with. This is
+    /// the single conversion point; everything downstream works in bytes.
+    fn byte_offset(&self, marker: &Marker) -> usize {
+        match &self.char_to_byte {
+            None => marker.index().min(self.source.len()),
+            Some(table) => table
+                .get(marker.index())
+                .copied()
+                .unwrap_or(self.source.len()),
         }
     }
 
@@ -275,7 +308,7 @@ impl<'a> YamlBuilder<'a> {
     }
 
     fn make_source_info(&self, marker: &Marker, len: usize) -> SourceInfo {
-        let start_offset = marker.index();
+        let start_offset = self.byte_offset(marker);
         let end_offset = start_offset + len;
 
         if let Some(ref parent) = self.parent {
@@ -315,7 +348,7 @@ impl<'a> YamlBuilder<'a> {
     /// text, using the style to know what to look for. Quoted scalars include
     /// their quotes, which is what a diagnostic wants to underline.
     fn compute_scalar_len(&self, marker: &Marker, value: &str, style: TScalarStyle) -> usize {
-        let start = marker.index();
+        let start = self.byte_offset(marker);
         let Some(rest) = self.source.get(start..) else {
             return 0;
         };
@@ -346,7 +379,7 @@ impl<'a> YamlBuilder<'a> {
     ///
     /// Returns the byte offset of the '!' character and the tag's byte length.
     fn find_tag_span(&self, value_marker: &Marker) -> Option<(usize, usize)> {
-        let mut before = self.source.get(..value_marker.index())?;
+        let mut before = &self.source[..self.byte_offset(value_marker)];
 
         // A node can carry both a tag and an anchor, in either order
         // (`!tag &name value` and `&name !tag value` are both valid), so walk
@@ -419,7 +452,8 @@ impl<'a> MarkedEventReceiver for YamlBuilder<'a> {
                         // but it stays inside the source, so consumers can
                         // still slice with it.
                         let guess = 1 + t.suffix.len();
-                        let len = guess.min(self.source.len().saturating_sub(marker.index()));
+                        let len =
+                            guess.min(self.source.len().saturating_sub(self.byte_offset(&marker)));
                         let tag_source_info = self.make_source_info(&marker, len);
                         (t.suffix.clone(), tag_source_info)
                     }
@@ -453,7 +487,9 @@ impl<'a> MarkedEventReceiver for YamlBuilder<'a> {
                 } = build_node
                 {
                     // Compute the length from start to current marker
-                    let len = marker.index().saturating_sub(start_marker.index());
+                    let len = self
+                        .byte_offset(&marker)
+                        .saturating_sub(self.byte_offset(&start_marker));
                     let source_info = self.make_source_info(&start_marker, len);
 
                     // Build the Yaml::Array
@@ -515,12 +551,14 @@ impl<'a> MarkedEventReceiver for YamlBuilder<'a> {
                         // Get the start offset from the first key
                         let first_key_start = first_entry.key.source_info.start_offset();
                         // Compute length from first key start to current marker
-                        let len = marker.index().saturating_sub(first_key_start);
+                        let len = self.byte_offset(&marker).saturating_sub(first_key_start);
                         // Create SourceInfo starting from first key
                         self.make_source_info_at_offset(first_key_start, len)
                     } else {
                         // Empty object: use start_marker to current marker
-                        let len = marker.index().saturating_sub(start_marker.index());
+                        let len = self
+                            .byte_offset(&marker)
+                            .saturating_sub(self.byte_offset(&start_marker));
                         self.make_source_info(&start_marker, len)
                     };
 
@@ -1970,6 +2008,75 @@ file: !path ./data.csv
     }
 
     #[test]
+    fn test_spans_are_byte_offsets_after_multibyte_characters() {
+        // yaml-rust2's Marker counts characters, so every span after a
+        // multi-byte character used to be shifted left by its extra bytes.
+        // See posit-dev/quarto-yaml#9 — this is that issue's reprex.
+        let source = "first: é\nsecond: \"quoted\"\n";
+        let parsed = parse(source).unwrap();
+        let entries = parsed.as_hash().expect("should be a hash");
+
+        assert_eq!(
+            span_text(source, &entries[0].value),
+            "é",
+            "span of the value of `first`"
+        );
+        let second = &entries[1];
+        assert_eq!(
+            &source[second.key_span.start_offset()..second.key_span.end_offset()],
+            "second",
+            "span of the key `second`"
+        );
+        assert_eq!(
+            span_text(source, &second.value),
+            "\"quoted\"",
+            "span of the value of `second`"
+        );
+    }
+
+    #[test]
+    fn test_collection_spans_are_byte_offsets_after_multibyte_characters() {
+        // Collection lengths were once differences of character indices while
+        // scalar lengths were bytes; both must be bytes (#9).
+        let source = "dash: \"—\"\nlist: [é, deux]\nmap: {a: ç}\nafter: end\n";
+        let parsed = parse(source).unwrap();
+
+        let list = parsed.get_hash_value("list").expect("list not found");
+        // The missing `]` is a separate, pre-existing quirk: yaml-rust2's
+        // SequenceEnd marker points at the closing bracket, not past it, so
+        // flow-collection spans stop just short of it even in pure ASCII.
+        assert_eq!(span_text(source, list), "[é, deux");
+        let items = list.as_array().expect("list should be an array");
+        assert_eq!(span_text(source, &items[0]), "é");
+        assert_eq!(span_text(source, &items[1]), "deux");
+
+        let map = parsed.get_hash_value("map").expect("map not found");
+        let entries = map.as_hash().expect("map should be a hash");
+        assert_eq!(span_text(source, &entries[0].value), "ç");
+
+        let after = parsed.get_hash_value("after").expect("after not found");
+        assert_eq!(span_text(source, after), "end");
+
+        // The root mapping runs from the first key to the end of the content.
+        assert_eq!(parsed.source_info.start_offset(), 0);
+        assert_eq!(parsed.source_info.end_offset(), source.len());
+    }
+
+    #[test]
+    fn test_tag_span_after_multibyte_characters() {
+        let source = "unit: \"µs\"\nvalue: !expr x + 1\n";
+        let parsed = parse(source).unwrap();
+        let value = parsed.get_hash_value("value").expect("value not found");
+        let (suffix, tag_span) = value.tag.as_ref().expect("tag should be present");
+        assert_eq!(suffix, "expr");
+        assert_eq!(
+            &source[tag_span.start_offset()..tag_span.end_offset()],
+            "!expr"
+        );
+        assert_eq!(span_text(source, value), "x + 1");
+    }
+
+    #[test]
     fn test_quoted_key_spans() {
         let source = "\"quoted key\": v";
         let entries = parse(source).unwrap();
@@ -2062,6 +2169,10 @@ file: !path ./data.csv
             "key: !!str &name 5",
             "key: &name !!str",
             "!!str 5",
+            "日本: 語",
+            "é: [ü, \"ß\"]",
+            "key: — !expr —",
+            "key: |\n  日本\n",
         ] {
             let parsed = parse(source).unwrap_or_else(|e| panic!("{source:?} should parse: {e}"));
             assert_spans_within(source, &parsed);
