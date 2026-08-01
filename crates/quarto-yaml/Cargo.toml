@@ -12,7 +12,8 @@ keywords = ["yaml", "parser", "source-map", "spans", "diagnostics"]
 categories = ["parsing", "development-tools"]
 
 [dependencies]
-yaml-rust2 = { workspace = true }
+saphyr = { workspace = true }
+saphyr-parser = { workspace = true }
 serde = { workspace = true }
 thiserror = { workspace = true }
 quarto-source-map = { workspace = true }

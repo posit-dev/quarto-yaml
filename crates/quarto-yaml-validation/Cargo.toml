@@ -23,7 +23,7 @@ serde_json.workspace = true
 # See YAML-1.2-REQUIREMENT.md for details.
 
 # YAML parsing
-yaml-rust2.workspace = true
+saphyr.workspace = true
 
 # Workspace / published deps
 quarto-yaml = { workspace = true }

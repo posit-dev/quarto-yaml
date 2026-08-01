@@ -6,18 +6,27 @@ mod integration_tests {
     use crate::validator::validate;
     use quarto_source_map::SourceContext;
     use quarto_yaml::{SourceInfo, YamlWithSourceInfo};
-    use yaml_rust2::Yaml;
+    use saphyr::{ScalarOwned, YamlOwned as Yaml};
 
     fn make_yaml_bool(value: bool) -> YamlWithSourceInfo {
-        YamlWithSourceInfo::new_scalar(Yaml::Boolean(value), SourceInfo::for_test())
+        YamlWithSourceInfo::new_scalar(
+            Yaml::Value(ScalarOwned::Boolean(value)),
+            SourceInfo::for_test(),
+        )
     }
 
     fn make_yaml_string(value: &str) -> YamlWithSourceInfo {
-        YamlWithSourceInfo::new_scalar(Yaml::String(value.to_string()), SourceInfo::for_test())
+        YamlWithSourceInfo::new_scalar(
+            Yaml::Value(ScalarOwned::String(value.to_string())),
+            SourceInfo::for_test(),
+        )
     }
 
     fn make_yaml_number(value: i64) -> YamlWithSourceInfo {
-        YamlWithSourceInfo::new_scalar(Yaml::Integer(value), SourceInfo::for_test())
+        YamlWithSourceInfo::new_scalar(
+            Yaml::Value(ScalarOwned::Integer(value)),
+            SourceInfo::for_test(),
+        )
     }
 
     fn make_source_ctx() -> SourceContext {

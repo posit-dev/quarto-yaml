@@ -22,7 +22,7 @@ The implementation includes this comment (line 264-267):
 
 ```rust
 // Note: This uses serde_yaml which supports YAML 1.1 (via yaml-rust).
-// For user YAML documents, we use yaml-rust2 (YAML 1.2) via quarto-yaml.
+// For user YAML documents, we use saphyr (YAML 1.2) via quarto-yaml.
 // This is acceptable because schema definitions are simpler and don't
 // typically use YAML 1.2-specific features. User documents get full YAML 1.2 support.
 ```
@@ -47,7 +47,7 @@ impl<'de> Deserialize<'de> for Schema {
 impl Schema {
     pub fn from_yaml(yaml: &YamlWithSourceInfo) -> Result<Schema, Error> {
         // Manual parsing from YamlWithSourceInfo
-        // This uses yaml-rust2 (YAML 1.2) via quarto-yaml
+        // This uses saphyr (YAML 1.2) via quarto-yaml
     }
 }
 ```

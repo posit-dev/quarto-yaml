@@ -147,8 +147,7 @@ pub(in crate::schema) fn parse_maybe_arrayof_schema(
 mod tests {
     use super::*;
     use quarto_yaml::YamlWithSourceInfo;
-    use yaml_rust2::Yaml;
-    use yaml_rust2::yaml::Hash;
+    use saphyr::{MappingOwned as Hash, ScalarOwned, YamlOwned as Yaml};
 
     fn source_info() -> quarto_yaml::SourceInfo {
         quarto_yaml::SourceInfo::for_test()
@@ -236,14 +235,18 @@ anyOf:
         // This requires constructing a YAML where anyOf points to a scalar
         let mut hash = Hash::new();
         hash.insert(
-            Yaml::String("anyOf".to_string()),
-            Yaml::String("not an array".to_string()),
+            Yaml::Value(ScalarOwned::String("anyOf".to_string())),
+            Yaml::Value(ScalarOwned::String("not an array".to_string())),
         );
 
-        let key_node =
-            YamlWithSourceInfo::new_scalar(Yaml::String("anyOf".to_string()), source_info());
-        let value_node =
-            YamlWithSourceInfo::new_scalar(Yaml::String("not an array".to_string()), source_info());
+        let key_node = YamlWithSourceInfo::new_scalar(
+            Yaml::Value(ScalarOwned::String("anyOf".to_string())),
+            source_info(),
+        );
+        let value_node = YamlWithSourceInfo::new_scalar(
+            Yaml::Value(ScalarOwned::String("not an array".to_string())),
+            source_info(),
+        );
 
         let entry = quarto_yaml::YamlHashEntry::new(
             key_node,
@@ -253,7 +256,7 @@ anyOf:
             source_info(),
         );
 
-        let yaml = YamlWithSourceInfo::new_hash(Yaml::Hash(hash), source_info(), vec![entry]);
+        let yaml = YamlWithSourceInfo::new_hash(Yaml::Mapping(hash), source_info(), vec![entry]);
         let anyof_value = yaml.get_hash_value("anyOf").unwrap();
 
         let result = parse_anyof_schema(anyof_value);
@@ -349,14 +352,18 @@ allOf:
         // allOf: "not an array" (inline form but not an array)
         let mut hash = Hash::new();
         hash.insert(
-            Yaml::String("allOf".to_string()),
-            Yaml::String("not an array".to_string()),
+            Yaml::Value(ScalarOwned::String("allOf".to_string())),
+            Yaml::Value(ScalarOwned::String("not an array".to_string())),
         );
 
-        let key_node =
-            YamlWithSourceInfo::new_scalar(Yaml::String("allOf".to_string()), source_info());
-        let value_node =
-            YamlWithSourceInfo::new_scalar(Yaml::String("not an array".to_string()), source_info());
+        let key_node = YamlWithSourceInfo::new_scalar(
+            Yaml::Value(ScalarOwned::String("allOf".to_string())),
+            source_info(),
+        );
+        let value_node = YamlWithSourceInfo::new_scalar(
+            Yaml::Value(ScalarOwned::String("not an array".to_string())),
+            source_info(),
+        );
 
         let entry = quarto_yaml::YamlHashEntry::new(
             key_node,
@@ -366,7 +373,7 @@ allOf:
             source_info(),
         );
 
-        let yaml = YamlWithSourceInfo::new_hash(Yaml::Hash(hash), source_info(), vec![entry]);
+        let yaml = YamlWithSourceInfo::new_hash(Yaml::Mapping(hash), source_info(), vec![entry]);
         let allof_value = yaml.get_hash_value("allOf").unwrap();
 
         let result = parse_allof_schema(allof_value);

@@ -1,31 +1,34 @@
 //! Memory overhead benchmark for YamlWithSourceInfo vs raw Yaml
 //!
 //! This benchmark measures the actual memory overhead of our owned data approach
-//! compared to using yaml-rust2::Yaml directly.
+//! compared to using saphyr::YamlOwned directly.
 //!
 //! Run with: cargo bench --bench memory_overhead
 
 use quarto_yaml::parse;
+use saphyr::{LoadableYamlNode, ScalarOwned, YamlOwned};
 use std::mem;
-use yaml_rust2::YamlLoader;
 
-/// Calculate approximate memory usage of a Yaml tree
-fn estimate_yaml_memory(yaml: &yaml_rust2::Yaml) -> usize {
-    let mut size = mem::size_of::<yaml_rust2::Yaml>();
+/// Calculate approximate memory usage of a YamlOwned tree
+fn estimate_yaml_memory(yaml: &YamlOwned) -> usize {
+    let mut size = mem::size_of::<YamlOwned>();
 
     match yaml {
-        yaml_rust2::Yaml::Real(s) | yaml_rust2::Yaml::String(s) => {
+        YamlOwned::Value(ScalarOwned::String(s)) => {
             size += s.capacity();
         }
-        yaml_rust2::Yaml::Array(arr) => {
-            size += arr.capacity() * mem::size_of::<yaml_rust2::Yaml>();
+        YamlOwned::Representation(s, _, _) => {
+            size += s.capacity();
+        }
+        YamlOwned::Sequence(arr) => {
+            size += arr.capacity() * mem::size_of::<YamlOwned>();
             for item in arr {
                 size += estimate_yaml_memory(item);
             }
         }
-        yaml_rust2::Yaml::Hash(hash) => {
+        YamlOwned::Mapping(hash) => {
             // HashMap overhead is complex, approximate
-            size += hash.capacity() * (mem::size_of::<yaml_rust2::Yaml>() * 2);
+            size += hash.capacity() * (mem::size_of::<YamlOwned>() * 2);
             for (k, v) in hash {
                 size += estimate_yaml_memory(k);
                 size += estimate_yaml_memory(v);
@@ -190,8 +193,8 @@ fn main() {
 
     println!("Size of base types:");
     println!(
-        "  yaml_rust2::Yaml:           {} bytes",
-        mem::size_of::<yaml_rust2::Yaml>()
+        "  saphyr::YamlOwned:          {} bytes",
+        mem::size_of::<YamlOwned>()
     );
     println!(
         "  YamlWithSourceInfo:         {} bytes",
@@ -214,8 +217,8 @@ fn main() {
         println!("Test: {} - {}", test.name, test.description);
         println!("{}", "-".repeat(60));
 
-        // Parse with yaml-rust2
-        let raw_docs = YamlLoader::load_from_str(test.yaml).expect("Failed to parse YAML");
+        // Parse with saphyr
+        let raw_docs = YamlOwned::load_from_str(test.yaml).expect("Failed to parse YAML");
         let raw_yaml = &raw_docs[0];
         let raw_size = estimate_yaml_memory(raw_yaml);
 

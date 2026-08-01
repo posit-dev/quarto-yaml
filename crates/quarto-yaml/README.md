@@ -2,10 +2,10 @@
 
 A YAML 1.2 parser that preserves fine-grained source locations (byte ranges) for
 every node in the parsed tree, built on top of
-[`yaml-rust2`](https://crates.io/crates/yaml-rust2) and
+[`saphyr`](https://crates.io/crates/saphyr) and
 [`quarto-source-map`](https://crates.io/crates/quarto-source-map).
 
-It produces `YamlWithSourceInfo`, which wraps each `yaml-rust2::Yaml` value with a
+It produces `YamlWithSourceInfo`, which wraps each `saphyr::YamlOwned` value with a
 `SourceInfo` describing exactly where it came from in the input. This enables
 precise, source-located error reporting and lets source provenance survive
 transformations such as config merging.
@@ -31,11 +31,11 @@ if let Some(title) = yaml.get_hash_value("title") {
 Scalars are typed by the YAML 1.2 core schema, so quoting means what the spec
 says it means:
 
-- A quoted or block scalar is always a string: `"1"` is `Yaml::String("1")`,
+- A quoted or block scalar is always a string: `"1"` is the *string* `"1"`,
   not an integer, and `""` is the empty string, not null.
 - An explicit standard tag decides the type, overriding both quoting and
   implicit resolution: `!!str 5` is a string, `!!int "7"` is an integer. A value
-  that contradicts its tag (`!!int abc`) resolves to `Yaml::BadValue`.
+  that contradicts its tag (`!!int abc`) resolves to `YamlOwned::BadValue`.
 - Only `true`/`false` (and their `True`, `TRUE` spellings) are booleans. YAML
   1.1's `yes`, `no`, `on` and `off` are plain strings in 1.2.
 - Application-specific tags (`!expr`, `!path`, …) don't affect resolution; they

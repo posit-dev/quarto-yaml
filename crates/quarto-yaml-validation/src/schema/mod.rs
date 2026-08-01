@@ -9,7 +9,7 @@
 //! See ../YAML-1.2-REQUIREMENT.md for details.
 //!
 //! Instead, schemas are parsed from YamlWithSourceInfo (quarto-yaml) which uses
-//! yaml-rust2 (YAML 1.2). See Schema::from_yaml() method below.
+//! saphyr (YAML 1.2). See Schema::from_yaml() method below.
 
 use crate::error::SchemaResult;
 use quarto_yaml::YamlWithSourceInfo;
