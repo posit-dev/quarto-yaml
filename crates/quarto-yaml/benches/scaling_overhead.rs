@@ -9,25 +9,29 @@
 //! Run with: cargo bench --bench scaling_overhead
 
 use quarto_yaml::parse;
+use saphyr::{LoadableYamlNode, ScalarOwned, YamlOwned};
 use std::mem;
-use yaml_rust2::YamlLoader;
 
-/// Calculate approximate memory usage of a Yaml tree
-fn estimate_yaml_memory(yaml: &yaml_rust2::Yaml) -> usize {
-    let mut size = mem::size_of::<yaml_rust2::Yaml>();
+/// Calculate approximate memory usage of a YamlOwned tree
+fn estimate_yaml_memory(yaml: &YamlOwned) -> usize {
+    let mut size = mem::size_of::<YamlOwned>();
 
     match yaml {
-        yaml_rust2::Yaml::Real(s) | yaml_rust2::Yaml::String(s) => {
+        YamlOwned::Value(ScalarOwned::String(s)) => {
             size += s.capacity();
         }
-        yaml_rust2::Yaml::Array(arr) => {
-            size += arr.capacity() * mem::size_of::<yaml_rust2::Yaml>();
+        YamlOwned::Representation(s, _, _) => {
+            size += s.capacity();
+        }
+        YamlOwned::Sequence(arr) => {
+            size += arr.capacity() * mem::size_of::<YamlOwned>();
             for item in arr {
                 size += estimate_yaml_memory(item);
             }
         }
-        yaml_rust2::Yaml::Hash(hash) => {
-            size += hash.capacity() * (mem::size_of::<yaml_rust2::Yaml>() * 2);
+        YamlOwned::Mapping(hash) => {
+            // HashMap overhead is complex, approximate
+            size += hash.capacity() * (mem::size_of::<YamlOwned>() * 2);
             for (k, v) in hash {
                 size += estimate_yaml_memory(k);
                 size += estimate_yaml_memory(v);
@@ -148,8 +152,8 @@ fn test_scaling(name: &str, generator: impl Fn(usize) -> String, sizes: &[usize]
     for &size in sizes {
         let yaml_content = generator(size);
 
-        // Parse with yaml-rust2
-        let raw_docs = YamlLoader::load_from_str(&yaml_content).expect("Failed to parse YAML");
+        // Parse with saphyr
+        let raw_docs = YamlOwned::load_from_str(&yaml_content).expect("Failed to parse YAML");
         let raw_yaml = &raw_docs[0];
         let raw_bytes = estimate_yaml_memory(raw_yaml);
 
@@ -253,7 +257,7 @@ fn main() {
     for breadth in &breadths {
         let yaml_content = generate_nested_structure(5, *breadth);
 
-        let raw_docs = YamlLoader::load_from_str(&yaml_content).expect("Failed to parse YAML");
+        let raw_docs = YamlOwned::load_from_str(&yaml_content).expect("Failed to parse YAML");
         let raw_yaml = &raw_docs[0];
         let raw_bytes = estimate_yaml_memory(raw_yaml);
 

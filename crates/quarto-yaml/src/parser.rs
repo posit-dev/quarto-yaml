@@ -1,9 +1,8 @@
 //! YAML parser that builds YamlWithSourceInfo trees.
 
 use crate::{Error, Result, SourceInfo, YamlHashEntry, YamlWithSourceInfo};
-use yaml_rust2::Yaml;
-use yaml_rust2::parser::{Event, MarkedEventReceiver, Parser, Tag};
-use yaml_rust2::scanner::{Marker, TScalarStyle};
+use saphyr::{ScalarOwned, YamlOwned, parse_core_schema_fp};
+use saphyr_parser::{Event, Marker, Parser, ScalarStyle, Span, SpannedEventReceiver, Tag};
 
 /// The handle of the standard YAML tags, written `!!str`, `!!int`, … in source.
 const STANDARD_TAG_HANDLE: &str = "tag:yaml.org,2002:";
@@ -199,10 +198,15 @@ fn create_contiguous_span(start_info: &SourceInfo, end_info: &SourceInfo) -> Sou
     }
 }
 
-/// Builder that implements MarkedEventReceiver to construct YamlWithSourceInfo.
+/// Builder that implements SpannedEventReceiver to construct YamlWithSourceInfo.
 struct YamlBuilder<'a> {
     /// The source text being parsed
     source: &'a str,
+
+    /// Byte offset of each character index in `source`, with one extra entry
+    /// for `source.len()`. `None` when the source is pure ASCII, where the two
+    /// units coincide. See [`Self::byte_offset`].
+    char_to_byte: Option<Vec<usize>>,
 
     /// Optional parent source info for substring tracking
     parent: Option<SourceInfo>,
@@ -218,24 +222,54 @@ struct YamlBuilder<'a> {
 enum BuildNode {
     /// Building a sequence
     Sequence {
-        start_marker: Marker,
+        /// Byte offset of the collection's start (`[` or the first `-`).
+        start_offset: usize,
         items: Vec<YamlWithSourceInfo>,
     },
 
     /// Building a mapping
     Mapping {
-        start_marker: Marker,
+        /// Byte offset of the collection's start (`{` or the first key).
+        start_offset: usize,
         entries: Vec<(YamlWithSourceInfo, Option<YamlWithSourceInfo>)>,
     },
 }
 
 impl<'a> YamlBuilder<'a> {
     fn new(source: &'a str, parent: Option<SourceInfo>) -> Self {
+        let char_to_byte = if source.is_ascii() {
+            None
+        } else {
+            Some(
+                source
+                    .char_indices()
+                    .map(|(byte, _)| byte)
+                    .chain([source.len()])
+                    .collect(),
+            )
+        };
         Self {
             source,
+            char_to_byte,
             parent,
             stack: Vec::new(),
             root: None,
+        }
+    }
+
+    /// The byte offset in `source` of a marker's position.
+    ///
+    /// `Marker::index()` counts **characters** (its doc comment says bytes,
+    /// but the scanner increments it once per popped `char`), while SourceInfo
+    /// spans are byte offsets that consumers slice the source with. This is
+    /// the single conversion point; everything downstream works in bytes.
+    fn byte_offset(&self, marker: &Marker) -> usize {
+        match &self.char_to_byte {
+            None => marker.index().min(self.source.len()),
+            Some(table) => table
+                .get(marker.index())
+                .copied()
+                .unwrap_or(self.source.len()),
         }
     }
 
@@ -274,8 +308,12 @@ impl<'a> YamlBuilder<'a> {
         }
     }
 
-    fn make_source_info(&self, marker: &Marker, len: usize) -> SourceInfo {
-        let start_offset = marker.index();
+    /// The byte range in `source` that an event's span covers.
+    fn byte_range(&self, span: &Span) -> (usize, usize) {
+        (self.byte_offset(&span.start), self.byte_offset(&span.end))
+    }
+
+    fn make_source_info_at_offset(&self, start_offset: usize, len: usize) -> SourceInfo {
         let end_offset = start_offset + len;
 
         if let Some(ref parent) = self.parent {
@@ -294,59 +332,83 @@ impl<'a> YamlBuilder<'a> {
         }
     }
 
-    fn make_source_info_at_offset(&self, start_offset: usize, len: usize) -> SourceInfo {
-        let end_offset = start_offset + len;
+    /// The end byte offset of a scalar whose event span is `start..end`.
+    ///
+    /// saphyr's spans for *plain* scalars measure exactly the source the
+    /// scalar occupies (folded lines included, trailing comments excluded).
+    /// The other styles overshoot:
+    ///
+    /// - A quoted scalar's span end is not recorded until the scanner has
+    ///   skipped past any trailing spaces and `# comment` on the same line,
+    ///   so the extent is re-measured from the source instead, walking from
+    ///   the opening quote to its closer.
+    /// - A block scalar's span runs through the newline that ends its last
+    ///   line, and through any trailing blank lines kept by the chomping
+    ///   indicator; it is trimmed back to the last non-whitespace character.
+    ///   (The span already starts at the first content character; the `|`/`>`
+    ///   header is not covered.)
+    ///
+    /// A diagnostic wants to underline the content — quotes included, since
+    /// they are part of how the value is spelled — which is what this returns.
+    fn scalar_end(&self, start: usize, end: usize, value: &str, style: ScalarStyle) -> usize {
+        let Some(rest) = self.source.get(start..) else {
+            return end;
+        };
 
-        if let Some(ref parent) = self.parent {
-            // We're parsing a substring - create a Substring mapping
-            SourceInfo::substring(parent.clone(), start_offset, end_offset)
-        } else {
-            // We're parsing an original file - create an Original mapping.
-            // Offsets are all SourceInfo carries; see make_source_info above.
-            SourceInfo::original(quarto_source_map::FileId(0), start_offset, end_offset)
+        match style {
+            ScalarStyle::Plain => end,
+            ScalarStyle::SingleQuoted => {
+                start
+                    + quoted_scalar_len(rest, b'\'')
+                        .unwrap_or(value.len())
+                        .min(rest.len())
+            }
+            ScalarStyle::DoubleQuoted => {
+                start
+                    + quoted_scalar_len(rest, b'"')
+                        .unwrap_or(value.len())
+                        .min(rest.len())
+            }
+            ScalarStyle::Literal | ScalarStyle::Folded => self
+                .source
+                .get(start..end)
+                .map_or(end, |text| start + text.trim_end().len()),
         }
     }
 
-    /// Compute how many bytes of source a scalar occupies.
+    /// The end byte offset of a collection whose start byte offset is `start`,
+    /// given the byte offset of its end event's span start.
     ///
-    /// The scalar's *value* is not a reliable measure: quotes are not part of
-    /// it, escapes are already decoded, and line breaks in multi-line scalars
-    /// have been folded away. So the extent is measured against the source
-    /// text, using the style to know what to look for. Quoted scalars include
-    /// their quotes, which is what a diagnostic wants to underline.
-    fn compute_scalar_len(&self, marker: &Marker, value: &str, style: TScalarStyle) -> usize {
-        let start = marker.index();
-        let Some(rest) = self.source.get(start..) else {
-            return 0;
-        };
-
-        let len = match style {
-            TScalarStyle::Plain => plain_scalar_len(rest, value),
-            TScalarStyle::SingleQuoted => quoted_scalar_len(rest, b'\'').unwrap_or(value.len()),
-            TScalarStyle::DoubleQuoted => quoted_scalar_len(rest, b'"').unwrap_or(value.len()),
-            // For block scalars the marker points at the first content
-            // character, so the `|`/`>` header is not covered by the span.
-            TScalarStyle::Literal | TScalarStyle::Folded => block_scalar_len(rest, marker.col()),
-        };
-
-        len.min(rest.len())
+    /// For a flow collection the end event's span starts *at* the closing
+    /// `]`/`}` (its end is not recorded until trailing spaces and comments
+    /// have been skipped, so it cannot be used); the closer is pulled into the
+    /// span by hand. A flow collection is recognised by its opener sitting at
+    /// `start`; a block collection's end event has an empty span at the
+    /// collection's end and is left alone.
+    fn collection_end(&self, start: usize, end: usize, open: u8, close: u8) -> usize {
+        let bytes = self.source.as_bytes();
+        if bytes.get(start) == Some(&open) && bytes.get(end) == Some(&close) {
+            end + 1
+        } else {
+            end
+        }
     }
 
     /// Find the source extent of the tag preceding a scalar value.
     ///
-    /// When yaml-rust2 emits a Scalar event with a tag, the marker points to the
-    /// start of the VALUE, not the tag, and the tag's source spelling is not
-    /// recoverable from the parsed `Tag` (`!!str`, `!str` and
-    /// `!<tag:yaml.org,2002:str>` can all arrive with suffix `"str"`). So we
-    /// look at the whitespace-delimited tokens before the value: a tag is a
-    /// single token starting with `!`.
+    /// When saphyr emits a Scalar event with a tag, the span covers the VALUE
+    /// only, not the tag, and the tag's source spelling is not recoverable
+    /// from the parsed `Tag` (`!!str`, `!str` and `!<tag:yaml.org,2002:str>`
+    /// can all arrive with suffix `"str"`). So we look at the
+    /// whitespace-delimited tokens before the value: a tag is a single token
+    /// starting with `!`.
     ///
-    /// For example, in "key: !expr x + 1", if marker points to "x", we need to
-    /// find "!expr" which comes before it.
+    /// For example, in "key: !expr x + 1", if the span starts at "x", we need
+    /// to find "!expr" which comes before it.
     ///
     /// Returns the byte offset of the '!' character and the tag's byte length.
-    fn find_tag_span(&self, value_marker: &Marker) -> Option<(usize, usize)> {
-        let mut before = self.source.get(..value_marker.index())?;
+    fn find_tag_span(&self, value_start: usize) -> Option<(usize, usize)> {
+        let mut before = self.source.get(..value_start)?;
 
         // A node can carry both a tag and an anchor, in either order
         // (`!tag &name value` and `&name !tag value` are both valid), so walk
@@ -379,39 +441,27 @@ impl<'a> YamlBuilder<'a> {
             before = &before[..token_start];
         }
     }
-
-    /// Create SourceInfo for a tag at a specific byte offset.
-    fn make_tag_source_info(&self, tag_start_offset: usize, tag_len: usize) -> SourceInfo {
-        let end_offset = tag_start_offset + tag_len;
-
-        if let Some(ref parent) = self.parent {
-            // We're parsing a substring - create a Substring mapping
-            SourceInfo::substring(parent.clone(), tag_start_offset, end_offset)
-        } else {
-            // We're parsing an original file - create an Original mapping
-            // For row/column, we'd need to scan the source, but for now use approximations
-            SourceInfo::original(quarto_source_map::FileId(0), tag_start_offset, end_offset)
-        }
-    }
 }
 
-impl<'a> MarkedEventReceiver for YamlBuilder<'a> {
-    fn on_event(&mut self, ev: Event, marker: Marker) {
+impl<'a> SpannedEventReceiver<'a> for YamlBuilder<'a> {
+    fn on_event(&mut self, ev: Event<'a>, span: Span) {
         match ev {
             Event::Nothing => {}
 
             Event::StreamStart => {}
             Event::StreamEnd => {}
-            Event::DocumentStart => {}
+            Event::DocumentStart(_) => {}
             Event::DocumentEnd => {}
 
             Event::Scalar(value, style, _anchor_id, tag) => {
+                let (start, span_end) = self.byte_range(&span);
+
                 // Capture tag information if present
                 let tag_info = tag.as_ref().map(|t| {
-                    // The marker points to the start of the VALUE, not the tag
+                    // The span covers the VALUE only, not the tag.
                     // We need to find where the tag actually is in the source
-                    if let Some((tag_offset, tag_len)) = self.find_tag_span(&marker) {
-                        let tag_source_info = self.make_tag_source_info(tag_offset, tag_len);
+                    if let Some((tag_offset, tag_len)) = self.find_tag_span(start) {
+                        let tag_source_info = self.make_source_info_at_offset(tag_offset, tag_len);
                         (t.suffix.clone(), tag_source_info)
                     } else {
                         // Fallback: if we can't find the tag, point at the value
@@ -419,19 +469,18 @@ impl<'a> MarkedEventReceiver for YamlBuilder<'a> {
                         // but it stays inside the source, so consumers can
                         // still slice with it.
                         let guess = 1 + t.suffix.len();
-                        let len = guess.min(self.source.len().saturating_sub(marker.index()));
-                        let tag_source_info = self.make_source_info(&marker, len);
+                        let len = guess.min(self.source.len().saturating_sub(start));
+                        let tag_source_info = self.make_source_info_at_offset(start, len);
                         (t.suffix.clone(), tag_source_info)
                     }
                 });
 
                 // Compute source info for the value itself
-                // The marker points to the start of the value
-                let len = self.compute_scalar_len(&marker, &value, style);
-                let source_info = self.make_source_info(&marker, len);
+                let end = self.scalar_end(start, span_end, &value, style);
+                let source_info = self.make_source_info_at_offset(start, end.saturating_sub(start));
 
                 // Create the Yaml value
-                let yaml = resolve_scalar(&value, style, tag.as_ref());
+                let yaml = resolve_scalar(&value, style, tag.as_deref());
                 let node = YamlWithSourceInfo::new_scalar_with_tag(yaml, source_info, tag_info);
 
                 self.push_complete(node);
@@ -439,7 +488,7 @@ impl<'a> MarkedEventReceiver for YamlBuilder<'a> {
 
             Event::SequenceStart(_anchor_id, _tag) => {
                 self.stack.push(BuildNode::Sequence {
-                    start_marker: marker,
+                    start_offset: self.byte_offset(&span.start),
                     items: Vec::new(),
                 });
             }
@@ -448,17 +497,21 @@ impl<'a> MarkedEventReceiver for YamlBuilder<'a> {
                 let build_node = self.stack.pop().expect("SequenceEnd without SequenceStart");
 
                 if let BuildNode::Sequence {
-                    start_marker,
+                    start_offset,
                     items,
                 } = build_node
                 {
-                    // Compute the length from start to current marker
-                    let len = marker.index().saturating_sub(start_marker.index());
-                    let source_info = self.make_source_info(&start_marker, len);
+                    // The end event's span starts at the closing `]` of a
+                    // flow sequence (see collection_end); for a block
+                    // sequence it is an empty span at the collection's end.
+                    let end_span_start = self.byte_offset(&span.start);
+                    let end = self.collection_end(start_offset, end_span_start, b'[', b']');
+                    let source_info = self
+                        .make_source_info_at_offset(start_offset, end.saturating_sub(start_offset));
 
-                    // Build the Yaml::Array
-                    let yaml_items: Vec<Yaml> = items.iter().map(|n| n.yaml.clone()).collect();
-                    let yaml = Yaml::Array(yaml_items);
+                    // Build the YamlOwned::Sequence
+                    let yaml_items: Vec<YamlOwned> = items.iter().map(|n| n.yaml.clone()).collect();
+                    let yaml = YamlOwned::Sequence(yaml_items);
 
                     let node = YamlWithSourceInfo::new_array(yaml, source_info, items);
                     self.push_complete(node);
@@ -469,7 +522,7 @@ impl<'a> MarkedEventReceiver for YamlBuilder<'a> {
 
             Event::MappingStart(_anchor_id, _tag) => {
                 self.stack.push(BuildNode::Mapping {
-                    start_marker: marker,
+                    start_offset: self.byte_offset(&span.start),
                     entries: Vec::new(),
                 });
             }
@@ -478,7 +531,7 @@ impl<'a> MarkedEventReceiver for YamlBuilder<'a> {
                 let build_node = self.stack.pop().expect("MappingEnd without MappingStart");
 
                 if let BuildNode::Mapping {
-                    start_marker,
+                    start_offset,
                     entries,
                 } = build_node
                 {
@@ -508,24 +561,25 @@ impl<'a> MarkedEventReceiver for YamlBuilder<'a> {
                         yaml_pairs.push((key.yaml.clone(), value.yaml.clone()));
                     }
 
-                    // Compute source_info for the entire object
-                    // If we have entries, use the first key's start and the current marker's end
-                    // Otherwise, use start_marker to current marker
-                    let source_info = if let Some(first_entry) = hash_entries.first() {
-                        // Get the start offset from the first key
-                        let first_key_start = first_entry.key.source_info.start_offset();
-                        // Compute length from first key start to current marker
-                        let len = marker.index().saturating_sub(first_key_start);
-                        // Create SourceInfo starting from first key
-                        self.make_source_info_at_offset(first_key_start, len)
-                    } else {
-                        // Empty object: use start_marker to current marker
-                        let len = marker.index().saturating_sub(start_marker.index());
-                        self.make_source_info(&start_marker, len)
-                    };
+                    // Compute source_info for the entire object. The end
+                    // event's span starts at the closing `}` of a flow
+                    // mapping (see collection_end); for a block mapping it
+                    // is an empty span at the collection's end.
+                    let end_span_start = self.byte_offset(&span.start);
+                    let end = self.collection_end(start_offset, end_span_start, b'{', b'}');
 
-                    // Build the Yaml::Hash
-                    let yaml = Yaml::Hash(yaml_pairs.into_iter().collect());
+                    // The start event's span points at the `{` of a flow
+                    // mapping and at the first key of a block mapping; anchor
+                    // at the first key's span too in case they disagree.
+                    let start = hash_entries.first().map_or(start_offset, |first_entry| {
+                        start_offset.min(first_entry.key.source_info.start_offset())
+                    });
+
+                    let source_info =
+                        self.make_source_info_at_offset(start, end.saturating_sub(start));
+
+                    // Build the YamlOwned::Mapping
+                    let yaml = YamlOwned::Mapping(yaml_pairs.into_iter().collect());
 
                     let node = YamlWithSourceInfo::new_hash(yaml, source_info, hash_entries);
                     self.push_complete(node);
@@ -537,22 +591,26 @@ impl<'a> MarkedEventReceiver for YamlBuilder<'a> {
             Event::Alias(_anchor_id) => {
                 // For now, we don't support aliases
                 // We could add support later by tracking anchors
-                let source_info = self.make_source_info(&marker, 0);
-                let node = YamlWithSourceInfo::new_scalar(Yaml::Null, source_info);
+                let start = self.byte_offset(&span.start);
+                let source_info = self.make_source_info_at_offset(start, 0);
+                let node = YamlWithSourceInfo::new_scalar(
+                    YamlOwned::Value(ScalarOwned::Null),
+                    source_info,
+                );
                 self.push_complete(node);
             }
         }
     }
 }
 
-/// Resolve a scalar to a `Yaml` value the way the YAML 1.2 spec says to.
+/// Resolve a scalar to a `YamlOwned` value the way the YAML 1.2 spec says to.
 ///
 /// Three things decide the type, in this order:
 ///
 /// 1. An explicit standard tag (`!!int`, `!!str`, …). An explicit tag *is* the
 ///    node's type, so it wins over everything else: `!!int "7"` is the integer
 ///    7 and `!!str 5` is the string `"5"`. A value that does not fit its tag
-///    (`!!int abc`) becomes `Yaml::BadValue`, matching yaml-rust2's loader.
+///    (`!!int abc`) becomes `YamlOwned::BadValue`, matching saphyr's loader.
 /// 2. The scalar's style. Quoting is precisely how YAML says "this is text,
 ///    not a number", so any non-plain scalar — quoted or block — is a string.
 /// 3. Failing both, the core schema resolves the plain text (see
@@ -561,13 +619,13 @@ impl<'a> MarkedEventReceiver for YamlBuilder<'a> {
 /// Application-specific tags (`!expr`, `!path`, …) do not affect resolution.
 /// Every tag, standard or not, is reported in [`YamlWithSourceInfo::tag`] with
 /// its own span, for consumers to interpret.
-fn resolve_scalar(value: &str, style: TScalarStyle, tag: Option<&Tag>) -> Yaml {
+fn resolve_scalar(value: &str, style: ScalarStyle, tag: Option<&Tag>) -> YamlOwned {
     if let Some(suffix) = tag.and_then(standard_tag_suffix) {
         return resolve_tagged_scalar(value, suffix);
     }
 
-    if style != TScalarStyle::Plain {
-        return Yaml::String(value.to_string());
+    if style != ScalarStyle::Plain {
+        return YamlOwned::Value(ScalarOwned::String(value.to_string()));
     }
 
     resolve_plain_scalar(value)
@@ -591,31 +649,28 @@ fn standard_tag_suffix(tag: &Tag) -> Option<&str> {
 /// Resolve a scalar carrying an explicit standard tag, e.g. `!!int 5`.
 ///
 /// Standard tags that don't apply to scalars (`!!map`, `!!binary`, …) leave the
-/// text alone; a value that contradicts its tag becomes `Yaml::BadValue`.
-fn resolve_tagged_scalar(value: &str, suffix: &str) -> Yaml {
+/// text alone; a value that contradicts its tag becomes `YamlOwned::BadValue`.
+fn resolve_tagged_scalar(value: &str, suffix: &str) -> YamlOwned {
     match suffix {
-        "str" => Yaml::String(value.to_string()),
+        "str" => YamlOwned::Value(ScalarOwned::String(value.to_string())),
         "bool" => match value {
-            "true" | "True" | "TRUE" => Yaml::Boolean(true),
-            "false" | "False" | "FALSE" => Yaml::Boolean(false),
-            _ => Yaml::BadValue,
+            "true" | "True" | "TRUE" => YamlOwned::Value(ScalarOwned::Boolean(true)),
+            "false" | "False" | "FALSE" => YamlOwned::Value(ScalarOwned::Boolean(false)),
+            _ => YamlOwned::BadValue,
         },
         "int" => match parse_core_schema_int(value) {
-            Some(i) => Yaml::Integer(i),
-            None => Yaml::BadValue,
+            Some(i) => YamlOwned::Value(ScalarOwned::Integer(i)),
+            None => YamlOwned::BadValue,
         },
-        "float" => {
-            if is_yaml_float(value) {
-                Yaml::Real(value.to_string())
-            } else {
-                Yaml::BadValue
-            }
-        }
+        "float" => match parse_core_schema_fp(value) {
+            Some(f) => YamlOwned::Value(ScalarOwned::FloatingPoint(f.into())),
+            None => YamlOwned::BadValue,
+        },
         "null" => match value {
-            "null" | "Null" | "NULL" | "~" | "" => Yaml::Null,
-            _ => Yaml::BadValue,
+            "null" | "Null" | "NULL" | "~" | "" => YamlOwned::Value(ScalarOwned::Null),
+            _ => YamlOwned::BadValue,
         },
-        _ => Yaml::String(value.to_string()),
+        _ => YamlOwned::Value(ScalarOwned::String(value.to_string())),
     }
 }
 
@@ -649,41 +704,43 @@ fn parse_core_schema_int(value: &str) -> Option<i64> {
 /// that the core schema recognises only `true`/`false` (and their `True`,
 /// `TRUE` spellings) as booleans — YAML 1.1's `yes`, `no`, `on` and `off` are
 /// plain strings in 1.2.
-fn resolve_plain_scalar(value: &str) -> Yaml {
+fn resolve_plain_scalar(value: &str) -> YamlOwned {
     // Try to parse as integer
     if let Some(i) = parse_core_schema_int(value) {
-        return Yaml::Integer(i);
+        return YamlOwned::Value(ScalarOwned::Integer(i));
     }
 
     // Try to parse as float, including the YAML 1.2 core-schema float
     // spellings (`.inf`, `-.inf`, `+.inf`, `.nan`, and case variants) that
-    // Rust's `f64::from_str` does not accept.
-    if is_yaml_float(value) {
-        return Yaml::Real(value.to_string());
+    // Rust's `f64::from_str` does not accept. `parse_core_schema_fp`
+    // implements exactly the core-schema rules (a bare `inf` or `nan`,
+    // with no digit and no leading dot, is not a float).
+    if let Some(f) = parse_core_schema_fp(value) {
+        return YamlOwned::Value(ScalarOwned::FloatingPoint(f.into()));
     }
 
     // Check for boolean
     match value {
         "true" | "True" | "TRUE" => {
-            return Yaml::Boolean(true);
+            return YamlOwned::Value(ScalarOwned::Boolean(true));
         }
         "false" | "False" | "FALSE" => {
-            return Yaml::Boolean(false);
+            return YamlOwned::Value(ScalarOwned::Boolean(false));
         }
         "null" | "Null" | "NULL" | "~" | "" => {
-            return Yaml::Null;
+            return YamlOwned::Value(ScalarOwned::Null);
         }
         _ => {}
     }
 
     // Default to string
-    Yaml::String(value.to_string())
+    YamlOwned::Value(ScalarOwned::String(value.to_string()))
 }
 
 /// Length in bytes of a quoted scalar in the source, quotes included.
 ///
 /// `rest` must start at the opening quote. Returns `None` if it doesn't, or if
-/// the closing quote is missing (which yaml-rust2 would have rejected already).
+/// the closing quote is missing (which saphyr would have rejected already).
 fn quoted_scalar_len(rest: &str, quote: u8) -> Option<usize> {
     let bytes = rest.as_bytes();
     if bytes.first() != Some(&quote) {
@@ -711,88 +768,6 @@ fn quoted_scalar_len(rest: &str, quote: u8) -> Option<usize> {
     None
 }
 
-/// Length in bytes of a plain scalar in the source.
-///
-/// A plain scalar can span lines, and the parser folds those breaks into single
-/// spaces (or newlines, for blank lines), so the value is shorter than its
-/// source. Since plain scalars have no escapes, the value can be walked back
-/// onto the source character by character, letting a folded space match a run
-/// of source whitespace. If the two ever fail to line up we fall back to the
-/// value's length rather than guess.
-fn plain_scalar_len(rest: &str, value: &str) -> usize {
-    // Bytes of `rest` consumed so far, and the end of the last content
-    // character matched (which excludes any trailing fold whitespace).
-    let mut consumed = 0;
-    let mut end = 0;
-
-    for ch in value.chars() {
-        let tail = &rest[consumed..];
-
-        // A space or newline in the value may be a folded line break, which is
-        // a whole run of whitespace in the source.
-        if matches!(ch, ' ' | '\n') {
-            let run: usize = tail
-                .chars()
-                .take_while(|c| c.is_whitespace())
-                .map(char::len_utf8)
-                .sum();
-            if run > 0 && tail[..run].contains('\n') {
-                consumed += run;
-                continue;
-            }
-        }
-
-        if !tail.starts_with(ch) {
-            return value.len();
-        }
-        consumed += ch.len_utf8();
-        end = consumed;
-    }
-
-    end
-}
-
-/// Length in bytes of a block scalar's content in the source.
-///
-/// `rest` starts at the block's first content character, which sits at column
-/// `indent`; the block continues over following lines while they are blank or
-/// indented at least that far. Trailing blank lines are left out of the span.
-fn block_scalar_len(rest: &str, indent: usize) -> usize {
-    let mut consumed = 0;
-    let mut end = 0;
-    let mut first = true;
-
-    while consumed < rest.len() {
-        let line_end = rest[consumed..]
-            .find('\n')
-            .map_or(rest.len(), |i| consumed + i);
-        let line = &rest[consumed..line_end];
-        let blank = line.trim().is_empty();
-
-        if !first && !blank && line.len() - line.trim_start().len() < indent {
-            break;
-        }
-        if !blank {
-            end = consumed + line.trim_end().len();
-        }
-
-        consumed = (line_end + 1).min(rest.len());
-        first = false;
-    }
-
-    end
-}
-
-/// Returns `true` if `value` is a YAML 1.2 core-schema float.
-fn is_yaml_float(value: &str) -> bool {
-    match value {
-        ".inf" | ".Inf" | ".INF" | "+.inf" | "+.Inf" | "+.INF" => true,
-        "-.inf" | "-.Inf" | "-.INF" => true,
-        ".nan" | ".NaN" | ".NAN" => true,
-        _ => value.bytes().any(|b| b.is_ascii_digit()) && value.parse::<f64>().is_ok(),
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -808,13 +783,13 @@ mod tests {
     fn test_parse_integer() {
         let yaml = parse("42").unwrap();
         assert!(yaml.is_scalar());
-        assert_eq!(yaml.yaml.as_i64(), Some(42));
+        assert_eq!(yaml.yaml.as_integer(), Some(42));
     }
 
     #[test]
     fn test_parse_yaml_float_special_forms() {
-        // YAML 1.2 core-schema float spellings must resolve to Yaml::Real,
-        // not Yaml::String. See tidyverse/data-dict#47.
+        // YAML 1.2 core-schema float spellings must resolve to a float
+        // value, not a string. See tidyverse/data-dict#47.
         for (text, expected) in [
             (".inf", f64::INFINITY),
             ("+.inf", f64::INFINITY),
@@ -827,12 +802,12 @@ mod tests {
         ] {
             let yaml = parse(text).unwrap();
             assert!(
-                matches!(yaml.yaml, Yaml::Real(_)),
-                "{text:?} should parse as Yaml::Real, got {:?}",
+                matches!(yaml.yaml, YamlOwned::Value(ScalarOwned::FloatingPoint(_))),
+                "{text:?} should parse as a float, got {:?}",
                 yaml.yaml
             );
             assert_eq!(
-                yaml.yaml.as_f64(),
+                yaml.yaml.as_floating_point(),
                 Some(expected),
                 "{text:?} should evaluate to {expected}"
             );
@@ -841,12 +816,12 @@ mod tests {
         for text in [".nan", ".NaN", ".NAN"] {
             let yaml = parse(text).unwrap();
             assert!(
-                matches!(yaml.yaml, Yaml::Real(_)),
-                "{text:?} should parse as Yaml::Real, got {:?}",
+                matches!(yaml.yaml, YamlOwned::Value(ScalarOwned::FloatingPoint(_))),
+                "{text:?} should parse as a float, got {:?}",
                 yaml.yaml
             );
             assert!(
-                yaml.yaml.as_f64().unwrap().is_nan(),
+                yaml.yaml.as_floating_point().unwrap().is_nan(),
                 "{text:?} should evaluate to NaN"
             );
         }
@@ -855,8 +830,8 @@ mod tests {
         for text in ["inf", "nan", "infinity"] {
             let yaml = parse(text).unwrap();
             assert!(
-                matches!(yaml.yaml, Yaml::String(_)),
-                "{text:?} should stay a Yaml::String, got {:?}",
+                matches!(yaml.yaml, YamlOwned::Value(ScalarOwned::String(_))),
+                "{text:?} should stay a string, got {:?}",
                 yaml.yaml
             );
         }
@@ -876,9 +851,9 @@ mod tests {
         assert_eq!(yaml.len(), 3);
 
         let items = yaml.as_array().unwrap();
-        assert_eq!(items[0].yaml.as_i64(), Some(1));
-        assert_eq!(items[1].yaml.as_i64(), Some(2));
-        assert_eq!(items[2].yaml.as_i64(), Some(3));
+        assert_eq!(items[0].yaml.as_integer(), Some(1));
+        assert_eq!(items[1].yaml.as_integer(), Some(2));
+        assert_eq!(items[2].yaml.as_integer(), Some(3));
     }
 
     #[test]
@@ -1175,7 +1150,7 @@ project:
             "Key location should point to 'count'"
         );
 
-        assert_eq!(count_entry.value.yaml.as_i64(), Some(42));
+        assert_eq!(count_entry.value.yaml.as_integer(), Some(42));
         let count_value_offset = count_entry.value_span.start_offset();
         let count_value_str = &yaml_content[count_value_offset..count_value_offset + 2];
         assert_eq!(count_value_str, "42", "Value location should point to '42'");
@@ -1720,7 +1695,7 @@ file: !path ./data.csv
             let value = parse_value(source);
             assert_eq!(
                 value.yaml,
-                Yaml::String(expected.to_string()),
+                YamlOwned::Value(ScalarOwned::String(expected.to_string())),
                 "{source:?} should resolve to the string {expected:?}"
             );
         }
@@ -1738,7 +1713,7 @@ file: !path ./data.csv
         ] {
             let value = parse_value(source);
             assert!(
-                matches!(value.yaml, Yaml::String(_)),
+                matches!(value.yaml, YamlOwned::Value(ScalarOwned::String(_))),
                 "{source:?} should resolve to a string, got {:?}",
                 value.yaml
             );
@@ -1769,7 +1744,7 @@ file: !path ./data.csv
             let yaml = parse(text).unwrap();
             assert_eq!(
                 yaml.yaml,
-                Yaml::String(text.to_string()),
+                YamlOwned::Value(ScalarOwned::String(text.to_string())),
                 "{text:?} is a string in YAML 1.2, got {:?}",
                 yaml.yaml
             );
@@ -1790,7 +1765,7 @@ file: !path ./data.csv
             ("0o0", 0),
         ] {
             assert_eq!(
-                parse(text).unwrap().yaml.as_i64(),
+                parse(text).unwrap().yaml.as_integer(),
                 Some(expected),
                 "{text:?} should be the integer {expected}"
             );
@@ -1814,7 +1789,7 @@ file: !path ./data.csv
             let yaml = parse(text).unwrap();
             assert_eq!(
                 yaml.yaml,
-                Yaml::String(text.to_string()),
+                YamlOwned::Value(ScalarOwned::String(text.to_string())),
                 "{text:?} should stay a string, got {:?}",
                 yaml.yaml
             );
@@ -1822,7 +1797,7 @@ file: !path ./data.csv
         // Quoting still wins: a quoted hex spelling is text.
         assert_eq!(
             parse_value("key: \"0x1f\"").yaml,
-            Yaml::String("0x1f".to_string())
+            YamlOwned::Value(ScalarOwned::String("0x1f".to_string()))
         );
     }
 
@@ -1831,22 +1806,49 @@ file: !path ./data.csv
         // An explicit tag *is* the node's type, so it overrides both implicit
         // resolution and the quoting style.
         for (source, expected) in [
-            ("key: !!str 5", Yaml::String("5".to_string())),
-            ("key: !!str true", Yaml::String("true".to_string())),
-            ("key: !!int \"7\"", Yaml::Integer(7)),
-            ("key: !!int -7", Yaml::Integer(-7)),
-            ("key: !!int 0x1f", Yaml::Integer(31)),
-            ("key: !!int 0o17", Yaml::Integer(15)),
-            ("key: !!float \"1.5\"", Yaml::Real("1.5".to_string())),
-            ("key: !!bool \"true\"", Yaml::Boolean(true)),
-            ("key: !!bool 'false'", Yaml::Boolean(false)),
-            ("key: !!null \"~\"", Yaml::Null),
+            (
+                "key: !!str 5",
+                YamlOwned::Value(ScalarOwned::String("5".to_string())),
+            ),
+            (
+                "key: !!str true",
+                YamlOwned::Value(ScalarOwned::String("true".to_string())),
+            ),
+            (
+                "key: !!int \"7\"",
+                YamlOwned::Value(ScalarOwned::Integer(7)),
+            ),
+            ("key: !!int -7", YamlOwned::Value(ScalarOwned::Integer(-7))),
+            (
+                "key: !!int 0x1f",
+                YamlOwned::Value(ScalarOwned::Integer(31)),
+            ),
+            (
+                "key: !!int 0o17",
+                YamlOwned::Value(ScalarOwned::Integer(15)),
+            ),
+            (
+                "key: !!float \"1.5\"",
+                YamlOwned::Value(ScalarOwned::FloatingPoint(1.5.into())),
+            ),
+            (
+                "key: !!bool \"true\"",
+                YamlOwned::Value(ScalarOwned::Boolean(true)),
+            ),
+            (
+                "key: !!bool 'false'",
+                YamlOwned::Value(ScalarOwned::Boolean(false)),
+            ),
+            ("key: !!null \"~\"", YamlOwned::Value(ScalarOwned::Null)),
             // The verbatim spelling of the same tags.
             (
                 "key: !<tag:yaml.org,2002:str> 5",
-                Yaml::String("5".to_string()),
+                YamlOwned::Value(ScalarOwned::String("5".to_string())),
             ),
-            ("key: !<tag:yaml.org,2002:int> \"7\"", Yaml::Integer(7)),
+            (
+                "key: !<tag:yaml.org,2002:int> \"7\"",
+                YamlOwned::Value(ScalarOwned::Integer(7)),
+            ),
         ] {
             assert_eq!(
                 parse_value(source).yaml,
@@ -1858,7 +1860,7 @@ file: !path ./data.csv
 
     #[test]
     fn test_standard_tag_that_does_not_fit_its_value() {
-        // A value contradicting its tag is a bad value, as in yaml-rust2's own
+        // A value contradicting its tag is a bad value, as in saphyr's own
         // loader — we don't silently re-type it.
         for source in [
             "key: !!int abc",
@@ -1870,7 +1872,7 @@ file: !path ./data.csv
         ] {
             assert_eq!(
                 parse_value(source).yaml,
-                Yaml::BadValue,
+                YamlOwned::BadValue,
                 "{source:?} should resolve to BadValue"
             );
         }
@@ -1881,12 +1883,15 @@ file: !path ./data.csv
         // Application-specific tags are reported in `tag` for consumers to
         // interpret; they leave resolution alone.
         let value = parse_value("key: !expr 42");
-        assert_eq!(value.yaml, Yaml::Integer(42));
+        assert_eq!(value.yaml, YamlOwned::Value(ScalarOwned::Integer(42)));
         assert_eq!(value.tag.as_ref().map(|(t, _)| t.as_str()), Some("expr"));
 
         // …but the quoting style still applies under an application tag.
         let value = parse_value("key: !expr \"42\"");
-        assert_eq!(value.yaml, Yaml::String("42".to_string()));
+        assert_eq!(
+            value.yaml,
+            YamlOwned::Value(ScalarOwned::String("42".to_string()))
+        );
         assert_eq!(value.tag.as_ref().map(|(t, _)| t.as_str()), Some("expr"));
     }
 
@@ -1967,6 +1972,112 @@ file: !path ./data.csv
                 "span of the value in {source:?}"
             );
         }
+    }
+
+    #[test]
+    fn test_spans_are_byte_offsets_after_multibyte_characters() {
+        // saphyr's Marker counts characters (as yaml-rust2's did), so
+        // every span after a multi-byte character used to be shifted left by
+        // its extra bytes. See posit-dev/quarto-yaml#9 — this is that
+        // issue's reprex.
+        let source = "first: é\nsecond: \"quoted\"\n";
+        let parsed = parse(source).unwrap();
+        let entries = parsed.as_hash().expect("should be a hash");
+
+        assert_eq!(
+            span_text(source, &entries[0].value),
+            "é",
+            "span of the value of `first`"
+        );
+        let second = &entries[1];
+        assert_eq!(
+            &source[second.key_span.start_offset()..second.key_span.end_offset()],
+            "second",
+            "span of the key `second`"
+        );
+        assert_eq!(
+            span_text(source, &second.value),
+            "\"quoted\"",
+            "span of the value of `second`"
+        );
+    }
+
+    #[test]
+    fn test_collection_spans_are_byte_offsets_after_multibyte_characters() {
+        // Collection lengths were once differences of character indices while
+        // scalar lengths were bytes; both must be bytes (#9).
+        let source = "dash: \"—\"\nlist: [é, deux]\nmap: {a: ç}\nafter: end\n";
+        let parsed = parse(source).unwrap();
+
+        let list = parsed.get_hash_value("list").expect("list not found");
+        assert_eq!(span_text(source, list), "[é, deux]");
+        let items = list.as_array().expect("list should be an array");
+        assert_eq!(span_text(source, &items[0]), "é");
+        assert_eq!(span_text(source, &items[1]), "deux");
+
+        let map = parsed.get_hash_value("map").expect("map not found");
+        assert_eq!(span_text(source, map), "{a: ç}");
+        let entries = map.as_hash().expect("map should be a hash");
+        assert_eq!(span_text(source, &entries[0].value), "ç");
+
+        let after = parsed.get_hash_value("after").expect("after not found");
+        assert_eq!(span_text(source, after), "end");
+
+        // The root mapping runs from the first key to the end of the content.
+        assert_eq!(parsed.source_info.start_offset(), 0);
+        assert_eq!(parsed.source_info.end_offset(), source.len());
+    }
+
+    #[test]
+    fn test_flow_collection_spans_include_the_closing_bracket() {
+        // The SequenceEnd/MappingEnd events' spans start at a flow
+        // collection's `]`/`}`, not past it; the span must include the
+        // closer. See posit-dev/quarto-yaml#10.
+        for (source, expected) in [
+            ("key: [a, b]", "[a, b]"),
+            ("key: []", "[]"),
+            ("key: [ a, b ]", "[ a, b ]"),
+            ("key: [a, b] # comment", "[a, b]"),
+            ("key: {a: 1}", "{a: 1}"),
+            ("key: {}", "{}"),
+            ("key: [[1], [2]]", "[[1], [2]]"),
+            ("key: [{a: 1}, b]", "[{a: 1}, b]"),
+        ] {
+            let value = parse_value(source);
+            assert_eq!(
+                span_text(source, &value),
+                expected,
+                "span of the value in {source:?}"
+            );
+        }
+
+        // Nested flow collections get the same treatment.
+        let source = "key: [[1], {a: 2}]";
+        let items = parse_value(source);
+        let items = items.as_array().expect("should be an array");
+        assert_eq!(span_text(source, &items[0]), "[1]");
+        assert_eq!(span_text(source, &items[1]), "{a: 2}");
+
+        // A flow mapping at the root spans its braces, while a block mapping
+        // still starts at its first key (its start marker points at the first
+        // `:`, and there is no closer to include).
+        let source = "{a: 1}";
+        let parsed = parse(source).unwrap();
+        assert_eq!(span_text(source, &parsed), "{a: 1}");
+    }
+
+    #[test]
+    fn test_tag_span_after_multibyte_characters() {
+        let source = "unit: \"µs\"\nvalue: !expr x + 1\n";
+        let parsed = parse(source).unwrap();
+        let value = parsed.get_hash_value("value").expect("value not found");
+        let (suffix, tag_span) = value.tag.as_ref().expect("tag should be present");
+        assert_eq!(suffix, "expr");
+        assert_eq!(
+            &source[tag_span.start_offset()..tag_span.end_offset()],
+            "!expr"
+        );
+        assert_eq!(span_text(source, value), "x + 1");
     }
 
     #[test]
@@ -2062,6 +2173,10 @@ file: !path ./data.csv
             "key: !!str &name 5",
             "key: &name !!str",
             "!!str 5",
+            "日本: 語",
+            "é: [ü, \"ß\"]",
+            "key: — !expr —",
+            "key: |\n  日本\n",
         ] {
             let parsed = parse(source).unwrap_or_else(|e| panic!("{source:?} should parse: {e}"));
             assert_spans_within(source, &parsed);

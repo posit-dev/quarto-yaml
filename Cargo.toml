@@ -27,7 +27,8 @@ quarto-source-map = "0.1.0"
 
 # Shared third-party deps (versions pinned to match the q2 monorepo at
 # extraction time, 2026-06-29)
-yaml-rust2 = "0.11"
+saphyr = "0.0.11"
+saphyr-parser = "0.0.11"
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.149"
 thiserror = "2.0"

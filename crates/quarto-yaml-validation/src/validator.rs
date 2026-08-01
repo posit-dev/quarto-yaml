@@ -7,8 +7,8 @@ use crate::schema::{Schema, SchemaRegistry};
 use quarto_source_map::SourceContext;
 use quarto_yaml::YamlWithSourceInfo;
 use regex::Regex;
+use saphyr::{ScalarOwned, YamlOwned as Yaml};
 use std::collections::HashSet;
-use yaml_rust2::Yaml;
 
 /// Validates a YAML value against a schema
 pub fn validate(
@@ -142,7 +142,7 @@ pub fn navigate<'a>(
         match segment {
             PathSegment::Key(search_key) => {
                 for entry in entries.iter().rev() {
-                    if let Yaml::String(ref key_str) = entry.key.yaml
+                    if let Yaml::Value(ScalarOwned::String(ref key_str)) = entry.key.yaml
                         && key_str == search_key
                     {
                         let target = if return_key && path_index == path.segments().len() - 1 {
@@ -246,7 +246,7 @@ fn validate_boolean(
     context: &mut ValidationContext,
 ) -> ValidationResult<()> {
     match &value.yaml {
-        Yaml::Boolean(_) => Ok(()),
+        Yaml::Value(ScalarOwned::Boolean(_)) => Ok(()),
         _ => {
             context.add_error(
                 ValidationErrorKind::TypeMismatch {
@@ -267,8 +267,8 @@ fn validate_number(
     context: &mut ValidationContext,
 ) -> ValidationResult<()> {
     let num = match &value.yaml {
-        Yaml::Integer(n) => *n as f64,
-        Yaml::Real(_) => value.yaml.as_f64().unwrap_or(f64::NAN),
+        Yaml::Value(ScalarOwned::Integer(n)) => *n as f64,
+        Yaml::Value(ScalarOwned::FloatingPoint(f)) => **f,
         _ => {
             context.add_error(
                 ValidationErrorKind::TypeMismatch {
@@ -373,7 +373,7 @@ fn validate_string(
     context: &mut ValidationContext,
 ) -> ValidationResult<()> {
     let s = match &value.yaml {
-        Yaml::String(s) => s,
+        Yaml::Value(ScalarOwned::String(s)) => s,
         _ => {
             context.add_error(
                 ValidationErrorKind::TypeMismatch {
@@ -453,7 +453,7 @@ fn validate_null(
     context: &mut ValidationContext,
 ) -> ValidationResult<()> {
     match &value.yaml {
-        Yaml::Null => Ok(()),
+        Yaml::Value(ScalarOwned::Null) => Ok(()),
         _ => {
             context.add_error(
                 ValidationErrorKind::TypeMismatch {
@@ -627,12 +627,12 @@ fn validate_object(
     };
 
     // Extract keys, rejecting duplicates. The source-tracked hash view
-    // preserves every entry (the collapsed `Yaml::Hash` would not), so a
+    // preserves every entry (the collapsed `Yaml::Mapping` would not), so a
     // repeated key is detectable here. Report it on the second occurrence,
     // pointing at that key's span.
     let mut keys = HashSet::new();
     for entry in entries {
-        if let Yaml::String(ref key) = entry.key.yaml
+        if let Yaml::Value(ScalarOwned::String(ref key)) = entry.key.yaml
             && !keys.insert(key.clone())
         {
             context.add_error(
@@ -700,7 +700,7 @@ fn validate_object(
 
     // Validate each property
     for entry in entries {
-        if let Yaml::String(ref key) = entry.key.yaml {
+        if let Yaml::Value(ScalarOwned::String(ref key)) = entry.key.yaml {
             // Check if property is defined in schema
             let property_schema = schema.properties.get(key);
 
@@ -732,14 +732,18 @@ fn validate_object(
 /// Get a human-readable type name for a YAML value
 fn yaml_type_name(value: &Yaml) -> &'static str {
     match value {
-        Yaml::Null | Yaml::BadValue => "null",
-        Yaml::Boolean(_) => "boolean",
-        Yaml::Integer(_) => "integer",
-        Yaml::Real(_) => "float",
-        Yaml::String(_) => "string",
-        Yaml::Array(_) => "array",
-        Yaml::Hash(_) => "object",
+        Yaml::Value(ScalarOwned::Null) | Yaml::BadValue => "null",
+        Yaml::Value(ScalarOwned::Boolean(_)) => "boolean",
+        Yaml::Value(ScalarOwned::Integer(_)) => "integer",
+        Yaml::Value(ScalarOwned::FloatingPoint(_)) => "float",
+        Yaml::Value(ScalarOwned::String(_)) => "string",
+        Yaml::Sequence(_) => "array",
+        Yaml::Mapping(_) => "object",
         Yaml::Alias(_) => "alias",
+        // quarto-yaml resolves scalars eagerly and reports tags out-of-band,
+        // so these saphyr variants never appear in a parsed tree.
+        Yaml::Representation(..) => "string",
+        Yaml::Tagged(_, node) => yaml_type_name(node),
     }
 }
 
@@ -776,31 +780,29 @@ fn expected_type_description(schema: &Schema) -> Option<String> {
 /// Convert YAML value to JSON value for comparison
 fn yaml_to_json_value(value: &Yaml) -> serde_json::Value {
     match value {
-        Yaml::Null | Yaml::BadValue => serde_json::Value::Null,
-        Yaml::Boolean(b) => serde_json::Value::Bool(*b),
-        Yaml::Integer(n) => serde_json::Value::Number((*n).into()),
-        Yaml::Real(s) => {
-            if let Ok(f) = s.parse::<f64>() {
-                serde_json::Number::from_f64(f)
-                    .map_or(serde_json::Value::Null, serde_json::Value::Number)
-            } else {
-                serde_json::Value::Null
-            }
-        }
-        Yaml::String(s) => serde_json::Value::String(s.clone()),
-        Yaml::Array(items) => {
+        Yaml::Value(ScalarOwned::Null) | Yaml::BadValue => serde_json::Value::Null,
+        Yaml::Value(ScalarOwned::Boolean(b)) => serde_json::Value::Bool(*b),
+        Yaml::Value(ScalarOwned::Integer(n)) => serde_json::Value::Number((*n).into()),
+        Yaml::Value(ScalarOwned::FloatingPoint(f)) => serde_json::Number::from_f64(**f)
+            .map_or(serde_json::Value::Null, serde_json::Value::Number),
+        Yaml::Value(ScalarOwned::String(s)) => serde_json::Value::String(s.clone()),
+        Yaml::Sequence(items) => {
             serde_json::Value::Array(items.iter().map(yaml_to_json_value).collect())
         }
-        Yaml::Hash(entries) => {
+        Yaml::Mapping(entries) => {
             let mut map = serde_json::Map::new();
             for (key, value) in entries {
-                if let Yaml::String(key_str) = key {
+                if let Yaml::Value(ScalarOwned::String(key_str)) = key {
                     map.insert(key_str.clone(), yaml_to_json_value(value));
                 }
             }
             serde_json::Value::Object(map)
         }
         Yaml::Alias(_) => serde_json::Value::Null, // Aliases should be resolved before validation
+        // quarto-yaml resolves scalars eagerly and reports tags out-of-band,
+        // so these saphyr variants never appear in a parsed tree.
+        Yaml::Representation(..) => serde_json::Value::Null,
+        Yaml::Tagged(_, node) => yaml_to_json_value(node),
     }
 }
 
@@ -812,8 +814,8 @@ mod tests {
         NumberSchema, ObjectSchema, RefSchema, SchemaAnnotations, StringSchema,
     };
     use quarto_yaml::{SourceInfo, YamlHashEntry};
+    use saphyr::{ScalarOwned, YamlOwned as Yaml};
     use std::collections::HashMap;
-    use yaml_rust2::Yaml;
 
     // Helper to create a simple YAML scalar
     fn yaml_scalar(yaml: Yaml) -> YamlWithSourceInfo {
@@ -827,7 +829,7 @@ mod tests {
             .map(|y| YamlWithSourceInfo::new_scalar(y, SourceInfo::for_test()))
             .collect();
         let yaml_items: Vec<Yaml> = children.iter().map(|c| c.yaml.clone()).collect();
-        YamlWithSourceInfo::new_array(Yaml::Array(yaml_items), SourceInfo::for_test(), children)
+        YamlWithSourceInfo::new_array(Yaml::Sequence(yaml_items), SourceInfo::for_test(), children)
     }
 
     // Helper to create a YAML object
@@ -836,7 +838,7 @@ mod tests {
             .into_iter()
             .map(|(k, v)| YamlHashEntry {
                 key: YamlWithSourceInfo::new_scalar(
-                    Yaml::String(k.to_string()),
+                    Yaml::Value(ScalarOwned::String(k.to_string())),
                     SourceInfo::for_test(),
                 ),
                 value: YamlWithSourceInfo::new_scalar(v, SourceInfo::for_test()),
@@ -845,13 +847,20 @@ mod tests {
                 entry_span: SourceInfo::for_test(),
             })
             .collect();
-        let mut yaml_hash = yaml_rust2::yaml::Hash::new();
+        let mut yaml_hash = saphyr::MappingOwned::new();
         for entry in &hash_entries {
-            if let Yaml::String(ref k) = entry.key.yaml {
-                yaml_hash.insert(Yaml::String(k.clone()), entry.value.yaml.clone());
+            if let Yaml::Value(ScalarOwned::String(ref k)) = entry.key.yaml {
+                yaml_hash.insert(
+                    Yaml::Value(ScalarOwned::String(k.clone())),
+                    entry.value.yaml.clone(),
+                );
             }
         }
-        YamlWithSourceInfo::new_hash(Yaml::Hash(yaml_hash), SourceInfo::for_test(), hash_entries)
+        YamlWithSourceInfo::new_hash(
+            Yaml::Mapping(yaml_hash),
+            SourceInfo::for_test(),
+            hash_entries,
+        )
     }
 
     // ==================== Boolean Tests ====================
@@ -864,10 +873,10 @@ mod tests {
             annotations: SchemaAnnotations::default(),
         });
 
-        let yaml = yaml_scalar(Yaml::Boolean(true));
+        let yaml = yaml_scalar(Yaml::Value(ScalarOwned::Boolean(true)));
         assert!(validate(&yaml, &schema, &registry, &source_ctx).is_ok());
 
-        let yaml = yaml_scalar(Yaml::Boolean(false));
+        let yaml = yaml_scalar(Yaml::Value(ScalarOwned::Boolean(false)));
         assert!(validate(&yaml, &schema, &registry, &source_ctx).is_ok());
     }
 
@@ -879,7 +888,9 @@ mod tests {
             annotations: SchemaAnnotations::default(),
         });
 
-        let yaml = yaml_scalar(Yaml::String("not a boolean".to_string()));
+        let yaml = yaml_scalar(Yaml::Value(ScalarOwned::String(
+            "not a boolean".to_string(),
+        )));
         assert!(validate(&yaml, &schema, &registry, &source_ctx).is_err());
     }
 
@@ -898,7 +909,7 @@ mod tests {
             multiple_of: None,
         });
 
-        let yaml = yaml_scalar(Yaml::Integer(42));
+        let yaml = yaml_scalar(Yaml::Value(ScalarOwned::Integer(42)));
         assert!(validate(&yaml, &schema, &registry, &source_ctx).is_ok());
     }
 
@@ -915,7 +926,7 @@ mod tests {
             multiple_of: None,
         });
 
-        let yaml = yaml_scalar(Yaml::Real("3.14".to_string()));
+        let yaml = yaml_scalar(Yaml::Value(ScalarOwned::FloatingPoint(2.5.into())));
         assert!(validate(&yaml, &schema, &registry, &source_ctx).is_ok());
     }
 
@@ -976,7 +987,7 @@ mod tests {
             multiple_of: None,
         });
 
-        let yaml = yaml_scalar(Yaml::String("not a number".to_string()));
+        let yaml = yaml_scalar(Yaml::Value(ScalarOwned::String("not a number".to_string())));
         assert!(validate(&yaml, &schema, &registry, &source_ctx).is_err());
     }
 
@@ -994,15 +1005,15 @@ mod tests {
         });
 
         // Valid: at minimum
-        let yaml = yaml_scalar(Yaml::Integer(10));
+        let yaml = yaml_scalar(Yaml::Value(ScalarOwned::Integer(10)));
         assert!(validate(&yaml, &schema, &registry, &source_ctx).is_ok());
 
         // Valid: above minimum
-        let yaml = yaml_scalar(Yaml::Integer(15));
+        let yaml = yaml_scalar(Yaml::Value(ScalarOwned::Integer(15)));
         assert!(validate(&yaml, &schema, &registry, &source_ctx).is_ok());
 
         // Invalid: below minimum
-        let yaml = yaml_scalar(Yaml::Integer(5));
+        let yaml = yaml_scalar(Yaml::Value(ScalarOwned::Integer(5)));
         assert!(validate(&yaml, &schema, &registry, &source_ctx).is_err());
     }
 
@@ -1020,15 +1031,15 @@ mod tests {
         });
 
         // Valid: at maximum
-        let yaml = yaml_scalar(Yaml::Integer(100));
+        let yaml = yaml_scalar(Yaml::Value(ScalarOwned::Integer(100)));
         assert!(validate(&yaml, &schema, &registry, &source_ctx).is_ok());
 
         // Valid: below maximum
-        let yaml = yaml_scalar(Yaml::Integer(50));
+        let yaml = yaml_scalar(Yaml::Value(ScalarOwned::Integer(50)));
         assert!(validate(&yaml, &schema, &registry, &source_ctx).is_ok());
 
         // Invalid: above maximum
-        let yaml = yaml_scalar(Yaml::Integer(150));
+        let yaml = yaml_scalar(Yaml::Value(ScalarOwned::Integer(150)));
         assert!(validate(&yaml, &schema, &registry, &source_ctx).is_err());
     }
 
@@ -1046,15 +1057,15 @@ mod tests {
         });
 
         // Valid: above exclusive minimum
-        let yaml = yaml_scalar(Yaml::Integer(11));
+        let yaml = yaml_scalar(Yaml::Value(ScalarOwned::Integer(11)));
         assert!(validate(&yaml, &schema, &registry, &source_ctx).is_ok());
 
         // Invalid: at exclusive minimum
-        let yaml = yaml_scalar(Yaml::Integer(10));
+        let yaml = yaml_scalar(Yaml::Value(ScalarOwned::Integer(10)));
         assert!(validate(&yaml, &schema, &registry, &source_ctx).is_err());
 
         // Invalid: below exclusive minimum
-        let yaml = yaml_scalar(Yaml::Integer(5));
+        let yaml = yaml_scalar(Yaml::Value(ScalarOwned::Integer(5)));
         assert!(validate(&yaml, &schema, &registry, &source_ctx).is_err());
     }
 
@@ -1072,15 +1083,15 @@ mod tests {
         });
 
         // Valid: below exclusive maximum
-        let yaml = yaml_scalar(Yaml::Integer(99));
+        let yaml = yaml_scalar(Yaml::Value(ScalarOwned::Integer(99)));
         assert!(validate(&yaml, &schema, &registry, &source_ctx).is_ok());
 
         // Invalid: at exclusive maximum
-        let yaml = yaml_scalar(Yaml::Integer(100));
+        let yaml = yaml_scalar(Yaml::Value(ScalarOwned::Integer(100)));
         assert!(validate(&yaml, &schema, &registry, &source_ctx).is_err());
 
         // Invalid: above exclusive maximum
-        let yaml = yaml_scalar(Yaml::Integer(150));
+        let yaml = yaml_scalar(Yaml::Value(ScalarOwned::Integer(150)));
         assert!(validate(&yaml, &schema, &registry, &source_ctx).is_err());
     }
 
@@ -1098,15 +1109,15 @@ mod tests {
         });
 
         // Valid: multiple of 5
-        let yaml = yaml_scalar(Yaml::Integer(15));
+        let yaml = yaml_scalar(Yaml::Value(ScalarOwned::Integer(15)));
         assert!(validate(&yaml, &schema, &registry, &source_ctx).is_ok());
 
         // Valid: zero is multiple of anything
-        let yaml = yaml_scalar(Yaml::Integer(0));
+        let yaml = yaml_scalar(Yaml::Value(ScalarOwned::Integer(0)));
         assert!(validate(&yaml, &schema, &registry, &source_ctx).is_ok());
 
         // Invalid: not a multiple of 5
-        let yaml = yaml_scalar(Yaml::Integer(7));
+        let yaml = yaml_scalar(Yaml::Value(ScalarOwned::Integer(7)));
         assert!(validate(&yaml, &schema, &registry, &source_ctx).is_err());
     }
 
@@ -1123,7 +1134,7 @@ mod tests {
             pattern: None,
         });
 
-        let yaml = yaml_scalar(Yaml::String("hello".to_string()));
+        let yaml = yaml_scalar(Yaml::Value(ScalarOwned::String("hello".to_string())));
         assert!(validate(&yaml, &schema, &registry, &source_ctx).is_ok());
     }
 
@@ -1138,7 +1149,7 @@ mod tests {
             pattern: None,
         });
 
-        let yaml = yaml_scalar(Yaml::Integer(42));
+        let yaml = yaml_scalar(Yaml::Value(ScalarOwned::Integer(42)));
         assert!(validate(&yaml, &schema, &registry, &source_ctx).is_err());
     }
 
@@ -1154,15 +1165,15 @@ mod tests {
         });
 
         // Valid: exactly min length
-        let yaml = yaml_scalar(Yaml::String("hello".to_string()));
+        let yaml = yaml_scalar(Yaml::Value(ScalarOwned::String("hello".to_string())));
         assert!(validate(&yaml, &schema, &registry, &source_ctx).is_ok());
 
         // Valid: above min length
-        let yaml = yaml_scalar(Yaml::String("hello world".to_string()));
+        let yaml = yaml_scalar(Yaml::Value(ScalarOwned::String("hello world".to_string())));
         assert!(validate(&yaml, &schema, &registry, &source_ctx).is_ok());
 
         // Invalid: below min length
-        let yaml = yaml_scalar(Yaml::String("hi".to_string()));
+        let yaml = yaml_scalar(Yaml::Value(ScalarOwned::String("hi".to_string())));
         assert!(validate(&yaml, &schema, &registry, &source_ctx).is_err());
     }
 
@@ -1178,15 +1189,17 @@ mod tests {
         });
 
         // Valid: exactly max length
-        let yaml = yaml_scalar(Yaml::String("0123456789".to_string()));
+        let yaml = yaml_scalar(Yaml::Value(ScalarOwned::String("0123456789".to_string())));
         assert!(validate(&yaml, &schema, &registry, &source_ctx).is_ok());
 
         // Valid: below max length
-        let yaml = yaml_scalar(Yaml::String("hello".to_string()));
+        let yaml = yaml_scalar(Yaml::Value(ScalarOwned::String("hello".to_string())));
         assert!(validate(&yaml, &schema, &registry, &source_ctx).is_ok());
 
         // Invalid: above max length
-        let yaml = yaml_scalar(Yaml::String("this is too long".to_string()));
+        let yaml = yaml_scalar(Yaml::Value(ScalarOwned::String(
+            "this is too long".to_string(),
+        )));
         assert!(validate(&yaml, &schema, &registry, &source_ctx).is_err());
     }
 
@@ -1202,11 +1215,11 @@ mod tests {
         });
 
         // Valid: matches pattern
-        let yaml = yaml_scalar(Yaml::String("hello".to_string()));
+        let yaml = yaml_scalar(Yaml::Value(ScalarOwned::String("hello".to_string())));
         assert!(validate(&yaml, &schema, &registry, &source_ctx).is_ok());
 
         // Invalid: doesn't match pattern
-        let yaml = yaml_scalar(Yaml::String("Hello123".to_string()));
+        let yaml = yaml_scalar(Yaml::Value(ScalarOwned::String("Hello123".to_string())));
         assert!(validate(&yaml, &schema, &registry, &source_ctx).is_err());
     }
 
@@ -1220,7 +1233,7 @@ mod tests {
             annotations: SchemaAnnotations::default(),
         });
 
-        let yaml = yaml_scalar(Yaml::Null);
+        let yaml = yaml_scalar(Yaml::Value(ScalarOwned::Null));
         assert!(validate(&yaml, &schema, &registry, &source_ctx).is_ok());
     }
 
@@ -1232,7 +1245,7 @@ mod tests {
             annotations: SchemaAnnotations::default(),
         });
 
-        let yaml = yaml_scalar(Yaml::String("not null".to_string()));
+        let yaml = yaml_scalar(Yaml::Value(ScalarOwned::String("not null".to_string())));
         assert!(validate(&yaml, &schema, &registry, &source_ctx).is_err());
     }
 
@@ -1252,10 +1265,10 @@ mod tests {
         });
 
         // Valid: matches enum value
-        let yaml = yaml_scalar(Yaml::String("red".to_string()));
+        let yaml = yaml_scalar(Yaml::Value(ScalarOwned::String("red".to_string())));
         assert!(validate(&yaml, &schema, &registry, &source_ctx).is_ok());
 
-        let yaml = yaml_scalar(Yaml::String("green".to_string()));
+        let yaml = yaml_scalar(Yaml::Value(ScalarOwned::String("green".to_string())));
         assert!(validate(&yaml, &schema, &registry, &source_ctx).is_ok());
     }
 
@@ -1273,7 +1286,7 @@ mod tests {
         });
 
         // Invalid: not in enum
-        let yaml = yaml_scalar(Yaml::String("yellow".to_string()));
+        let yaml = yaml_scalar(Yaml::Value(ScalarOwned::String("yellow".to_string())));
         assert!(validate(&yaml, &schema, &registry, &source_ctx).is_err());
     }
 
@@ -1291,11 +1304,11 @@ mod tests {
         });
 
         // Valid: matches enum value
-        let yaml = yaml_scalar(Yaml::Integer(2));
+        let yaml = yaml_scalar(Yaml::Value(ScalarOwned::Integer(2)));
         assert!(validate(&yaml, &schema, &registry, &source_ctx).is_ok());
 
         // Invalid: not in enum
-        let yaml = yaml_scalar(Yaml::Integer(5));
+        let yaml = yaml_scalar(Yaml::Value(ScalarOwned::Integer(5)));
         assert!(validate(&yaml, &schema, &registry, &source_ctx).is_err());
     }
 
@@ -1313,7 +1326,11 @@ mod tests {
             unique_items: None,
         });
 
-        let yaml = yaml_array(vec![Yaml::Integer(1), Yaml::Integer(2), Yaml::Integer(3)]);
+        let yaml = yaml_array(vec![
+            Yaml::Value(ScalarOwned::Integer(1)),
+            Yaml::Value(ScalarOwned::Integer(2)),
+            Yaml::Value(ScalarOwned::Integer(3)),
+        ]);
         assert!(validate(&yaml, &schema, &registry, &source_ctx).is_ok());
     }
 
@@ -1329,7 +1346,7 @@ mod tests {
             unique_items: None,
         });
 
-        let yaml = yaml_scalar(Yaml::String("not an array".to_string()));
+        let yaml = yaml_scalar(Yaml::Value(ScalarOwned::String("not an array".to_string())));
         assert!(validate(&yaml, &schema, &registry, &source_ctx).is_err());
     }
 
@@ -1346,11 +1363,14 @@ mod tests {
         });
 
         // Valid: at min items
-        let yaml = yaml_array(vec![Yaml::Integer(1), Yaml::Integer(2)]);
+        let yaml = yaml_array(vec![
+            Yaml::Value(ScalarOwned::Integer(1)),
+            Yaml::Value(ScalarOwned::Integer(2)),
+        ]);
         assert!(validate(&yaml, &schema, &registry, &source_ctx).is_ok());
 
         // Invalid: below min items
-        let yaml = yaml_array(vec![Yaml::Integer(1)]);
+        let yaml = yaml_array(vec![Yaml::Value(ScalarOwned::Integer(1))]);
         assert!(validate(&yaml, &schema, &registry, &source_ctx).is_err());
     }
 
@@ -1367,15 +1387,19 @@ mod tests {
         });
 
         // Valid: at max items
-        let yaml = yaml_array(vec![Yaml::Integer(1), Yaml::Integer(2), Yaml::Integer(3)]);
+        let yaml = yaml_array(vec![
+            Yaml::Value(ScalarOwned::Integer(1)),
+            Yaml::Value(ScalarOwned::Integer(2)),
+            Yaml::Value(ScalarOwned::Integer(3)),
+        ]);
         assert!(validate(&yaml, &schema, &registry, &source_ctx).is_ok());
 
         // Invalid: above max items
         let yaml = yaml_array(vec![
-            Yaml::Integer(1),
-            Yaml::Integer(2),
-            Yaml::Integer(3),
-            Yaml::Integer(4),
+            Yaml::Value(ScalarOwned::Integer(1)),
+            Yaml::Value(ScalarOwned::Integer(2)),
+            Yaml::Value(ScalarOwned::Integer(3)),
+            Yaml::Value(ScalarOwned::Integer(4)),
         ]);
         assert!(validate(&yaml, &schema, &registry, &source_ctx).is_err());
     }
@@ -1393,11 +1417,19 @@ mod tests {
         });
 
         // Valid: all unique
-        let yaml = yaml_array(vec![Yaml::Integer(1), Yaml::Integer(2), Yaml::Integer(3)]);
+        let yaml = yaml_array(vec![
+            Yaml::Value(ScalarOwned::Integer(1)),
+            Yaml::Value(ScalarOwned::Integer(2)),
+            Yaml::Value(ScalarOwned::Integer(3)),
+        ]);
         assert!(validate(&yaml, &schema, &registry, &source_ctx).is_ok());
 
         // Invalid: duplicates
-        let yaml = yaml_array(vec![Yaml::Integer(1), Yaml::Integer(2), Yaml::Integer(1)]);
+        let yaml = yaml_array(vec![
+            Yaml::Value(ScalarOwned::Integer(1)),
+            Yaml::Value(ScalarOwned::Integer(2)),
+            Yaml::Value(ScalarOwned::Integer(1)),
+        ]);
         assert!(validate(&yaml, &schema, &registry, &source_ctx).is_err());
     }
 
@@ -1421,13 +1453,17 @@ mod tests {
         });
 
         // Valid: all items are numbers
-        let yaml = yaml_array(vec![Yaml::Integer(1), Yaml::Integer(2), Yaml::Integer(3)]);
+        let yaml = yaml_array(vec![
+            Yaml::Value(ScalarOwned::Integer(1)),
+            Yaml::Value(ScalarOwned::Integer(2)),
+            Yaml::Value(ScalarOwned::Integer(3)),
+        ]);
         assert!(validate(&yaml, &schema, &registry, &source_ctx).is_ok());
 
         // Invalid: contains non-number
         let yaml = yaml_array(vec![
-            Yaml::Integer(1),
-            Yaml::String("not a number".to_string()),
+            Yaml::Value(ScalarOwned::Integer(1)),
+            Yaml::Value(ScalarOwned::String("not a number".to_string())),
         ]);
         assert!(validate(&yaml, &schema, &registry, &source_ctx).is_err());
     }
@@ -1452,7 +1488,10 @@ mod tests {
             base_schema: None,
         });
 
-        let yaml = yaml_object(vec![("name", Yaml::String("test".to_string()))]);
+        let yaml = yaml_object(vec![(
+            "name",
+            Yaml::Value(ScalarOwned::String("test".to_string())),
+        )]);
         assert!(validate(&yaml, &schema, &registry, &source_ctx).is_ok());
     }
 
@@ -1474,7 +1513,9 @@ mod tests {
             base_schema: None,
         });
 
-        let yaml = yaml_scalar(Yaml::String("not an object".to_string()));
+        let yaml = yaml_scalar(Yaml::Value(ScalarOwned::String(
+            "not an object".to_string(),
+        )));
         assert!(validate(&yaml, &schema, &registry, &source_ctx).is_err());
     }
 
@@ -1497,11 +1538,17 @@ mod tests {
         });
 
         // Valid: has required property
-        let yaml = yaml_object(vec![("name", Yaml::String("test".to_string()))]);
+        let yaml = yaml_object(vec![(
+            "name",
+            Yaml::Value(ScalarOwned::String("test".to_string())),
+        )]);
         assert!(validate(&yaml, &schema, &registry, &source_ctx).is_ok());
 
         // Invalid: missing required property
-        let yaml = yaml_object(vec![("other", Yaml::String("test".to_string()))]);
+        let yaml = yaml_object(vec![(
+            "other",
+            Yaml::Value(ScalarOwned::String("test".to_string())),
+        )]);
         assert!(validate(&yaml, &schema, &registry, &source_ctx).is_err());
     }
 
@@ -1535,7 +1582,10 @@ mod tests {
 
         // Missing the required enum property: the error should advertise the
         // allowed values, mirroring InvalidEnumValue.
-        let yaml = yaml_object(vec![("other", Yaml::String("test".to_string()))]);
+        let yaml = yaml_object(vec![(
+            "other",
+            Yaml::Value(ScalarOwned::String("test".to_string())),
+        )]);
         let err = validate(&yaml, &schema, &registry, &source_ctx)
             .expect_err("missing required property should fail validation");
         match &err.kind {
@@ -1592,7 +1642,10 @@ mod tests {
             base_schema: None,
         });
 
-        let yaml = yaml_object(vec![("other", Yaml::String("test".to_string()))]);
+        let yaml = yaml_object(vec![(
+            "other",
+            Yaml::Value(ScalarOwned::String("test".to_string())),
+        )]);
         let err = validate(&yaml, &schema, &registry, &source_ctx)
             .expect_err("missing required property should fail validation");
         match &err.kind {
@@ -1645,7 +1698,10 @@ mod tests {
             base_schema: None,
         });
 
-        let yaml = yaml_object(vec![("other", Yaml::String("test".to_string()))]);
+        let yaml = yaml_object(vec![(
+            "other",
+            Yaml::Value(ScalarOwned::String("test".to_string())),
+        )]);
         let err = validate(&yaml, &schema, &registry, &source_ctx)
             .expect_err("missing required property should fail validation");
         match &err.kind {
@@ -1704,7 +1760,10 @@ mod tests {
             base_schema: None,
         });
 
-        let yaml = yaml_object(vec![("other", Yaml::String("test".to_string()))]);
+        let yaml = yaml_object(vec![(
+            "other",
+            Yaml::Value(ScalarOwned::String("test".to_string())),
+        )]);
         let err = validate(&yaml, &schema, &registry, &source_ctx)
             .expect_err("missing required property should fail validation");
         assert_eq!(
@@ -1732,11 +1791,14 @@ mod tests {
         });
 
         // Valid: at min properties
-        let yaml = yaml_object(vec![("a", Yaml::Integer(1)), ("b", Yaml::Integer(2))]);
+        let yaml = yaml_object(vec![
+            ("a", Yaml::Value(ScalarOwned::Integer(1))),
+            ("b", Yaml::Value(ScalarOwned::Integer(2))),
+        ]);
         assert!(validate(&yaml, &schema, &registry, &source_ctx).is_ok());
 
         // Invalid: below min properties
-        let yaml = yaml_object(vec![("a", Yaml::Integer(1))]);
+        let yaml = yaml_object(vec![("a", Yaml::Value(ScalarOwned::Integer(1)))]);
         assert!(validate(&yaml, &schema, &registry, &source_ctx).is_err());
     }
 
@@ -1759,14 +1821,17 @@ mod tests {
         });
 
         // Valid: at max properties
-        let yaml = yaml_object(vec![("a", Yaml::Integer(1)), ("b", Yaml::Integer(2))]);
+        let yaml = yaml_object(vec![
+            ("a", Yaml::Value(ScalarOwned::Integer(1))),
+            ("b", Yaml::Value(ScalarOwned::Integer(2))),
+        ]);
         assert!(validate(&yaml, &schema, &registry, &source_ctx).is_ok());
 
         // Invalid: above max properties
         let yaml = yaml_object(vec![
-            ("a", Yaml::Integer(1)),
-            ("b", Yaml::Integer(2)),
-            ("c", Yaml::Integer(3)),
+            ("a", Yaml::Value(ScalarOwned::Integer(1))),
+            ("b", Yaml::Value(ScalarOwned::Integer(2))),
+            ("c", Yaml::Value(ScalarOwned::Integer(3))),
         ]);
         assert!(validate(&yaml, &schema, &registry, &source_ctx).is_err());
     }
@@ -1802,13 +1867,16 @@ mod tests {
         });
 
         // Valid: only known property
-        let yaml = yaml_object(vec![("name", Yaml::String("test".to_string()))]);
+        let yaml = yaml_object(vec![(
+            "name",
+            Yaml::Value(ScalarOwned::String("test".to_string())),
+        )]);
         assert!(validate(&yaml, &schema, &registry, &source_ctx).is_ok());
 
         // Invalid: unknown property in closed object
         let yaml = yaml_object(vec![
-            ("name", Yaml::String("test".to_string())),
-            ("unknown", Yaml::Integer(42)),
+            ("name", Yaml::Value(ScalarOwned::String("test".to_string()))),
+            ("unknown", Yaml::Value(ScalarOwned::Integer(42))),
         ]);
         assert!(validate(&yaml, &schema, &registry, &source_ctx).is_err());
     }
@@ -1846,11 +1914,11 @@ mod tests {
         });
 
         // Valid: count is a valid number
-        let yaml = yaml_object(vec![("count", Yaml::Integer(5))]);
+        let yaml = yaml_object(vec![("count", Yaml::Value(ScalarOwned::Integer(5)))]);
         assert!(validate(&yaml, &schema, &registry, &source_ctx).is_ok());
 
         // Invalid: count is negative
-        let yaml = yaml_object(vec![("count", Yaml::Integer(-1))]);
+        let yaml = yaml_object(vec![("count", Yaml::Value(ScalarOwned::Integer(-1)))]);
         assert!(validate(&yaml, &schema, &registry, &source_ctx).is_err());
     }
 
@@ -1881,11 +1949,14 @@ mod tests {
         });
 
         // Valid: additional property is a number
-        let yaml = yaml_object(vec![("anything", Yaml::Integer(42))]);
+        let yaml = yaml_object(vec![("anything", Yaml::Value(ScalarOwned::Integer(42)))]);
         assert!(validate(&yaml, &schema, &registry, &source_ctx).is_ok());
 
         // Invalid: additional property is not a number
-        let yaml = yaml_object(vec![("anything", Yaml::String("not a number".to_string()))]);
+        let yaml = yaml_object(vec![(
+            "anything",
+            Yaml::Value(ScalarOwned::String("not a number".to_string())),
+        )]);
         assert!(validate(&yaml, &schema, &registry, &source_ctx).is_err());
     }
 
@@ -1909,8 +1980,14 @@ mod tests {
 
         // A mapping with a repeated key must be rejected, not silently deduped.
         let yaml = yaml_object(vec![
-            ("examples", Yaml::String("a".to_string())),
-            ("examples", Yaml::String("c".to_string())),
+            (
+                "examples",
+                Yaml::Value(ScalarOwned::String("a".to_string())),
+            ),
+            (
+                "examples",
+                Yaml::Value(ScalarOwned::String("c".to_string())),
+            ),
         ]);
         let result = validate(&yaml, &schema, &registry, &source_ctx);
         let err = result.expect_err("duplicate key should fail validation");
@@ -1950,15 +2027,15 @@ mod tests {
         });
 
         // Valid: matches first schema (string)
-        let yaml = yaml_scalar(Yaml::String("hello".to_string()));
+        let yaml = yaml_scalar(Yaml::Value(ScalarOwned::String("hello".to_string())));
         assert!(validate(&yaml, &schema, &registry, &source_ctx).is_ok());
 
         // Valid: matches second schema (number)
-        let yaml = yaml_scalar(Yaml::Integer(42));
+        let yaml = yaml_scalar(Yaml::Value(ScalarOwned::Integer(42)));
         assert!(validate(&yaml, &schema, &registry, &source_ctx).is_ok());
 
         // Invalid: matches neither
-        let yaml = yaml_scalar(Yaml::Boolean(true));
+        let yaml = yaml_scalar(Yaml::Value(ScalarOwned::Boolean(true)));
         assert!(validate(&yaml, &schema, &registry, &source_ctx).is_err());
     }
 
@@ -1991,15 +2068,15 @@ mod tests {
         });
 
         // Valid: matches both schemas (0 <= x <= 100)
-        let yaml = yaml_scalar(Yaml::Integer(50));
+        let yaml = yaml_scalar(Yaml::Value(ScalarOwned::Integer(50)));
         assert!(validate(&yaml, &schema, &registry, &source_ctx).is_ok());
 
         // Invalid: fails first schema (< 0)
-        let yaml = yaml_scalar(Yaml::Integer(-5));
+        let yaml = yaml_scalar(Yaml::Value(ScalarOwned::Integer(-5)));
         assert!(validate(&yaml, &schema, &registry, &source_ctx).is_err());
 
         // Invalid: fails second schema (> 100)
-        let yaml = yaml_scalar(Yaml::Integer(150));
+        let yaml = yaml_scalar(Yaml::Value(ScalarOwned::Integer(150)));
         assert!(validate(&yaml, &schema, &registry, &source_ctx).is_err());
     }
 
@@ -2012,13 +2089,13 @@ mod tests {
         let schema = Schema::True;
 
         // True schema accepts anything
-        let yaml = yaml_scalar(Yaml::String("anything".to_string()));
+        let yaml = yaml_scalar(Yaml::Value(ScalarOwned::String("anything".to_string())));
         assert!(validate(&yaml, &schema, &registry, &source_ctx).is_ok());
 
-        let yaml = yaml_scalar(Yaml::Integer(42));
+        let yaml = yaml_scalar(Yaml::Value(ScalarOwned::Integer(42)));
         assert!(validate(&yaml, &schema, &registry, &source_ctx).is_ok());
 
-        let yaml = yaml_scalar(Yaml::Null);
+        let yaml = yaml_scalar(Yaml::Value(ScalarOwned::Null));
         assert!(validate(&yaml, &schema, &registry, &source_ctx).is_ok());
     }
 
@@ -2031,10 +2108,10 @@ mod tests {
         });
 
         // Any schema accepts anything
-        let yaml = yaml_scalar(Yaml::String("anything".to_string()));
+        let yaml = yaml_scalar(Yaml::Value(ScalarOwned::String("anything".to_string())));
         assert!(validate(&yaml, &schema, &registry, &source_ctx).is_ok());
 
-        let yaml = yaml_scalar(Yaml::Integer(42));
+        let yaml = yaml_scalar(Yaml::Value(ScalarOwned::Integer(42)));
         assert!(validate(&yaml, &schema, &registry, &source_ctx).is_ok());
     }
 
@@ -2063,11 +2140,11 @@ mod tests {
         });
 
         // Valid: matches referenced schema
-        let yaml = yaml_scalar(Yaml::String("hello".to_string()));
+        let yaml = yaml_scalar(Yaml::Value(ScalarOwned::String("hello".to_string())));
         assert!(validate(&yaml, &schema, &registry, &source_ctx).is_ok());
 
         // Invalid: doesn't match referenced schema
-        let yaml = yaml_scalar(Yaml::Integer(42));
+        let yaml = yaml_scalar(Yaml::Value(ScalarOwned::Integer(42)));
         assert!(validate(&yaml, &schema, &registry, &source_ctx).is_err());
     }
 
@@ -2082,7 +2159,7 @@ mod tests {
         });
 
         // Error: unresolved reference
-        let yaml = yaml_scalar(Yaml::String("anything".to_string()));
+        let yaml = yaml_scalar(Yaml::Value(ScalarOwned::String("anything".to_string())));
         assert!(validate(&yaml, &schema, &registry, &source_ctx).is_err());
     }
 
@@ -2090,7 +2167,7 @@ mod tests {
 
     #[test]
     fn test_navigate_empty_path() {
-        let yaml = yaml_scalar(Yaml::String("test".to_string()));
+        let yaml = yaml_scalar(Yaml::Value(ScalarOwned::String("test".to_string())));
         let path = InstancePath::new();
 
         let result = navigate(&path, &yaml, false, 0);
@@ -2100,8 +2177,8 @@ mod tests {
     #[test]
     fn test_navigate_object_key() {
         let yaml = yaml_object(vec![
-            ("name", Yaml::String("test".to_string())),
-            ("age", Yaml::Integer(30)),
+            ("name", Yaml::Value(ScalarOwned::String("test".to_string()))),
+            ("age", Yaml::Value(ScalarOwned::Integer(30))),
         ]);
 
         let mut path = InstancePath::new();
@@ -2110,13 +2187,20 @@ mod tests {
         let result = navigate(&path, &yaml, false, 0);
         assert!(result.is_some());
         if let Some(node) = result {
-            assert_eq!(node.yaml, Yaml::String("test".to_string()));
+            assert_eq!(
+                node.yaml,
+                Yaml::Value(ScalarOwned::String("test".to_string()))
+            );
         }
     }
 
     #[test]
     fn test_navigate_array_index() {
-        let yaml = yaml_array(vec![Yaml::Integer(1), Yaml::Integer(2), Yaml::Integer(3)]);
+        let yaml = yaml_array(vec![
+            Yaml::Value(ScalarOwned::Integer(1)),
+            Yaml::Value(ScalarOwned::Integer(2)),
+            Yaml::Value(ScalarOwned::Integer(3)),
+        ]);
 
         let mut path = InstancePath::new();
         path.push_index(1);
@@ -2124,17 +2208,21 @@ mod tests {
         let result = navigate(&path, &yaml, false, 0);
         assert!(result.is_some());
         if let Some(node) = result {
-            assert_eq!(node.yaml, Yaml::Integer(2));
+            assert_eq!(node.yaml, Yaml::Value(ScalarOwned::Integer(2)));
         }
     }
 
     #[test]
     fn test_navigate_nested() {
         // Create nested structure: { "items": [1, 2, 3] }
-        let items_array = yaml_array(vec![Yaml::Integer(1), Yaml::Integer(2), Yaml::Integer(3)]);
+        let items_array = yaml_array(vec![
+            Yaml::Value(ScalarOwned::Integer(1)),
+            Yaml::Value(ScalarOwned::Integer(2)),
+            Yaml::Value(ScalarOwned::Integer(3)),
+        ]);
         let hash_entries = vec![YamlHashEntry {
             key: YamlWithSourceInfo::new_scalar(
-                Yaml::String("items".to_string()),
+                Yaml::Value(ScalarOwned::String("items".to_string())),
                 SourceInfo::for_test(),
             ),
             value: items_array,
@@ -2142,13 +2230,17 @@ mod tests {
             value_span: SourceInfo::for_test(),
             entry_span: SourceInfo::for_test(),
         }];
-        let mut yaml_hash = yaml_rust2::yaml::Hash::new();
+        let mut yaml_hash = saphyr::MappingOwned::new();
         yaml_hash.insert(
-            Yaml::String("items".to_string()),
-            Yaml::Array(vec![Yaml::Integer(1), Yaml::Integer(2), Yaml::Integer(3)]),
+            Yaml::Value(ScalarOwned::String("items".to_string())),
+            Yaml::Sequence(vec![
+                Yaml::Value(ScalarOwned::Integer(1)),
+                Yaml::Value(ScalarOwned::Integer(2)),
+                Yaml::Value(ScalarOwned::Integer(3)),
+            ]),
         );
         let yaml = YamlWithSourceInfo::new_hash(
-            Yaml::Hash(yaml_hash),
+            Yaml::Mapping(yaml_hash),
             SourceInfo::for_test(),
             hash_entries,
         );
@@ -2160,13 +2252,16 @@ mod tests {
         let result = navigate(&path, &yaml, false, 0);
         assert!(result.is_some());
         if let Some(node) = result {
-            assert_eq!(node.yaml, Yaml::Integer(3));
+            assert_eq!(node.yaml, Yaml::Value(ScalarOwned::Integer(3)));
         }
     }
 
     #[test]
     fn test_navigate_key_not_found() {
-        let yaml = yaml_object(vec![("name", Yaml::String("test".to_string()))]);
+        let yaml = yaml_object(vec![(
+            "name",
+            Yaml::Value(ScalarOwned::String("test".to_string())),
+        )]);
 
         let mut path = InstancePath::new();
         path.push_key("nonexistent".to_string());
@@ -2177,7 +2272,10 @@ mod tests {
 
     #[test]
     fn test_navigate_index_out_of_bounds() {
-        let yaml = yaml_array(vec![Yaml::Integer(1), Yaml::Integer(2)]);
+        let yaml = yaml_array(vec![
+            Yaml::Value(ScalarOwned::Integer(1)),
+            Yaml::Value(ScalarOwned::Integer(2)),
+        ]);
 
         let mut path = InstancePath::new();
         path.push_index(10);
@@ -2188,7 +2286,10 @@ mod tests {
 
     #[test]
     fn test_navigate_index_on_object() {
-        let yaml = yaml_object(vec![("name", Yaml::String("test".to_string()))]);
+        let yaml = yaml_object(vec![(
+            "name",
+            Yaml::Value(ScalarOwned::String("test".to_string())),
+        )]);
 
         let mut path = InstancePath::new();
         path.push_index(0);
@@ -2199,7 +2300,10 @@ mod tests {
 
     #[test]
     fn test_navigate_key_on_array() {
-        let yaml = yaml_array(vec![Yaml::Integer(1), Yaml::Integer(2)]);
+        let yaml = yaml_array(vec![
+            Yaml::Value(ScalarOwned::Integer(1)),
+            Yaml::Value(ScalarOwned::Integer(2)),
+        ]);
 
         let mut path = InstancePath::new();
         path.push_key("name".to_string());
@@ -2210,7 +2314,7 @@ mod tests {
 
     #[test]
     fn test_navigate_into_scalar() {
-        let yaml = yaml_scalar(Yaml::String("test".to_string()));
+        let yaml = yaml_scalar(Yaml::Value(ScalarOwned::String("test".to_string())));
 
         let mut path = InstancePath::new();
         path.push_key("name".to_string());
@@ -2223,14 +2327,26 @@ mod tests {
 
     #[test]
     fn test_yaml_type_name() {
-        assert_eq!(yaml_type_name(&Yaml::Null), "null");
-        assert_eq!(yaml_type_name(&Yaml::Boolean(true)), "boolean");
-        assert_eq!(yaml_type_name(&Yaml::Integer(42)), "integer");
-        assert_eq!(yaml_type_name(&Yaml::Real("3.14".to_string())), "float");
-        assert_eq!(yaml_type_name(&Yaml::String("test".to_string())), "string");
-        assert_eq!(yaml_type_name(&Yaml::Array(vec![])), "array");
+        assert_eq!(yaml_type_name(&Yaml::Value(ScalarOwned::Null)), "null");
         assert_eq!(
-            yaml_type_name(&Yaml::Hash(yaml_rust2::yaml::Hash::new())),
+            yaml_type_name(&Yaml::Value(ScalarOwned::Boolean(true))),
+            "boolean"
+        );
+        assert_eq!(
+            yaml_type_name(&Yaml::Value(ScalarOwned::Integer(42))),
+            "integer"
+        );
+        assert_eq!(
+            yaml_type_name(&Yaml::Value(ScalarOwned::FloatingPoint(2.5.into()))),
+            "float"
+        );
+        assert_eq!(
+            yaml_type_name(&Yaml::Value(ScalarOwned::String("test".to_string()))),
+            "string"
+        );
+        assert_eq!(yaml_type_name(&Yaml::Sequence(vec![])), "array");
+        assert_eq!(
+            yaml_type_name(&Yaml::Mapping(saphyr::MappingOwned::new())),
             "object"
         );
         assert_eq!(yaml_type_name(&Yaml::BadValue), "null");
@@ -2241,17 +2357,20 @@ mod tests {
 
     #[test]
     fn test_yaml_to_json_value() {
-        assert_eq!(yaml_to_json_value(&Yaml::Null), serde_json::Value::Null);
         assert_eq!(
-            yaml_to_json_value(&Yaml::Boolean(true)),
+            yaml_to_json_value(&Yaml::Value(ScalarOwned::Null)),
+            serde_json::Value::Null
+        );
+        assert_eq!(
+            yaml_to_json_value(&Yaml::Value(ScalarOwned::Boolean(true))),
             serde_json::Value::Bool(true)
         );
         assert_eq!(
-            yaml_to_json_value(&Yaml::Integer(42)),
+            yaml_to_json_value(&Yaml::Value(ScalarOwned::Integer(42))),
             serde_json::json!(42)
         );
         assert_eq!(
-            yaml_to_json_value(&Yaml::String("test".to_string())),
+            yaml_to_json_value(&Yaml::Value(ScalarOwned::String("test".to_string()))),
             serde_json::json!("test")
         );
         assert_eq!(yaml_to_json_value(&Yaml::BadValue), serde_json::Value::Null);
@@ -2260,7 +2379,7 @@ mod tests {
 
     #[test]
     fn test_yaml_to_json_value_real() {
-        let result = yaml_to_json_value(&Yaml::Real("1.234".to_string()));
+        let result = yaml_to_json_value(&Yaml::Value(ScalarOwned::FloatingPoint(1.234.into())));
         if let serde_json::Value::Number(n) = result {
             assert!((n.as_f64().unwrap() - 1.234).abs() < 0.001);
         } else {
@@ -2270,15 +2389,21 @@ mod tests {
 
     #[test]
     fn test_yaml_to_json_value_array() {
-        let yaml = Yaml::Array(vec![Yaml::Integer(1), Yaml::Integer(2)]);
+        let yaml = Yaml::Sequence(vec![
+            Yaml::Value(ScalarOwned::Integer(1)),
+            Yaml::Value(ScalarOwned::Integer(2)),
+        ]);
         assert_eq!(yaml_to_json_value(&yaml), serde_json::json!([1, 2]));
     }
 
     #[test]
     fn test_yaml_to_json_value_hash() {
-        let mut hash = yaml_rust2::yaml::Hash::new();
-        hash.insert(Yaml::String("key".to_string()), Yaml::Integer(42));
-        let yaml = Yaml::Hash(hash);
+        let mut hash = saphyr::MappingOwned::new();
+        hash.insert(
+            Yaml::Value(ScalarOwned::String("key".to_string())),
+            Yaml::Value(ScalarOwned::Integer(42)),
+        );
+        let yaml = Yaml::Mapping(hash);
         assert_eq!(yaml_to_json_value(&yaml), serde_json::json!({"key": 42}));
     }
 }

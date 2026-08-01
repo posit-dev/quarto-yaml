@@ -2,9 +2,10 @@
 //!
 //! YAML parsing with source location tracking.
 //!
-//! This crate provides `YamlWithSourceInfo`, which wraps `yaml-rust2::Yaml` with
-//! source location information for every node in the YAML tree. This enables
-//! precise error reporting and source tracking through transformations.
+//! This crate provides `YamlWithSourceInfo`, which wraps `saphyr::YamlOwned`
+//! with source location information for every node in the YAML tree. This
+//! enables precise error reporting and source tracking through
+//! transformations.
 //!
 //! ## Design
 //!
@@ -39,4 +40,5 @@ mod yaml_with_source_info;
 pub use error::{Error, Result};
 pub use parser::{file_id_for_filename, parse, parse_file, parse_with_parent};
 pub use quarto_source_map::SourceInfo; // Re-export from quarto-source-map
+pub use saphyr::{ScalarOwned, YamlOwned}; // Re-export the value type from saphyr
 pub use yaml_with_source_info::{YamlHashEntry, YamlWithSourceInfo};

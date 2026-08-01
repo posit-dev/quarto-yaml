@@ -8,7 +8,7 @@
 
 use crate::error::{SchemaError, SchemaResult};
 use quarto_yaml::{SourceInfo, YamlWithSourceInfo};
-use yaml_rust2::Yaml;
+use saphyr::{ScalarOwned, YamlOwned as Yaml};
 
 use super::Schema;
 use super::helpers::yaml_to_json_value;
@@ -34,16 +34,16 @@ use super::types::{EnumSchema, NullSchema};
 pub(super) fn from_yaml(yaml: &YamlWithSourceInfo) -> SchemaResult<Schema> {
     match &yaml.yaml {
         // Short form: "boolean", "string", etc.
-        Yaml::String(s) => parse_short_form(s.as_str(), &yaml.source_info),
+        Yaml::Value(ScalarOwned::String(s)) => parse_short_form(s.as_str(), &yaml.source_info),
 
         // Object form: {boolean: {...}}, {enum: [...]}, etc.
-        Yaml::Hash(_) => parse_object_form(yaml),
+        Yaml::Mapping(_) => parse_object_form(yaml),
 
         // Array form: [val1, val2, val3] - inline enum
-        Yaml::Array(_) => parse_inline_enum(yaml),
+        Yaml::Sequence(_) => parse_inline_enum(yaml),
 
         // Null can be a schema type too
-        Yaml::Null => Ok(Schema::Null(NullSchema {
+        Yaml::Value(ScalarOwned::Null) => Ok(Schema::Null(NullSchema {
             annotations: Default::default(),
         })),
 

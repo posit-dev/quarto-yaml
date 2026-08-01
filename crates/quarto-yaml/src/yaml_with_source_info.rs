@@ -1,18 +1,18 @@
 //! YAML value with source location tracking.
 
 use crate::SourceInfo;
-use yaml_rust2::Yaml;
+use saphyr::YamlOwned;
 
 /// A YAML value with source location information.
 ///
-/// This structure wraps a `yaml-rust2::Yaml` value with source location tracking
+/// This structure wraps a `saphyr::YamlOwned` value with source location tracking
 /// for the value itself and all its children. Uses the **owned data approach**:
-/// stores an owned `Yaml` value with a parallel `Children` structure for source
+/// stores an owned `YamlOwned` value with a parallel `Children` structure for source
 /// tracking.
 ///
 /// ## Design Trade-offs
 ///
-/// - **Memory**: ~3x overhead (owned Yaml + source-tracked children)
+/// - **Memory**: ~3x overhead (owned YamlOwned + source-tracked children)
 /// - **Simplicity**: No lifetime parameters, clean API
 /// - **Config merging**: Can merge configs from different lifetimes
 /// - **LSP caching**: Can serialize/deserialize for caching
@@ -23,7 +23,6 @@ use yaml_rust2::Yaml;
 ///
 /// ```rust,no_run
 /// use quarto_yaml::{parse, YamlWithSourceInfo};
-/// use yaml_rust2::Yaml;
 ///
 /// let yaml = parse("title: My Document").unwrap();
 /// if let Some(title) = yaml.get_hash_value("title") {
@@ -33,11 +32,11 @@ use yaml_rust2::Yaml;
 /// ```
 #[derive(Debug, Clone)]
 pub struct YamlWithSourceInfo {
-    /// The complete yaml-rust2::Yaml value (owned).
+    /// The complete saphyr::YamlOwned value.
     ///
-    /// This provides direct access to the raw Yaml for code that doesn't
-    /// need source tracking. It's a complete, independent Yaml tree.
-    pub yaml: Yaml,
+    /// This provides direct access to the raw YamlOwned for code that doesn't
+    /// need source tracking. It's a complete, independent YamlOwned tree.
+    pub yaml: YamlOwned,
 
     /// Source location for this node.
     pub source_info: SourceInfo,
@@ -61,7 +60,7 @@ pub struct YamlWithSourceInfo {
 
 /// Source-tracked children of a YAML node.
 ///
-/// This is a parallel structure to the children in `Yaml`, providing
+/// This is a parallel structure to the children in `YamlOwned`, providing
 /// source location information for each child element.
 #[derive(Debug, Clone)]
 enum Children {
@@ -98,7 +97,7 @@ pub struct YamlHashEntry {
 
 impl YamlWithSourceInfo {
     /// Create a new YamlWithSourceInfo for a scalar or leaf node.
-    pub fn new_scalar(yaml: Yaml, source_info: SourceInfo) -> Self {
+    pub fn new_scalar(yaml: YamlOwned, source_info: SourceInfo) -> Self {
         Self {
             yaml,
             source_info,
@@ -109,7 +108,7 @@ impl YamlWithSourceInfo {
 
     /// Create a new YamlWithSourceInfo for a scalar with tag information.
     pub fn new_scalar_with_tag(
-        yaml: Yaml,
+        yaml: YamlOwned,
         source_info: SourceInfo,
         tag: Option<(String, SourceInfo)>,
     ) -> Self {
@@ -123,7 +122,7 @@ impl YamlWithSourceInfo {
 
     /// Create a new YamlWithSourceInfo for an array/sequence.
     pub fn new_array(
-        yaml: Yaml,
+        yaml: YamlOwned,
         source_info: SourceInfo,
         children: Vec<YamlWithSourceInfo>,
     ) -> Self {
@@ -136,7 +135,7 @@ impl YamlWithSourceInfo {
     }
 
     /// Create a new YamlWithSourceInfo for a hash/mapping.
-    pub fn new_hash(yaml: Yaml, source_info: SourceInfo, entries: Vec<YamlHashEntry>) -> Self {
+    pub fn new_hash(yaml: YamlOwned, source_info: SourceInfo, entries: Vec<YamlHashEntry>) -> Self {
         Self {
             yaml,
             source_info,
@@ -262,10 +261,15 @@ impl YamlHashEntry {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use saphyr::ScalarOwned;
+
+    fn s(v: &str) -> YamlOwned {
+        YamlOwned::Value(ScalarOwned::String(v.into()))
+    }
 
     #[test]
     fn test_scalar_creation() {
-        let yaml = Yaml::String("test".into());
+        let yaml = s("test");
         let info = SourceInfo::for_test();
         let node = YamlWithSourceInfo::new_scalar(yaml.clone(), info.clone());
 
@@ -279,12 +283,10 @@ mod tests {
 
     #[test]
     fn test_array_creation() {
-        let child1 =
-            YamlWithSourceInfo::new_scalar(Yaml::String("a".into()), SourceInfo::for_test());
-        let child2 =
-            YamlWithSourceInfo::new_scalar(Yaml::String("b".into()), SourceInfo::for_test());
+        let child1 = YamlWithSourceInfo::new_scalar(s("a"), SourceInfo::for_test());
+        let child2 = YamlWithSourceInfo::new_scalar(s("b"), SourceInfo::for_test());
 
-        let yaml = Yaml::Array(vec![Yaml::String("a".into()), Yaml::String("b".into())]);
+        let yaml = YamlOwned::Sequence(vec![s("a"), s("b")]);
         let node =
             YamlWithSourceInfo::new_array(yaml, SourceInfo::for_test(), vec![child1, child2]);
 
@@ -296,12 +298,10 @@ mod tests {
 
     #[test]
     fn test_get_array_item() {
-        let child1 =
-            YamlWithSourceInfo::new_scalar(Yaml::String("a".into()), SourceInfo::for_test());
-        let child2 =
-            YamlWithSourceInfo::new_scalar(Yaml::String("b".into()), SourceInfo::for_test());
+        let child1 = YamlWithSourceInfo::new_scalar(s("a"), SourceInfo::for_test());
+        let child2 = YamlWithSourceInfo::new_scalar(s("b"), SourceInfo::for_test());
 
-        let yaml = Yaml::Array(vec![Yaml::String("a".into()), Yaml::String("b".into())]);
+        let yaml = YamlOwned::Sequence(vec![s("a"), s("b")]);
         let node =
             YamlWithSourceInfo::new_array(yaml, SourceInfo::for_test(), vec![child1, child2]);
 

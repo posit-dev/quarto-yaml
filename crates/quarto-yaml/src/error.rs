@@ -64,8 +64,8 @@ impl fmt::Display for Error {
 
 impl std::error::Error for Error {}
 
-impl From<yaml_rust2::ScanError> for Error {
-    fn from(err: yaml_rust2::ScanError) -> Self {
+impl From<saphyr_parser::ScanError> for Error {
+    fn from(err: saphyr_parser::ScanError) -> Self {
         Error::ParseError {
             message: err.to_string(),
             location: None,
