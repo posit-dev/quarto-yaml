@@ -205,13 +205,10 @@ struct YamlBuilder<'a> {
     /// The source text being parsed
     source: &'a str,
 
-    /// Whether `source` is pure ASCII, in which case character indices and
-    /// byte offsets coincide and no conversion is needed.
+    /// Whether character indices are also byte offsets.
     source_is_ascii: bool,
 
-    /// Cursor into `source` used to convert marker character indices to byte
-    /// offsets: `(char index, byte offset)`, always at a character boundary.
-    /// See [`Self::byte_offset`].
+    /// Current `(character index, byte offset)` in `source`.
     cursor: Cell<(usize, usize)>,
 
     /// Optional parent source info for substring tracking
@@ -228,16 +225,14 @@ struct YamlBuilder<'a> {
 enum BuildNode {
     /// Building a sequence
     Sequence {
-        /// Byte offset the collection starts at, converted when the
-        /// `SequenceStart` event arrived rather than held as a `Marker`, so
-        /// that every conversion happens at the event that produced it.
+        /// Byte offset of the opening marker.
         start_offset: usize,
         items: Vec<YamlWithSourceInfo>,
     },
 
     /// Building a mapping
     Mapping {
-        /// Byte offset the collection starts at; see `Sequence::start_offset`.
+        /// Byte offset of the opening marker.
         start_offset: usize,
         entries: Vec<(YamlWithSourceInfo, Option<YamlWithSourceInfo>)>,
     },
@@ -255,36 +250,18 @@ impl<'a> YamlBuilder<'a> {
         }
     }
 
-    /// The byte offset in `source` of a marker's position.
+    /// Convert a marker's character index to a byte offset.
     ///
-    /// `Marker::index()` counts **characters** (its doc comment says bytes,
-    /// but the scanner increments it once per popped `char`), while SourceInfo
-    /// spans are byte offsets that consumers slice the source with. This is
-    /// the single conversion point; everything downstream works in bytes.
+    /// Despite its documentation, `Marker::index()` counts characters, while
+    /// `SourceInfo` spans must contain byte offsets.
     ///
-    /// Rather than precompute a char-index → byte-offset table — which costs a
-    /// word per character of source, dwarfing the spans it exists to build —
-    /// this walks a single cursor to the requested character. Markers are
-    /// *nearly* monotonic: events arrive in document order, but a marker can
-    /// point behind its predecessor (a block `MappingStart` is marked at the
-    /// `:`, and the first key's scalar then points back at the key). So the
-    /// walk goes either direction, and the whole parse costs the total
-    /// variation of the marker sequence — one pass over the source plus the
-    /// token-sized backward hops — in two words of memory.
-    ///
-    /// Correctness does not depend on that near-monotonicity, only speed: any
-    /// query order gives the same answer, just with more walking. Collections
-    /// nevertheless convert their start marker when it arrives rather than
-    /// holding a `Marker` until the matching end event, both to keep the walk
-    /// local and because a byte offset is what the span needs.
+    /// A cursor avoids a lookup table. It can move backward because some
+    /// events, such as a key after `MappingStart`, have an earlier marker.
     fn byte_offset(&self, marker: &Marker) -> usize {
         self.byte_offset_of_char(marker.index())
     }
 
-    /// The byte offset of a character index in `source`, clamped to
-    /// `source.len()`. See [`Self::byte_offset`], the only caller in
-    /// production; this is separate so tests can reach it without a `Marker`,
-    /// which cannot be constructed outside yaml-rust2.
+    /// Convert a character index to a byte offset, clamping at the source end.
     fn byte_offset_of_char(&self, target: usize) -> usize {
         if self.source_is_ascii {
             return target.min(self.source.len());
@@ -295,8 +272,7 @@ impl<'a> YamlBuilder<'a> {
 
         let (mut chars, mut offset) = self.cursor.get();
 
-        // Forward. Stops early at the end of the source, which clamps
-        // out-of-range markers to `source.len()`.
+        // Stop at the source end to clamp out-of-range markers.
         while chars < target && offset < bytes.len() {
             offset += 1;
             while !is_boundary(offset) {
@@ -305,7 +281,6 @@ impl<'a> YamlBuilder<'a> {
             chars += 1;
         }
 
-        // Backward.
         while chars > target {
             offset -= 1;
             while !is_boundary(offset) {
@@ -590,7 +565,7 @@ impl<'a> MarkedEventReceiver for YamlBuilder<'a> {
 
                     // Compute source_info for the entire object
                     // If we have entries, use the first key's start and the current marker's end
-                    // Otherwise, use start_marker to current marker
+                    // Otherwise, use the collection start and current marker
                     let source_info = if let Some(first_entry) = hash_entries.first() {
                         // Get the start offset from the first key
                         let first_key_start = first_entry.key.source_info.start_offset();
@@ -2051,9 +2026,7 @@ file: !path ./data.csv
 
     #[test]
     fn test_char_index_to_byte_offset_conversion() {
-        // The conversion walks a cursor instead of building a table, so it has
-        // to land on the same answer whatever order it is asked in — including
-        // backwards, repeated and out-of-range queries.
+        // Exercise forward, backward, repeated, and out-of-range queries.
         let sources = [
             "",
             "plain ascii",
@@ -2070,8 +2043,6 @@ file: !path ./data.csv
                 .chain([source.len()])
                 .collect();
 
-            // Ascending, descending, then a pattern that jumps around, with
-            // indices past the end of the source mixed in.
             let n = expected.len();
             let order = (0..n)
                 .chain((0..n).rev())
@@ -2090,9 +2061,7 @@ file: !path ./data.csv
 
     #[test]
     fn test_spans_are_byte_offsets_after_multibyte_characters() {
-        // yaml-rust2's Marker counts characters, so every span after a
-        // multi-byte character used to be shifted left by its extra bytes.
-        // See posit-dev/quarto-yaml#9 — this is that issue's reprex.
+        // Regression test for posit-dev/quarto-yaml#9.
         let source = "first: é\nsecond: \"quoted\"\n";
         let parsed = parse(source).unwrap();
         let entries = parsed.as_hash().expect("should be a hash");
@@ -2117,15 +2086,11 @@ file: !path ./data.csv
 
     #[test]
     fn test_collection_spans_are_byte_offsets_after_multibyte_characters() {
-        // Collection lengths were once differences of character indices while
-        // scalar lengths were bytes; both must be bytes (#9).
         let source = "dash: \"—\"\nlist: [é, deux]\nmap: {a: ç}\nafter: end\n";
         let parsed = parse(source).unwrap();
 
         let list = parsed.get_hash_value("list").expect("list not found");
-        // The missing `]` is a separate, pre-existing quirk: yaml-rust2's
-        // SequenceEnd marker points at the closing bracket, not past it, so
-        // flow-collection spans stop just short of it even in pure ASCII.
+        // SequenceEnd points at `]`, so the existing span excludes it.
         assert_eq!(span_text(source, list), "[é, deux");
         let items = list.as_array().expect("list should be an array");
         assert_eq!(span_text(source, &items[0]), "é");
@@ -2138,7 +2103,6 @@ file: !path ./data.csv
         let after = parsed.get_hash_value("after").expect("after not found");
         assert_eq!(span_text(source, after), "end");
 
-        // The root mapping runs from the first key to the end of the content.
         assert_eq!(parsed.source_info.start_offset(), 0);
         assert_eq!(parsed.source_info.end_offset(), source.len());
     }
