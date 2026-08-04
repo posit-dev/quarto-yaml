@@ -1,6 +1,7 @@
 //! YAML parser that builds YamlWithSourceInfo trees.
 
 use crate::{Error, Result, SourceInfo, YamlHashEntry, YamlWithSourceInfo};
+use std::cell::Cell;
 use yaml_rust2::Yaml;
 use yaml_rust2::parser::{Event, MarkedEventReceiver, Parser, Tag};
 use yaml_rust2::scanner::{Marker, TScalarStyle};
@@ -204,10 +205,14 @@ struct YamlBuilder<'a> {
     /// The source text being parsed
     source: &'a str,
 
-    /// Byte offset of each character index in `source`, with one extra entry
-    /// for `source.len()`. `None` when the source is pure ASCII, where the two
-    /// units coincide. See [`Self::byte_offset`].
-    char_to_byte: Option<Vec<usize>>,
+    /// Whether `source` is pure ASCII, in which case character indices and
+    /// byte offsets coincide and no conversion is needed.
+    source_is_ascii: bool,
+
+    /// Cursor into `source` used to convert marker character indices to byte
+    /// offsets: `(char index, byte offset)`, always at a character boundary.
+    /// See [`Self::byte_offset`].
+    cursor: Cell<(usize, usize)>,
 
     /// Optional parent source info for substring tracking
     parent: Option<SourceInfo>,
@@ -223,33 +228,27 @@ struct YamlBuilder<'a> {
 enum BuildNode {
     /// Building a sequence
     Sequence {
-        start_marker: Marker,
+        /// Byte offset the collection starts at, converted when the
+        /// `SequenceStart` event arrived rather than held as a `Marker`, so
+        /// that every conversion happens at the event that produced it.
+        start_offset: usize,
         items: Vec<YamlWithSourceInfo>,
     },
 
     /// Building a mapping
     Mapping {
-        start_marker: Marker,
+        /// Byte offset the collection starts at; see `Sequence::start_offset`.
+        start_offset: usize,
         entries: Vec<(YamlWithSourceInfo, Option<YamlWithSourceInfo>)>,
     },
 }
 
 impl<'a> YamlBuilder<'a> {
     fn new(source: &'a str, parent: Option<SourceInfo>) -> Self {
-        let char_to_byte = if source.is_ascii() {
-            None
-        } else {
-            Some(
-                source
-                    .char_indices()
-                    .map(|(byte, _)| byte)
-                    .chain([source.len()])
-                    .collect(),
-            )
-        };
         Self {
             source,
-            char_to_byte,
+            source_is_ascii: source.is_ascii(),
+            cursor: Cell::new((0, 0)),
             parent,
             stack: Vec::new(),
             root: None,
@@ -262,14 +261,61 @@ impl<'a> YamlBuilder<'a> {
     /// but the scanner increments it once per popped `char`), while SourceInfo
     /// spans are byte offsets that consumers slice the source with. This is
     /// the single conversion point; everything downstream works in bytes.
+    ///
+    /// Rather than precompute a char-index → byte-offset table — which costs a
+    /// word per character of source, dwarfing the spans it exists to build —
+    /// this walks a single cursor to the requested character. Markers are
+    /// *nearly* monotonic: events arrive in document order, but a marker can
+    /// point behind its predecessor (a block `MappingStart` is marked at the
+    /// `:`, and the first key's scalar then points back at the key). So the
+    /// walk goes either direction, and the whole parse costs the total
+    /// variation of the marker sequence — one pass over the source plus the
+    /// token-sized backward hops — in two words of memory.
+    ///
+    /// Correctness does not depend on that near-monotonicity, only speed: any
+    /// query order gives the same answer, just with more walking. Collections
+    /// nevertheless convert their start marker when it arrives rather than
+    /// holding a `Marker` until the matching end event, both to keep the walk
+    /// local and because a byte offset is what the span needs.
     fn byte_offset(&self, marker: &Marker) -> usize {
-        match &self.char_to_byte {
-            None => marker.index().min(self.source.len()),
-            Some(table) => table
-                .get(marker.index())
-                .copied()
-                .unwrap_or(self.source.len()),
+        self.byte_offset_of_char(marker.index())
+    }
+
+    /// The byte offset of a character index in `source`, clamped to
+    /// `source.len()`. See [`Self::byte_offset`], the only caller in
+    /// production; this is separate so tests can reach it without a `Marker`,
+    /// which cannot be constructed outside yaml-rust2.
+    fn byte_offset_of_char(&self, target: usize) -> usize {
+        if self.source_is_ascii {
+            return target.min(self.source.len());
         }
+
+        let bytes = self.source.as_bytes();
+        let is_boundary = |i: usize| i >= bytes.len() || (bytes[i] & 0xC0) != 0x80;
+
+        let (mut chars, mut offset) = self.cursor.get();
+
+        // Forward. Stops early at the end of the source, which clamps
+        // out-of-range markers to `source.len()`.
+        while chars < target && offset < bytes.len() {
+            offset += 1;
+            while !is_boundary(offset) {
+                offset += 1;
+            }
+            chars += 1;
+        }
+
+        // Backward.
+        while chars > target {
+            offset -= 1;
+            while !is_boundary(offset) {
+                offset -= 1;
+            }
+            chars -= 1;
+        }
+
+        self.cursor.set((chars, offset));
+        offset
     }
 
     fn result(self) -> Result<YamlWithSourceInfo> {
@@ -473,7 +519,7 @@ impl<'a> MarkedEventReceiver for YamlBuilder<'a> {
 
             Event::SequenceStart(_anchor_id, _tag) => {
                 self.stack.push(BuildNode::Sequence {
-                    start_marker: marker,
+                    start_offset: self.byte_offset(&marker),
                     items: Vec::new(),
                 });
             }
@@ -482,15 +528,13 @@ impl<'a> MarkedEventReceiver for YamlBuilder<'a> {
                 let build_node = self.stack.pop().expect("SequenceEnd without SequenceStart");
 
                 if let BuildNode::Sequence {
-                    start_marker,
+                    start_offset,
                     items,
                 } = build_node
                 {
                     // Compute the length from start to current marker
-                    let len = self
-                        .byte_offset(&marker)
-                        .saturating_sub(self.byte_offset(&start_marker));
-                    let source_info = self.make_source_info(&start_marker, len);
+                    let len = self.byte_offset(&marker).saturating_sub(start_offset);
+                    let source_info = self.make_source_info_at_offset(start_offset, len);
 
                     // Build the Yaml::Array
                     let yaml_items: Vec<Yaml> = items.iter().map(|n| n.yaml.clone()).collect();
@@ -505,7 +549,7 @@ impl<'a> MarkedEventReceiver for YamlBuilder<'a> {
 
             Event::MappingStart(_anchor_id, _tag) => {
                 self.stack.push(BuildNode::Mapping {
-                    start_marker: marker,
+                    start_offset: self.byte_offset(&marker),
                     entries: Vec::new(),
                 });
             }
@@ -514,7 +558,7 @@ impl<'a> MarkedEventReceiver for YamlBuilder<'a> {
                 let build_node = self.stack.pop().expect("MappingEnd without MappingStart");
 
                 if let BuildNode::Mapping {
-                    start_marker,
+                    start_offset,
                     entries,
                 } = build_node
                 {
@@ -555,11 +599,9 @@ impl<'a> MarkedEventReceiver for YamlBuilder<'a> {
                         // Create SourceInfo starting from first key
                         self.make_source_info_at_offset(first_key_start, len)
                     } else {
-                        // Empty object: use start_marker to current marker
-                        let len = self
-                            .byte_offset(&marker)
-                            .saturating_sub(self.byte_offset(&start_marker));
-                        self.make_source_info(&start_marker, len)
+                        // Empty object: use the collection start to current marker
+                        let len = self.byte_offset(&marker).saturating_sub(start_offset);
+                        self.make_source_info_at_offset(start_offset, len)
                     };
 
                     // Build the Yaml::Hash
@@ -2004,6 +2046,45 @@ file: !path ./data.csv
                 expected,
                 "span of the value in {source:?}"
             );
+        }
+    }
+
+    #[test]
+    fn test_char_index_to_byte_offset_conversion() {
+        // The conversion walks a cursor instead of building a table, so it has
+        // to land on the same answer whatever order it is asked in — including
+        // backwards, repeated and out-of-range queries.
+        let sources = [
+            "",
+            "plain ascii",
+            "é",
+            "a é b — c 𝄞 d",
+            "🇬🇧 flags, ç cedillas, and\nnewlines\n",
+        ];
+
+        for source in sources {
+            let builder = YamlBuilder::new(source, None);
+            let expected: Vec<usize> = source
+                .char_indices()
+                .map(|(byte, _)| byte)
+                .chain([source.len()])
+                .collect();
+
+            // Ascending, descending, then a pattern that jumps around, with
+            // indices past the end of the source mixed in.
+            let n = expected.len();
+            let order = (0..n)
+                .chain((0..n).rev())
+                .chain((0..n).map(|i| (i * 7) % n))
+                .chain([n, n + 5, 0, n + 1, n / 2]);
+
+            for i in order {
+                assert_eq!(
+                    builder.byte_offset_of_char(i),
+                    expected.get(i).copied().unwrap_or(source.len()),
+                    "byte offset of char {i} in {source:?}"
+                );
+            }
         }
     }
 
