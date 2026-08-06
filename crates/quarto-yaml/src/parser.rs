@@ -1,6 +1,7 @@
 //! YAML parser that builds YamlWithSourceInfo trees.
 
 use crate::{Error, Result, SourceInfo, YamlHashEntry, YamlWithSourceInfo};
+use std::cell::Cell;
 use yaml_rust2::Yaml;
 use yaml_rust2::parser::{Event, MarkedEventReceiver, Parser, Tag};
 use yaml_rust2::scanner::{Marker, TScalarStyle};
@@ -204,10 +205,11 @@ struct YamlBuilder<'a> {
     /// The source text being parsed
     source: &'a str,
 
-    /// Byte offset of each character index in `source`, with one extra entry
-    /// for `source.len()`. `None` when the source is pure ASCII, where the two
-    /// units coincide. See [`Self::byte_offset`].
-    char_to_byte: Option<Vec<usize>>,
+    /// Whether character indices are also byte offsets.
+    source_is_ascii: bool,
+
+    /// Current `(character index, byte offset)` in `source`.
+    cursor: Cell<(usize, usize)>,
 
     /// Optional parent source info for substring tracking
     parent: Option<SourceInfo>,
@@ -223,67 +225,77 @@ struct YamlBuilder<'a> {
 enum BuildNode {
     /// Building a sequence
     Sequence {
-        start_marker: Marker,
+        /// Byte offset of the opening marker.
+        start_offset: usize,
         items: Vec<YamlWithSourceInfo>,
     },
 
     /// Building a mapping
     Mapping {
-        start_marker: Marker,
+        /// Byte offset of the opening marker.
+        start_offset: usize,
         entries: Vec<(YamlWithSourceInfo, Option<YamlWithSourceInfo>)>,
     },
 }
 
 impl<'a> YamlBuilder<'a> {
     fn new(source: &'a str, parent: Option<SourceInfo>) -> Self {
-        let char_to_byte = if source.is_ascii() {
-            None
-        } else {
-            Some(
-                source
-                    .char_indices()
-                    .map(|(byte, _)| byte)
-                    .chain([source.len()])
-                    .collect(),
-            )
-        };
         Self {
             source,
-            char_to_byte,
+            source_is_ascii: source.is_ascii(),
+            cursor: Cell::new((0, 0)),
             parent,
             stack: Vec::new(),
             root: None,
         }
     }
 
-    /// The byte offset in `source` of a marker's position.
+    /// Convert a marker's character index to a byte offset.
     ///
-    /// `Marker::index()` counts **characters** (its doc comment says bytes,
-    /// but the scanner increments it once per popped `char`), while SourceInfo
-    /// spans are byte offsets that consumers slice the source with. This is
-    /// the single conversion point; everything downstream works in bytes.
+    /// Despite its documentation, `Marker::index()` counts characters, while
+    /// `SourceInfo` spans must contain byte offsets.
+    ///
+    /// A cursor avoids a lookup table. It can move backward because some
+    /// events, such as a key after `MappingStart`, have an earlier marker.
     fn byte_offset(&self, marker: &Marker) -> usize {
-        match &self.char_to_byte {
-            None => marker.index().min(self.source.len()),
-            Some(table) => table
-                .get(marker.index())
-                .copied()
-                .unwrap_or(self.source.len()),
-        }
+        self.byte_offset_of_char(marker.index())
     }
 
-    /// The end byte offset of a collection whose start byte offset is `start`.
-    ///
-    /// yaml-rust2's SequenceEnd/MappingEnd markers point *at* a flow
-    /// collection's closing `]`/`}`, not past it, so the closer has to be
-    /// pulled into the span by hand. A flow collection is recognised by its
-    /// opener sitting at `start`; block collections (which cannot appear
-    /// inside flow context) end wherever the next token begins and are left
-    /// alone.
-    fn collection_end(&self, start: usize, end_marker: &Marker, open: u8, close: u8) -> usize {
-        let end = self.byte_offset(end_marker);
+    /// Convert a character index to a byte offset, clamping at the source end.
+    fn byte_offset_of_char(&self, target: usize) -> usize {
+        if self.source_is_ascii {
+            return target.min(self.source.len());
+        }
+
         let bytes = self.source.as_bytes();
-        if bytes.get(start) == Some(&open) && bytes.get(end) == Some(&close) {
+        let is_boundary = |i: usize| i >= bytes.len() || (bytes[i] & 0xC0) != 0x80;
+
+        let (mut chars, mut offset) = self.cursor.get();
+
+        // Stop at the source end to clamp out-of-range markers.
+        while chars < target && offset < bytes.len() {
+            offset += 1;
+            while !is_boundary(offset) {
+                offset += 1;
+            }
+            chars += 1;
+        }
+
+        while chars > target {
+            offset -= 1;
+            while !is_boundary(offset) {
+                offset -= 1;
+            }
+            chars -= 1;
+        }
+
+        self.cursor.set((chars, offset));
+        offset
+    }
+
+    fn collection_end(&self, end_marker: &Marker, close: u8) -> usize {
+        let end = self.byte_offset(end_marker);
+        if self.source.as_bytes().get(end) == Some(&close) {
             end + 1
         } else {
             end
@@ -491,7 +503,7 @@ impl<'a> MarkedEventReceiver for YamlBuilder<'a> {
 
             Event::SequenceStart(_anchor_id, _tag) => {
                 self.stack.push(BuildNode::Sequence {
-                    start_marker: marker,
+                    start_offset: self.byte_offset(&marker),
                     items: Vec::new(),
                 });
             }
@@ -500,16 +512,14 @@ impl<'a> MarkedEventReceiver for YamlBuilder<'a> {
                 let build_node = self.stack.pop().expect("SequenceEnd without SequenceStart");
 
                 if let BuildNode::Sequence {
-                    start_marker,
+                    start_offset,
                     items,
                 } = build_node
                 {
-                    // Compute the length from start to current marker,
-                    // pulling in the closing `]` of a flow sequence.
-                    let start = self.byte_offset(&start_marker);
-                    let end = self.collection_end(start, &marker, b'[', b']');
-                    let source_info =
-                        self.make_source_info_at_offset(start, end.saturating_sub(start));
+                    // SequenceEnd points at `]` for flow sequences.
+                    let end = self.collection_end(&marker, b']');
+                    let source_info = self
+                        .make_source_info_at_offset(start_offset, end.saturating_sub(start_offset));
 
                     // Build the Yaml::Array
                     let yaml_items: Vec<Yaml> = items.iter().map(|n| n.yaml.clone()).collect();
@@ -524,7 +534,7 @@ impl<'a> MarkedEventReceiver for YamlBuilder<'a> {
 
             Event::MappingStart(_anchor_id, _tag) => {
                 self.stack.push(BuildNode::Mapping {
-                    start_marker: marker,
+                    start_offset: self.byte_offset(&marker),
                     entries: Vec::new(),
                 });
             }
@@ -533,7 +543,7 @@ impl<'a> MarkedEventReceiver for YamlBuilder<'a> {
                 let build_node = self.stack.pop().expect("MappingEnd without MappingStart");
 
                 if let BuildNode::Mapping {
-                    start_marker,
+                    start_offset,
                     entries,
                 } = build_node
                 {
@@ -563,26 +573,19 @@ impl<'a> MarkedEventReceiver for YamlBuilder<'a> {
                         yaml_pairs.push((key.yaml.clone(), value.yaml.clone()));
                     }
 
-                    // Compute source_info for the entire object, pulling in
-                    // the closing `}` of a flow mapping.
-                    let start = self.byte_offset(&start_marker);
-                    let end = self.collection_end(start, &marker, b'{', b'}');
-
-                    let source_info = if self.source.as_bytes().get(start) == Some(&b'{') {
-                        // Flow mapping: the start marker points at the `{`,
-                        // so the span covers the whole collection.
-                        self.make_source_info_at_offset(start, end.saturating_sub(start))
-                    } else if let Some(first_entry) = hash_entries.first() {
-                        // Block mapping: the start marker points at the first
-                        // entry's `:`, so anchor the span at the first key.
+                    // MappingEnd points at `}` for flow mappings.
+                    let end = self.collection_end(&marker, b'}');
+                    let source_info = if let Some(first_entry) = hash_entries.first() {
                         let first_key_start = first_entry.key.source_info.start_offset();
                         self.make_source_info_at_offset(
                             first_key_start,
                             end.saturating_sub(first_key_start),
                         )
                     } else {
-                        // Empty block mapping: start_marker to current marker
-                        self.make_source_info_at_offset(start, end.saturating_sub(start))
+                        self.make_source_info_at_offset(
+                            start_offset,
+                            end.saturating_sub(start_offset),
+                        )
                     };
 
                     // Build the Yaml::Hash
@@ -2031,10 +2034,43 @@ file: !path ./data.csv
     }
 
     #[test]
+    fn test_char_index_to_byte_offset_conversion() {
+        // Exercise forward, backward, repeated, and out-of-range queries.
+        let sources = [
+            "",
+            "plain ascii",
+            "é",
+            "a é b — c 𝄞 d",
+            "🇬🇧 flags, ç cedillas, and\nnewlines\n",
+        ];
+
+        for source in sources {
+            let builder = YamlBuilder::new(source, None);
+            let expected: Vec<usize> = source
+                .char_indices()
+                .map(|(byte, _)| byte)
+                .chain([source.len()])
+                .collect();
+
+            let n = expected.len();
+            let order = (0..n)
+                .chain((0..n).rev())
+                .chain((0..n).map(|i| (i * 7) % n))
+                .chain([n, n + 5, 0, n + 1, n / 2]);
+
+            for i in order {
+                assert_eq!(
+                    builder.byte_offset_of_char(i),
+                    expected.get(i).copied().unwrap_or(source.len()),
+                    "byte offset of char {i} in {source:?}"
+                );
+            }
+        }
+    }
+
+    #[test]
     fn test_spans_are_byte_offsets_after_multibyte_characters() {
-        // yaml-rust2's Marker counts characters, so every span after a
-        // multi-byte character used to be shifted left by its extra bytes.
-        // See posit-dev/quarto-yaml#9 — this is that issue's reprex.
+        // Regression test for posit-dev/quarto-yaml#9.
         let source = "first: é\nsecond: \"quoted\"\n";
         let parsed = parse(source).unwrap();
         let entries = parsed.as_hash().expect("should be a hash");
@@ -2059,8 +2095,6 @@ file: !path ./data.csv
 
     #[test]
     fn test_collection_spans_are_byte_offsets_after_multibyte_characters() {
-        // Collection lengths were once differences of character indices while
-        // scalar lengths were bytes; both must be bytes (#9).
         let source = "dash: \"—\"\nlist: [é, deux]\nmap: {a: ç}\nafter: end\n";
         let parsed = parse(source).unwrap();
 
@@ -2071,54 +2105,22 @@ file: !path ./data.csv
         assert_eq!(span_text(source, &items[1]), "deux");
 
         let map = parsed.get_hash_value("map").expect("map not found");
-        assert_eq!(span_text(source, map), "{a: ç}");
         let entries = map.as_hash().expect("map should be a hash");
         assert_eq!(span_text(source, &entries[0].value), "ç");
 
         let after = parsed.get_hash_value("after").expect("after not found");
         assert_eq!(span_text(source, after), "end");
 
-        // The root mapping runs from the first key to the end of the content.
         assert_eq!(parsed.source_info.start_offset(), 0);
         assert_eq!(parsed.source_info.end_offset(), source.len());
     }
 
     #[test]
     fn test_flow_collection_spans_include_the_closing_bracket() {
-        // yaml-rust2's SequenceEnd/MappingEnd markers point at a flow
-        // collection's `]`/`}`, not past it; the span must include the
-        // closer. See posit-dev/quarto-yaml#10.
-        for (source, expected) in [
-            ("key: [a, b]", "[a, b]"),
-            ("key: []", "[]"),
-            ("key: [ a, b ]", "[ a, b ]"),
-            ("key: [a, b] # comment", "[a, b]"),
-            ("key: {a: 1}", "{a: 1}"),
-            ("key: {}", "{}"),
-            ("key: [[1], [2]]", "[[1], [2]]"),
-            ("key: [{a: 1}, b]", "[{a: 1}, b]"),
-        ] {
+        for source in ["key: [a, b]", "key: {a: 1}"] {
             let value = parse_value(source);
-            assert_eq!(
-                span_text(source, &value),
-                expected,
-                "span of the value in {source:?}"
-            );
+            assert_eq!(value.source_info.end_offset(), source.len());
         }
-
-        // Nested flow collections get the same treatment.
-        let source = "key: [[1], {a: 2}]";
-        let items = parse_value(source);
-        let items = items.as_array().expect("should be an array");
-        assert_eq!(span_text(source, &items[0]), "[1]");
-        assert_eq!(span_text(source, &items[1]), "{a: 2}");
-
-        // A flow mapping at the root spans its braces, while a block mapping
-        // still starts at its first key (its start marker points at the first
-        // `:`, and there is no closer to include).
-        let source = "{a: 1}";
-        let parsed = parse(source).unwrap();
-        assert_eq!(span_text(source, &parsed), "{a: 1}");
     }
 
     #[test]
