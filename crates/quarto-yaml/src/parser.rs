@@ -1,6 +1,7 @@
 //! YAML parser that builds YamlWithSourceInfo trees.
 
 use crate::{Error, Result, SourceInfo, YamlHashEntry, YamlWithSourceInfo};
+use std::cell::Cell;
 use yaml_rust2::Yaml;
 use yaml_rust2::parser::{Event, MarkedEventReceiver, Parser, Tag};
 use yaml_rust2::scanner::{Marker, TScalarStyle};
@@ -204,6 +205,12 @@ struct YamlBuilder<'a> {
     /// The source text being parsed
     source: &'a str,
 
+    /// Whether character indices are also byte offsets.
+    source_is_ascii: bool,
+
+    /// Current `(character index, byte offset)` in `source`.
+    cursor: Cell<(usize, usize)>,
+
     /// Optional parent source info for substring tracking
     parent: Option<SourceInfo>,
 
@@ -218,13 +225,15 @@ struct YamlBuilder<'a> {
 enum BuildNode {
     /// Building a sequence
     Sequence {
-        start_marker: Marker,
+        /// Byte offset of the opening marker.
+        start_offset: usize,
         items: Vec<YamlWithSourceInfo>,
     },
 
     /// Building a mapping
     Mapping {
-        start_marker: Marker,
+        /// Byte offset of the opening marker.
+        start_offset: usize,
         entries: Vec<(YamlWithSourceInfo, Option<YamlWithSourceInfo>)>,
     },
 }
@@ -233,10 +242,55 @@ impl<'a> YamlBuilder<'a> {
     fn new(source: &'a str, parent: Option<SourceInfo>) -> Self {
         Self {
             source,
+            source_is_ascii: source.is_ascii(),
+            cursor: Cell::new((0, 0)),
             parent,
             stack: Vec::new(),
             root: None,
         }
+    }
+
+    /// Convert a marker's character index to a byte offset.
+    ///
+    /// Despite its documentation, `Marker::index()` counts characters, while
+    /// `SourceInfo` spans must contain byte offsets.
+    ///
+    /// A cursor avoids a lookup table. It can move backward because some
+    /// events, such as a key after `MappingStart`, have an earlier marker.
+    fn byte_offset(&self, marker: &Marker) -> usize {
+        self.byte_offset_of_char(marker.index())
+    }
+
+    /// Convert a character index to a byte offset, clamping at the source end.
+    fn byte_offset_of_char(&self, target: usize) -> usize {
+        if self.source_is_ascii {
+            return target.min(self.source.len());
+        }
+
+        let bytes = self.source.as_bytes();
+        let is_boundary = |i: usize| i >= bytes.len() || (bytes[i] & 0xC0) != 0x80;
+
+        let (mut chars, mut offset) = self.cursor.get();
+
+        // Stop at the source end to clamp out-of-range markers.
+        while chars < target && offset < bytes.len() {
+            offset += 1;
+            while !is_boundary(offset) {
+                offset += 1;
+            }
+            chars += 1;
+        }
+
+        while chars > target {
+            offset -= 1;
+            while !is_boundary(offset) {
+                offset -= 1;
+            }
+            chars -= 1;
+        }
+
+        self.cursor.set((chars, offset));
+        offset
     }
 
     fn result(self) -> Result<YamlWithSourceInfo> {
@@ -275,7 +329,7 @@ impl<'a> YamlBuilder<'a> {
     }
 
     fn make_source_info(&self, marker: &Marker, len: usize) -> SourceInfo {
-        let start_offset = marker.index();
+        let start_offset = self.byte_offset(marker);
         let end_offset = start_offset + len;
 
         if let Some(ref parent) = self.parent {
@@ -315,7 +369,7 @@ impl<'a> YamlBuilder<'a> {
     /// text, using the style to know what to look for. Quoted scalars include
     /// their quotes, which is what a diagnostic wants to underline.
     fn compute_scalar_len(&self, marker: &Marker, value: &str, style: TScalarStyle) -> usize {
-        let start = marker.index();
+        let start = self.byte_offset(marker);
         let Some(rest) = self.source.get(start..) else {
             return 0;
         };
@@ -346,7 +400,7 @@ impl<'a> YamlBuilder<'a> {
     ///
     /// Returns the byte offset of the '!' character and the tag's byte length.
     fn find_tag_span(&self, value_marker: &Marker) -> Option<(usize, usize)> {
-        let mut before = self.source.get(..value_marker.index())?;
+        let mut before = &self.source[..self.byte_offset(value_marker)];
 
         // A node can carry both a tag and an anchor, in either order
         // (`!tag &name value` and `&name !tag value` are both valid), so walk
@@ -419,7 +473,8 @@ impl<'a> MarkedEventReceiver for YamlBuilder<'a> {
                         // but it stays inside the source, so consumers can
                         // still slice with it.
                         let guess = 1 + t.suffix.len();
-                        let len = guess.min(self.source.len().saturating_sub(marker.index()));
+                        let len =
+                            guess.min(self.source.len().saturating_sub(self.byte_offset(&marker)));
                         let tag_source_info = self.make_source_info(&marker, len);
                         (t.suffix.clone(), tag_source_info)
                     }
@@ -439,7 +494,7 @@ impl<'a> MarkedEventReceiver for YamlBuilder<'a> {
 
             Event::SequenceStart(_anchor_id, _tag) => {
                 self.stack.push(BuildNode::Sequence {
-                    start_marker: marker,
+                    start_offset: self.byte_offset(&marker),
                     items: Vec::new(),
                 });
             }
@@ -448,13 +503,13 @@ impl<'a> MarkedEventReceiver for YamlBuilder<'a> {
                 let build_node = self.stack.pop().expect("SequenceEnd without SequenceStart");
 
                 if let BuildNode::Sequence {
-                    start_marker,
+                    start_offset,
                     items,
                 } = build_node
                 {
                     // Compute the length from start to current marker
-                    let len = marker.index().saturating_sub(start_marker.index());
-                    let source_info = self.make_source_info(&start_marker, len);
+                    let len = self.byte_offset(&marker).saturating_sub(start_offset);
+                    let source_info = self.make_source_info_at_offset(start_offset, len);
 
                     // Build the Yaml::Array
                     let yaml_items: Vec<Yaml> = items.iter().map(|n| n.yaml.clone()).collect();
@@ -469,7 +524,7 @@ impl<'a> MarkedEventReceiver for YamlBuilder<'a> {
 
             Event::MappingStart(_anchor_id, _tag) => {
                 self.stack.push(BuildNode::Mapping {
-                    start_marker: marker,
+                    start_offset: self.byte_offset(&marker),
                     entries: Vec::new(),
                 });
             }
@@ -478,7 +533,7 @@ impl<'a> MarkedEventReceiver for YamlBuilder<'a> {
                 let build_node = self.stack.pop().expect("MappingEnd without MappingStart");
 
                 if let BuildNode::Mapping {
-                    start_marker,
+                    start_offset,
                     entries,
                 } = build_node
                 {
@@ -510,18 +565,18 @@ impl<'a> MarkedEventReceiver for YamlBuilder<'a> {
 
                     // Compute source_info for the entire object
                     // If we have entries, use the first key's start and the current marker's end
-                    // Otherwise, use start_marker to current marker
+                    // Otherwise, use the collection start and current marker
                     let source_info = if let Some(first_entry) = hash_entries.first() {
                         // Get the start offset from the first key
                         let first_key_start = first_entry.key.source_info.start_offset();
                         // Compute length from first key start to current marker
-                        let len = marker.index().saturating_sub(first_key_start);
+                        let len = self.byte_offset(&marker).saturating_sub(first_key_start);
                         // Create SourceInfo starting from first key
                         self.make_source_info_at_offset(first_key_start, len)
                     } else {
-                        // Empty object: use start_marker to current marker
-                        let len = marker.index().saturating_sub(start_marker.index());
-                        self.make_source_info(&start_marker, len)
+                        // Empty object: use the collection start to current marker
+                        let len = self.byte_offset(&marker).saturating_sub(start_offset);
+                        self.make_source_info_at_offset(start_offset, len)
                     };
 
                     // Build the Yaml::Hash
@@ -1970,6 +2025,103 @@ file: !path ./data.csv
     }
 
     #[test]
+    fn test_char_index_to_byte_offset_conversion() {
+        // Exercise forward, backward, repeated, and out-of-range queries.
+        let sources = [
+            "",
+            "plain ascii",
+            "é",
+            "a é b — c 𝄞 d",
+            "🇬🇧 flags, ç cedillas, and\nnewlines\n",
+        ];
+
+        for source in sources {
+            let builder = YamlBuilder::new(source, None);
+            let expected: Vec<usize> = source
+                .char_indices()
+                .map(|(byte, _)| byte)
+                .chain([source.len()])
+                .collect();
+
+            let n = expected.len();
+            let order = (0..n)
+                .chain((0..n).rev())
+                .chain((0..n).map(|i| (i * 7) % n))
+                .chain([n, n + 5, 0, n + 1, n / 2]);
+
+            for i in order {
+                assert_eq!(
+                    builder.byte_offset_of_char(i),
+                    expected.get(i).copied().unwrap_or(source.len()),
+                    "byte offset of char {i} in {source:?}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_spans_are_byte_offsets_after_multibyte_characters() {
+        // Regression test for posit-dev/quarto-yaml#9.
+        let source = "first: é\nsecond: \"quoted\"\n";
+        let parsed = parse(source).unwrap();
+        let entries = parsed.as_hash().expect("should be a hash");
+
+        assert_eq!(
+            span_text(source, &entries[0].value),
+            "é",
+            "span of the value of `first`"
+        );
+        let second = &entries[1];
+        assert_eq!(
+            &source[second.key_span.start_offset()..second.key_span.end_offset()],
+            "second",
+            "span of the key `second`"
+        );
+        assert_eq!(
+            span_text(source, &second.value),
+            "\"quoted\"",
+            "span of the value of `second`"
+        );
+    }
+
+    #[test]
+    fn test_collection_spans_are_byte_offsets_after_multibyte_characters() {
+        let source = "dash: \"—\"\nlist: [é, deux]\nmap: {a: ç}\nafter: end\n";
+        let parsed = parse(source).unwrap();
+
+        let list = parsed.get_hash_value("list").expect("list not found");
+        // SequenceEnd points at `]`, so the existing span excludes it.
+        assert_eq!(span_text(source, list), "[é, deux");
+        let items = list.as_array().expect("list should be an array");
+        assert_eq!(span_text(source, &items[0]), "é");
+        assert_eq!(span_text(source, &items[1]), "deux");
+
+        let map = parsed.get_hash_value("map").expect("map not found");
+        let entries = map.as_hash().expect("map should be a hash");
+        assert_eq!(span_text(source, &entries[0].value), "ç");
+
+        let after = parsed.get_hash_value("after").expect("after not found");
+        assert_eq!(span_text(source, after), "end");
+
+        assert_eq!(parsed.source_info.start_offset(), 0);
+        assert_eq!(parsed.source_info.end_offset(), source.len());
+    }
+
+    #[test]
+    fn test_tag_span_after_multibyte_characters() {
+        let source = "unit: \"µs\"\nvalue: !expr x + 1\n";
+        let parsed = parse(source).unwrap();
+        let value = parsed.get_hash_value("value").expect("value not found");
+        let (suffix, tag_span) = value.tag.as_ref().expect("tag should be present");
+        assert_eq!(suffix, "expr");
+        assert_eq!(
+            &source[tag_span.start_offset()..tag_span.end_offset()],
+            "!expr"
+        );
+        assert_eq!(span_text(source, value), "x + 1");
+    }
+
+    #[test]
     fn test_quoted_key_spans() {
         let source = "\"quoted key\": v";
         let entries = parse(source).unwrap();
@@ -2062,6 +2214,10 @@ file: !path ./data.csv
             "key: !!str &name 5",
             "key: &name !!str",
             "!!str 5",
+            "日本: 語",
+            "é: [ü, \"ß\"]",
+            "key: — !expr —",
+            "key: |\n  日本\n",
         ] {
             let parsed = parse(source).unwrap_or_else(|e| panic!("{source:?} should parse: {e}"));
             assert_spans_within(source, &parsed);
