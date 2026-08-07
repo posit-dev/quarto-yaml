@@ -2104,18 +2104,13 @@ file: !path ./data.csv
         let parsed = parse(source).unwrap();
 
         let list = parsed.get_hash_value("list").expect("list not found");
-        let (s, e) = (
-            list.source_info.start_offset(),
-            list.source_info.end_offset(),
-        );
-        assert_eq!(&source[s..e], "[é, deux]");
+        assert_eq!(span_text(source, list), "[é, deux]");
         let items = list.as_array().expect("list should be an array");
         assert_eq!(span_text(source, &items[0]), "é");
         assert_eq!(span_text(source, &items[1]), "deux");
 
         let map = parsed.get_hash_value("map").expect("map not found");
-        let (s, e) = (map.source_info.start_offset(), map.source_info.end_offset());
-        assert_eq!(&source[s..e], "{a: ç}");
+        assert_eq!(span_text(source, map), "{a: ç}");
         let entries = map.as_hash().expect("map should be a hash");
         assert_eq!(span_text(source, &entries[0].value), "ç");
 
