@@ -2104,12 +2104,18 @@ file: !path ./data.csv
         let parsed = parse(source).unwrap();
 
         let list = parsed.get_hash_value("list").expect("list not found");
-        assert_eq!(span_text(source, list), "[é, deux]");
+        let (s, e) = (
+            list.source_info.start_offset(),
+            list.source_info.end_offset(),
+        );
+        assert_eq!(&source[s..e], "[é, deux]");
         let items = list.as_array().expect("list should be an array");
         assert_eq!(span_text(source, &items[0]), "é");
         assert_eq!(span_text(source, &items[1]), "deux");
 
         let map = parsed.get_hash_value("map").expect("map not found");
+        let (s, e) = (map.source_info.start_offset(), map.source_info.end_offset());
+        assert_eq!(&source[s..e], "{a: ç}");
         let entries = map.as_hash().expect("map should be a hash");
         assert_eq!(span_text(source, &entries[0].value), "ç");
 
@@ -2118,23 +2124,6 @@ file: !path ./data.csv
 
         assert_eq!(parsed.source_info.start_offset(), 0);
         assert_eq!(parsed.source_info.end_offset(), source.len());
-    }
-
-    #[test]
-    fn test_flow_collection_spans_include_the_closing_bracket() {
-        let src = "list: [a, deux]\nmap: {a: deux}";
-        let parsed = parse(src).unwrap();
-
-        let list = parsed.get_hash_value("list").expect("list not found");
-        let (s, e) = (
-            list.source_info.start_offset(),
-            list.source_info.end_offset(),
-        );
-        assert_eq!(&src[s..e], "[a, deux]");
-
-        let map = parsed.get_hash_value("map").expect("map not found");
-        let (s, e) = (map.source_info.start_offset(), map.source_info.end_offset());
-        assert_eq!(&src[s..e], "{a: deux}");
     }
 
     #[test]
