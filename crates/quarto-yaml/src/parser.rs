@@ -293,6 +293,15 @@ impl<'a> YamlBuilder<'a> {
         offset
     }
 
+    fn collection_end(&self, end_marker: &Marker, close: u8) -> usize {
+        let end = self.byte_offset(end_marker);
+        if self.source.as_bytes().get(end) == Some(&close) {
+            end + 1
+        } else {
+            end
+        }
+    }
+
     fn result(self) -> Result<YamlWithSourceInfo> {
         self.root.ok_or_else(|| Error::ParseError {
             message: "No YAML document found".into(),
@@ -507,9 +516,10 @@ impl<'a> MarkedEventReceiver for YamlBuilder<'a> {
                     items,
                 } = build_node
                 {
-                    // Compute the length from start to current marker
-                    let len = self.byte_offset(&marker).saturating_sub(start_offset);
-                    let source_info = self.make_source_info_at_offset(start_offset, len);
+                    // SequenceEnd points at `]` for flow sequences.
+                    let end = self.collection_end(&marker, b']');
+                    let source_info = self
+                        .make_source_info_at_offset(start_offset, end.saturating_sub(start_offset));
 
                     // Build the Yaml::Array
                     let yaml_items: Vec<Yaml> = items.iter().map(|n| n.yaml.clone()).collect();
@@ -563,20 +573,24 @@ impl<'a> MarkedEventReceiver for YamlBuilder<'a> {
                         yaml_pairs.push((key.yaml.clone(), value.yaml.clone()));
                     }
 
-                    // Compute source_info for the entire object
-                    // If we have entries, use the first key's start and the current marker's end
-                    // Otherwise, use the collection start and current marker
-                    let source_info = if let Some(first_entry) = hash_entries.first() {
-                        // Get the start offset from the first key
+                    // MappingEnd points at `}` for flow mappings.
+                    let end = self.collection_end(&marker, b'}');
+                    let source_info = if self.source.as_bytes().get(start_offset) == Some(&b'{') {
+                        self.make_source_info_at_offset(
+                            start_offset,
+                            end.saturating_sub(start_offset),
+                        )
+                    } else if let Some(first_entry) = hash_entries.first() {
                         let first_key_start = first_entry.key.source_info.start_offset();
-                        // Compute length from first key start to current marker
-                        let len = self.byte_offset(&marker).saturating_sub(first_key_start);
-                        // Create SourceInfo starting from first key
-                        self.make_source_info_at_offset(first_key_start, len)
+                        self.make_source_info_at_offset(
+                            first_key_start,
+                            end.saturating_sub(first_key_start),
+                        )
                     } else {
-                        // Empty object: use the collection start to current marker
-                        let len = self.byte_offset(&marker).saturating_sub(start_offset);
-                        self.make_source_info_at_offset(start_offset, len)
+                        self.make_source_info_at_offset(
+                            start_offset,
+                            end.saturating_sub(start_offset),
+                        )
                     };
 
                     // Build the Yaml::Hash
@@ -2086,19 +2100,29 @@ file: !path ./data.csv
 
     #[test]
     fn test_collection_spans_are_byte_offsets_after_multibyte_characters() {
-        let source = "dash: \"—\"\nlist: [é, deux]\nmap: {a: ç}\nafter: end\n";
+        let source = "dash: \"—\"\nlist: [é, deux]\nmap: {a: ç}\nempty-list: []\nempty-map: {}\nafter: end\n";
         let parsed = parse(source).unwrap();
 
         let list = parsed.get_hash_value("list").expect("list not found");
-        // SequenceEnd points at `]`, so the existing span excludes it.
-        assert_eq!(span_text(source, list), "[é, deux");
+        assert_eq!(span_text(source, list), "[é, deux]");
         let items = list.as_array().expect("list should be an array");
         assert_eq!(span_text(source, &items[0]), "é");
         assert_eq!(span_text(source, &items[1]), "deux");
 
         let map = parsed.get_hash_value("map").expect("map not found");
+        assert_eq!(span_text(source, map), "{a: ç}");
         let entries = map.as_hash().expect("map should be a hash");
         assert_eq!(span_text(source, &entries[0].value), "ç");
+
+        let empty_list = parsed
+            .get_hash_value("empty-list")
+            .expect("empty-list not found");
+        assert_eq!(span_text(source, empty_list), "[]");
+
+        let empty_map = parsed
+            .get_hash_value("empty-map")
+            .expect("empty-map not found");
+        assert_eq!(span_text(source, empty_map), "{}");
 
         let after = parsed.get_hash_value("after").expect("after not found");
         assert_eq!(span_text(source, after), "end");
