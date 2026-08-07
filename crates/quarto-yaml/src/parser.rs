@@ -2100,7 +2100,7 @@ file: !path ./data.csv
 
     #[test]
     fn test_collection_spans_are_byte_offsets_after_multibyte_characters() {
-        let source = "dash: \"—\"\nlist: [é, deux]\nmap: {a: ç}\nafter: end\n";
+        let source = "dash: \"—\"\nlist: [é, deux]\nmap: {a: ç}\nempty-list: []\nempty-map: {}\nafter: end\n";
         let parsed = parse(source).unwrap();
 
         let list = parsed.get_hash_value("list").expect("list not found");
@@ -2113,6 +2113,16 @@ file: !path ./data.csv
         assert_eq!(span_text(source, map), "{a: ç}");
         let entries = map.as_hash().expect("map should be a hash");
         assert_eq!(span_text(source, &entries[0].value), "ç");
+
+        let empty_list = parsed
+            .get_hash_value("empty-list")
+            .expect("empty-list not found");
+        assert_eq!(span_text(source, empty_list), "[]");
+
+        let empty_map = parsed
+            .get_hash_value("empty-map")
+            .expect("empty-map not found");
+        assert_eq!(span_text(source, empty_map), "{}");
 
         let after = parsed.get_hash_value("after").expect("after not found");
         assert_eq!(span_text(source, after), "end");
