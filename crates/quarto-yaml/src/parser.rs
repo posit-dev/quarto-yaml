@@ -575,7 +575,12 @@ impl<'a> MarkedEventReceiver for YamlBuilder<'a> {
 
                     // MappingEnd points at `}` for flow mappings.
                     let end = self.collection_end(&marker, b'}');
-                    let source_info = if let Some(first_entry) = hash_entries.first() {
+                    let source_info = if self.source.as_bytes().get(start_offset) == Some(&b'{') {
+                        self.make_source_info_at_offset(
+                            start_offset,
+                            end.saturating_sub(start_offset),
+                        )
+                    } else if let Some(first_entry) = hash_entries.first() {
                         let first_key_start = first_entry.key.source_info.start_offset();
                         self.make_source_info_at_offset(
                             first_key_start,
@@ -2117,10 +2122,19 @@ file: !path ./data.csv
 
     #[test]
     fn test_flow_collection_spans_include_the_closing_bracket() {
-        for source in ["key: [a, b]", "key: {a: 1}"] {
-            let value = parse_value(source);
-            assert_eq!(value.source_info.end_offset(), source.len());
-        }
+        let src = "list: [a, deux]\nmap: {a: deux}";
+        let parsed = parse(src).unwrap();
+
+        let list = parsed.get_hash_value("list").expect("list not found");
+        let (s, e) = (
+            list.source_info.start_offset(),
+            list.source_info.end_offset(),
+        );
+        assert_eq!(&src[s..e], "[a, deux]");
+
+        let map = parsed.get_hash_value("map").expect("map not found");
+        let (s, e) = (map.source_info.start_offset(), map.source_info.end_offset());
+        assert_eq!(&src[s..e], "{a: deux}");
     }
 
     #[test]
