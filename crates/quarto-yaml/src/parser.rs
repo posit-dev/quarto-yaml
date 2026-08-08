@@ -227,6 +227,8 @@ enum BuildNode {
     Sequence {
         /// Byte offset of the opening marker.
         start_offset: usize,
+        /// Tag from the SequenceStart event, located and attached at SequenceEnd.
+        tag: Option<Tag>,
         items: Vec<YamlWithSourceInfo>,
     },
 
@@ -234,6 +236,8 @@ enum BuildNode {
     Mapping {
         /// Byte offset of the opening marker.
         start_offset: usize,
+        /// Tag from the MappingStart event, located and attached at MappingEnd.
+        tag: Option<Tag>,
         entries: Vec<(YamlWithSourceInfo, Option<YamlWithSourceInfo>)>,
     },
 }
@@ -395,21 +399,23 @@ impl<'a> YamlBuilder<'a> {
         len.min(rest.len())
     }
 
-    /// Find the source extent of the tag preceding a scalar value.
+    /// Find the source extent of the tag preceding a node that starts at
+    /// `node_start`.
     ///
-    /// When yaml-rust2 emits a Scalar event with a tag, the marker points to the
-    /// start of the VALUE, not the tag, and the tag's source spelling is not
-    /// recoverable from the parsed `Tag` (`!!str`, `!str` and
+    /// When yaml-rust2 emits a tagged event, its marker points to the start of
+    /// the NODE (a scalar's value, a flow collection's `[`/`{`, a block
+    /// sequence's first `-`), not the tag, and the tag's source spelling is
+    /// not recoverable from the parsed `Tag` (`!!str`, `!str` and
     /// `!<tag:yaml.org,2002:str>` can all arrive with suffix `"str"`). So we
-    /// look at the whitespace-delimited tokens before the value: a tag is a
+    /// look at the whitespace-delimited tokens before the node: a tag is a
     /// single token starting with `!`.
     ///
-    /// For example, in "key: !expr x + 1", if marker points to "x", we need to
-    /// find "!expr" which comes before it.
+    /// For example, in "key: !expr x + 1", if the node starts at "x", we need
+    /// to find "!expr" which comes before it.
     ///
     /// Returns the byte offset of the '!' character and the tag's byte length.
-    fn find_tag_span(&self, value_marker: &Marker) -> Option<(usize, usize)> {
-        let mut before = &self.source[..self.byte_offset(value_marker)];
+    fn find_tag_span(&self, node_start: usize) -> Option<(usize, usize)> {
+        let mut before = &self.source[..node_start];
 
         // A node can carry both a tag and an anchor, in either order
         // (`!tag &name value` and `&name !tag value` are both valid), so walk
@@ -443,6 +449,27 @@ impl<'a> YamlBuilder<'a> {
         }
     }
 
+    /// Build the `(suffix, span)` tag info for a node whose source starts at
+    /// `node_start`, searching backward from there for the tag's spelling.
+    fn make_tag_info(&self, tag: &Tag, node_start: usize) -> (String, SourceInfo) {
+        if let Some((tag_offset, tag_len)) = self.find_tag_span(node_start) {
+            (
+                tag.suffix.clone(),
+                self.make_tag_source_info(tag_offset, tag_len),
+            )
+        } else {
+            // Fallback: if we can't find the tag, point at the node and guess
+            // the length from the suffix. That's wrong, but it stays inside
+            // the source, so consumers can still slice with it.
+            let guess = 1 + tag.suffix.len();
+            let len = guess.min(self.source.len().saturating_sub(node_start));
+            (
+                tag.suffix.clone(),
+                self.make_source_info_at_offset(node_start, len),
+            )
+        }
+    }
+
     /// Create SourceInfo for a tag at a specific byte offset.
     fn make_tag_source_info(&self, tag_start_offset: usize, tag_len: usize) -> SourceInfo {
         let end_offset = tag_start_offset + tag_len;
@@ -469,25 +496,12 @@ impl<'a> MarkedEventReceiver for YamlBuilder<'a> {
             Event::DocumentEnd => {}
 
             Event::Scalar(value, style, _anchor_id, tag) => {
-                // Capture tag information if present
-                let tag_info = tag.as_ref().map(|t| {
-                    // The marker points to the start of the VALUE, not the tag
-                    // We need to find where the tag actually is in the source
-                    if let Some((tag_offset, tag_len)) = self.find_tag_span(&marker) {
-                        let tag_source_info = self.make_tag_source_info(tag_offset, tag_len);
-                        (t.suffix.clone(), tag_source_info)
-                    } else {
-                        // Fallback: if we can't find the tag, point at the value
-                        // and guess the length from the suffix. That's wrong,
-                        // but it stays inside the source, so consumers can
-                        // still slice with it.
-                        let guess = 1 + t.suffix.len();
-                        let len =
-                            guess.min(self.source.len().saturating_sub(self.byte_offset(&marker)));
-                        let tag_source_info = self.make_source_info(&marker, len);
-                        (t.suffix.clone(), tag_source_info)
-                    }
-                });
+                // Capture tag information if present. The marker points to the
+                // start of the VALUE, not the tag; make_tag_info searches
+                // backward from there.
+                let tag_info = tag
+                    .as_ref()
+                    .map(|t| self.make_tag_info(t, self.byte_offset(&marker)));
 
                 // Compute source info for the value itself
                 // The marker points to the start of the value
@@ -501,9 +515,10 @@ impl<'a> MarkedEventReceiver for YamlBuilder<'a> {
                 self.push_complete(node);
             }
 
-            Event::SequenceStart(_anchor_id, _tag) => {
+            Event::SequenceStart(_anchor_id, tag) => {
                 self.stack.push(BuildNode::Sequence {
                     start_offset: self.byte_offset(&marker),
+                    tag,
                     items: Vec::new(),
                 });
             }
@@ -513,6 +528,7 @@ impl<'a> MarkedEventReceiver for YamlBuilder<'a> {
 
                 if let BuildNode::Sequence {
                     start_offset,
+                    tag,
                     items,
                 } = build_node
                 {
@@ -521,20 +537,26 @@ impl<'a> MarkedEventReceiver for YamlBuilder<'a> {
                     let source_info = self
                         .make_source_info_at_offset(start_offset, end.saturating_sub(start_offset));
 
+                    // The tag precedes the sequence's first token, which is
+                    // where the SequenceStart marker pointed.
+                    let tag_info = tag.as_ref().map(|t| self.make_tag_info(t, start_offset));
+
                     // Build the Yaml::Array
                     let yaml_items: Vec<Yaml> = items.iter().map(|n| n.yaml.clone()).collect();
                     let yaml = Yaml::Array(yaml_items);
 
-                    let node = YamlWithSourceInfo::new_array(yaml, source_info, items);
+                    let node =
+                        YamlWithSourceInfo::new_array(yaml, source_info, items).with_tag(tag_info);
                     self.push_complete(node);
                 } else {
                     panic!("Expected Sequence build node");
                 }
             }
 
-            Event::MappingStart(_anchor_id, _tag) => {
+            Event::MappingStart(_anchor_id, tag) => {
                 self.stack.push(BuildNode::Mapping {
                     start_offset: self.byte_offset(&marker),
+                    tag,
                     entries: Vec::new(),
                 });
             }
@@ -544,6 +566,7 @@ impl<'a> MarkedEventReceiver for YamlBuilder<'a> {
 
                 if let BuildNode::Mapping {
                     start_offset,
+                    tag,
                     entries,
                 } = build_node
                 {
@@ -575,28 +598,29 @@ impl<'a> MarkedEventReceiver for YamlBuilder<'a> {
 
                     // MappingEnd points at `}` for flow mappings.
                     let end = self.collection_end(&marker, b'}');
-                    let source_info = if self.source.as_bytes().get(start_offset) == Some(&b'{') {
-                        self.make_source_info_at_offset(
-                            start_offset,
-                            end.saturating_sub(start_offset),
-                        )
+                    // A block mapping's MappingStart marker points at the
+                    // colon after the first key, so the node starts at the
+                    // first key instead.
+                    let span_start = if self.source.as_bytes().get(start_offset) == Some(&b'{') {
+                        start_offset
                     } else if let Some(first_entry) = hash_entries.first() {
-                        let first_key_start = first_entry.key.source_info.start_offset();
-                        self.make_source_info_at_offset(
-                            first_key_start,
-                            end.saturating_sub(first_key_start),
-                        )
+                        first_entry.key.source_info.start_offset()
                     } else {
-                        self.make_source_info_at_offset(
-                            start_offset,
-                            end.saturating_sub(start_offset),
-                        )
+                        start_offset
                     };
+                    let source_info =
+                        self.make_source_info_at_offset(span_start, end.saturating_sub(span_start));
+
+                    // The tag precedes the mapping's first token — the `{` or
+                    // the first key. (Not the Start marker: for block mappings
+                    // that sits after the first key, past the tag.)
+                    let tag_info = tag.as_ref().map(|t| self.make_tag_info(t, span_start));
 
                     // Build the Yaml::Hash
                     let yaml = Yaml::Hash(yaml_pairs.into_iter().collect());
 
-                    let node = YamlWithSourceInfo::new_hash(yaml, source_info, hash_entries);
+                    let node = YamlWithSourceInfo::new_hash(yaml, source_info, hash_entries)
+                        .with_tag(tag_info);
                     self.push_complete(node);
                 } else {
                     panic!("Expected Mapping build node");
@@ -1588,14 +1612,14 @@ We used the following approach...
     }
 
     #[test]
-    fn test_parse_scalar_with_concat_tag() {
+    fn test_parse_concat_tag_on_flow_sequence() {
         let yaml = parse("items: !concat [a, b]").unwrap();
-        // Note: !concat on a sequence - the tag is on the sequence itself
+        // !concat on a sequence - the tag is on the sequence itself.
         let value = yaml.get_hash_value("items").expect("items not found");
 
-        // The tag is currently only captured for scalars, not sequences
-        // This test documents current behavior
         assert!(value.is_array());
+        let (tag_suffix, _) = value.tag.as_ref().expect("tag should be present");
+        assert_eq!(tag_suffix, "concat");
     }
 
     #[test]
@@ -1752,6 +1776,180 @@ file: !path ./data.csv
 
         let file = yaml.get_hash_value("file").expect("file not found");
         assert_eq!(file.tag.as_ref().map(|(t, _)| t.as_str()), Some("path"));
+    }
+
+    // =========== COLLECTION TAG TESTS ===========
+
+    /// Assert a node carries `!suffix` and that its tag span covers exactly
+    /// `spelling` in `source`.
+    fn assert_tag(source: &str, node: &YamlWithSourceInfo, suffix: &str, spelling: &str) {
+        let (s, span) = node
+            .tag
+            .as_ref()
+            .unwrap_or_else(|| panic!("{source:?} should have a tag"));
+        assert_eq!(s, suffix, "tag suffix in {source:?}");
+        assert_eq!(
+            &source[span.start_offset()..span.end_offset()],
+            spelling,
+            "tag span in {source:?}"
+        );
+    }
+
+    #[test]
+    fn test_tag_on_block_sequence() {
+        let source = "key: !prefer\n  - a\n  - b\n";
+        let value = parse_value(source);
+        assert!(value.is_array());
+        assert_tag(source, &value, "prefer", "!prefer");
+        assert_eq!(span_text(source, &value), "- a\n  - b\n");
+    }
+
+    #[test]
+    fn test_tag_on_flow_sequence() {
+        let source = "key: !prefer [a, b]";
+        let value = parse_value(source);
+        assert!(value.is_array());
+        assert_tag(source, &value, "prefer", "!prefer");
+        assert_eq!(span_text(source, &value), "[a, b]");
+    }
+
+    #[test]
+    fn test_tag_on_block_mapping() {
+        // The MappingStart marker for a block mapping points at the colon
+        // after the first key, so the tag must be sought from the first key.
+        let source = "key: !prefer\n  x: 1\n  y: 2\n";
+        let value = parse_value(source);
+        assert!(value.is_hash());
+        assert_tag(source, &value, "prefer", "!prefer");
+        assert_eq!(span_text(source, &value), "x: 1\n  y: 2\n");
+    }
+
+    #[test]
+    fn test_tag_on_flow_mapping() {
+        let source = "key: !prefer {x: 1}";
+        let value = parse_value(source);
+        assert!(value.is_hash());
+        assert_tag(source, &value, "prefer", "!prefer");
+        assert_eq!(span_text(source, &value), "{x: 1}");
+    }
+
+    #[test]
+    fn test_tag_on_root_level_collections() {
+        let source = "!prefer\n- a\n";
+        let root = parse(source).unwrap();
+        assert!(root.is_array());
+        assert_tag(source, &root, "prefer", "!prefer");
+
+        let source = "!prefer [a]";
+        let root = parse(source).unwrap();
+        assert!(root.is_array());
+        assert_tag(source, &root, "prefer", "!prefer");
+
+        let source = "!prefer\nx: 1\n";
+        let root = parse(source).unwrap();
+        assert!(root.is_hash());
+        assert_tag(source, &root, "prefer", "!prefer");
+    }
+
+    #[test]
+    fn test_collection_tag_with_an_anchor_in_the_way() {
+        for source in ["key: &nm !prefer\n  - a\n", "key: !prefer &nm\n  - a\n"] {
+            let value = parse_value(source);
+            assert!(value.is_array());
+            assert_tag(source, &value, "prefer", "!prefer");
+        }
+    }
+
+    #[test]
+    fn test_tag_on_nested_collections() {
+        // The tag belongs to the inner sequence only.
+        let source = "key:\n  - !prefer\n    - a\n";
+        let outer = parse_value(source);
+        assert!(outer.tag.is_none(), "outer sequence should have no tag");
+        let items = outer.as_array().expect("should be an array");
+        assert_tag(source, &items[0], "prefer", "!prefer");
+
+        let source = "key: [!prefer [a], b]";
+        let outer = parse_value(source);
+        assert!(outer.tag.is_none(), "outer sequence should have no tag");
+        let items = outer.as_array().expect("should be an array");
+        assert_tag(source, &items[0], "prefer", "!prefer");
+        assert!(items[1].tag.is_none(), "sibling scalar should have no tag");
+    }
+
+    #[test]
+    fn test_tag_on_empty_flow_collections() {
+        let source = "key: !prefer []";
+        let value = parse_value(source);
+        assert!(value.is_array());
+        assert_eq!(value.len(), 0);
+        assert_tag(source, &value, "prefer", "!prefer");
+
+        let source = "key: !prefer {}";
+        let value = parse_value(source);
+        assert!(value.is_hash());
+        assert_eq!(value.len(), 0);
+        assert_tag(source, &value, "prefer", "!prefer");
+    }
+
+    #[test]
+    fn test_standard_tags_on_collections_are_recorded() {
+        // Standard collection tags are recorded like any other tag; they do
+        // not affect how the node's value is built.
+        let source = "key: !!seq\n  - a\n";
+        let value = parse_value(source);
+        assert!(value.is_array());
+        assert_tag(source, &value, "seq", "!!seq");
+        assert_eq!(value.as_array().unwrap()[0].yaml.as_str(), Some("a"));
+
+        let source = "key: !!map\n  x: 1\n";
+        let value = parse_value(source);
+        assert!(value.is_hash());
+        assert_tag(source, &value, "map", "!!map");
+    }
+
+    #[test]
+    fn test_collection_tag_separated_by_blank_line() {
+        let source = "key: !prefer\n\n  - a\n";
+        let value = parse_value(source);
+        assert!(value.is_array());
+        assert_tag(source, &value, "prefer", "!prefer");
+    }
+
+    #[test]
+    fn test_collection_tag_span_after_multibyte_characters() {
+        let source = "dash: \"—\"\nlist: !prefer [é, deux]\nmap: !concat {a: ç}\n";
+        let parsed = parse(source).unwrap();
+
+        let list = parsed.get_hash_value("list").expect("list not found");
+        assert_tag(source, list, "prefer", "!prefer");
+        assert_eq!(span_text(source, list), "[é, deux]");
+
+        let map = parsed.get_hash_value("map").expect("map not found");
+        assert_tag(source, map, "concat", "!concat");
+        assert_eq!(span_text(source, map), "{a: ç}");
+    }
+
+    #[test]
+    fn test_collection_tag_with_comment_in_between_falls_back() {
+        // A comment between the tag and the collection defeats the backward
+        // walk (the nearest token is the comment text), so the span falls
+        // back to a clamped guess. The tag itself is still captured, and the
+        // span stays inside the source. Tracked as strand qy-yqstv88w.
+        let source = "key: !prefer # note\n  - a\n";
+        let value = parse_value(source);
+        assert!(value.is_array());
+        let (suffix, _) = value.tag.as_ref().expect("tag should be present");
+        assert_eq!(suffix, "prefer");
+        assert_spans_within(source, &parse(source).unwrap());
+    }
+
+    #[test]
+    fn test_untagged_collections_have_no_tag() {
+        for source in ["key:\n  - a\n", "key: [a]", "key:\n  x: 1\n", "key: {x: 1}"] {
+            let value = parse_value(source);
+            assert!(value.tag.is_none(), "{source:?} should have no tag");
+        }
     }
 
     // =========== SCALAR RESOLUTION TESTS ===========
@@ -2242,6 +2440,14 @@ file: !path ./data.csv
             "é: [ü, \"ß\"]",
             "key: — !expr —",
             "key: |\n  日本\n",
+            "key: !prefer\n  - a\n",
+            "key: !prefer []",
+            "!prefer {}",
+            "!prefer\n- a",
+            "key: !prefer # comment\n  - a\n",
+            "key: !!seq\n  - a\n",
+            "key: !concat\n  x: 1\n",
+            "é: !prefer [ü]",
         ] {
             let parsed = parse(source).unwrap_or_else(|e| panic!("{source:?} should parse: {e}"));
             assert_spans_within(source, &parsed);
