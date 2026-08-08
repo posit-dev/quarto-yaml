@@ -3,7 +3,7 @@ resolver = "3"
 members = ["crates/*"]
 
 [workspace.package]
-version = "0.1.1"
+version = "0.1.2"
 edition = "2024"
 authors = ["Posit Software, PBC"]
 license = "MIT"
@@ -20,7 +20,7 @@ large_enum_variant = "allow"
 
 [workspace.dependencies]
 # Intra-workspace
-quarto-yaml = { version = "0.1.1", path = "crates/quarto-yaml" }
+quarto-yaml = { version = "0.1.2", path = "crates/quarto-yaml" }
 
 # Published foundation crate
 quarto-source-map = "0.1.0"
