@@ -145,6 +145,15 @@ impl YamlWithSourceInfo {
         }
     }
 
+    /// Attach tag information to this node, replacing any existing tag.
+    ///
+    /// Works for any node shape; arrays and hashes have no tag-carrying
+    /// constructor, so this is how the parser attaches tags to them.
+    pub fn with_tag(mut self, tag: Option<(String, SourceInfo)>) -> Self {
+        self.tag = tag;
+        self
+    }
+
     /// Check if this is a scalar value (not array or hash).
     pub fn is_scalar(&self) -> bool {
         matches!(self.children, Children::None)
