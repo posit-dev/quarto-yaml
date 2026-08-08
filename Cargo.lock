@@ -344,7 +344,7 @@ dependencies = [
 
 [[package]]
 name = "quarto-yaml"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "quarto-source-map",
  "regex",
@@ -355,7 +355,7 @@ dependencies = [
 
 [[package]]
 name = "quarto-yaml-validation"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "anyhow",
  "insta",
