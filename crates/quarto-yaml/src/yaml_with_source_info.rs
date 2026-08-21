@@ -53,7 +53,7 @@ pub struct YamlWithSourceInfo {
     ///
     /// This mirrors the structure of `yaml` but includes source location
     /// information for each child. The structure matches the `yaml` field:
-    /// - None for scalars and Null
+    /// - Scalar (no children) for scalars, Null, and BadValue
     /// - Array for sequences
     /// - Hash for mappings
     children: Children,
@@ -65,8 +65,11 @@ pub struct YamlWithSourceInfo {
 /// source location information for each child element.
 #[derive(Debug, Clone)]
 enum Children {
-    /// No children (for scalars, Null, BadValue)
-    None,
+    /// No children (for scalars, Null, BadValue), plus provenance of the
+    /// node's decoded scalar content, if derivation has run.
+    Scalar {
+        content_source_info: Option<SourceInfo>,
+    },
 
     /// Array elements with source tracking
     Array(Vec<YamlWithSourceInfo>),
@@ -86,10 +89,20 @@ pub struct YamlHashEntry {
     /// The value with source tracking
     pub value: YamlWithSourceInfo,
 
-    /// Source location of just the key
+    /// Source location of the key's source text, **including delimiters**
+    /// (the quotes of a quoted scalar, the per-line indentation of a block
+    /// scalar — decoding strips both). This is `key.source_info.clone()`,
+    /// not a span over the key's *decoded* content; use
+    /// [`YamlWithSourceInfo::content_source_info`] on `key` for the span to
+    /// add content offsets to.
     pub key_span: SourceInfo,
 
-    /// Source location of just the value
+    /// Source location of the value's source text, **including delimiters**
+    /// (the quotes of a quoted scalar, the per-line indentation of a block
+    /// scalar — decoding strips both). This is `value.source_info.clone()`,
+    /// not a span over the value's *decoded* content; use
+    /// [`YamlWithSourceInfo::content_source_info`] on `value` for the span to
+    /// add content offsets to.
     pub value_span: SourceInfo,
 
     /// Source location of the entire entry (key + value)
@@ -103,7 +116,9 @@ impl YamlWithSourceInfo {
             yaml,
             source_info,
             tag: None,
-            children: Children::None,
+            children: Children::Scalar {
+                content_source_info: None,
+            },
         }
     }
 
@@ -117,7 +132,9 @@ impl YamlWithSourceInfo {
             yaml,
             source_info,
             tag,
-            children: Children::None,
+            children: Children::Scalar {
+                content_source_info: None,
+            },
         }
     }
 
@@ -154,9 +171,61 @@ impl YamlWithSourceInfo {
         self
     }
 
+    /// Attach derived content provenance, replacing any existing value.
+    /// The parser calls this immediately after `new_scalar*`; see
+    /// § How the pieces are derived.
+    ///
+    /// Scalar-only, unlike `with_tag` (a struct-level field valid on any node
+    /// shape): calling this on a non-scalar node is a bug in the caller, not
+    /// a shape this API supports silently ignoring.
+    pub fn with_content_provenance(mut self, si: SourceInfo) -> Self {
+        debug_assert!(self.is_scalar(), "with_content_provenance: not a scalar");
+        if let Children::Scalar {
+            content_source_info,
+        } = &mut self.children
+        {
+            *content_source_info = Some(si);
+        }
+        self
+    }
+
+    /// Provenance of this node's **decoded scalar content**.
+    ///
+    /// `self.source_info` describes the node's *source text* — including
+    /// delimiters for a quoted scalar, and the per-line indentation that decoding
+    /// strips from a block scalar. Adding a content offset to it is therefore
+    /// wrong. This is the value to add content offsets to.
+    ///
+    /// "Content" means the **decoded scalar text, before type resolution** — i.e.
+    /// yaml-rust2's `Event::Scalar` value string, not `self.yaml`. So `k: ~` has
+    /// one content byte (`~`) and `k: true` has four, even though neither
+    /// resolves to a string.
+    ///
+    /// `None` means no content provenance is available, for any of three reasons:
+    /// this node is not a scalar (ask [`is_scalar`] to tell that apart); no
+    /// derivation ran (the node was built by hand, e.g. in a test, or is an
+    /// unresolved alias); or the lockstep derivation desynced — which is a
+    /// `quarto-yaml` bug, and panics under `strict-provenance`. All three mean the
+    /// same thing to a consumer: decline sub-offset arithmetic. An *empty* scalar
+    /// is **not** `None` — it derives to a zero-length `SourceInfo`.
+    ///
+    /// Contract: if `Some(si)`, then for every content byte offset `k`,
+    /// `si.map_offset(k, ctx)` resolves to the source position of content byte
+    /// `k`, and `si.length() == <decoded content>.len()`. An offset inside a
+    /// collapsed break region resolves to the start of that region; every
+    /// non-whitespace content byte is exact.
+    pub fn content_source_info(&self) -> Option<&SourceInfo> {
+        match &self.children {
+            Children::Scalar {
+                content_source_info,
+            } => content_source_info.as_ref(),
+            _ => None,
+        }
+    }
+
     /// Check if this is a scalar value (not array or hash).
     pub fn is_scalar(&self) -> bool {
-        matches!(self.children, Children::None)
+        matches!(self.children, Children::Scalar { .. })
     }
 
     /// Check if this is an array.
@@ -213,7 +282,7 @@ impl YamlWithSourceInfo {
     /// Get the number of children (array length or hash entry count).
     pub fn len(&self) -> usize {
         match &self.children {
-            Children::None => 0,
+            Children::Scalar { .. } => 0,
             Children::Array(items) => items.len(),
             Children::Hash(entries) => entries.len(),
         }
@@ -284,6 +353,20 @@ mod tests {
         assert!(!node.is_array());
         assert!(!node.is_hash());
         assert_eq!(node.len(), 0);
+    }
+
+    #[test]
+    fn test_scalar_content_source_info_defaults_to_none() {
+        // Constructed directly via `new_scalar`, bypassing the parser (which
+        // is what derives and attaches content provenance) — so this pins
+        // the constructor's default, not parser behavior. It will pass
+        // forever; the parser-driven derivation is covered by
+        // `content_provenance_tests`.
+        let yaml = Yaml::String("test".into());
+        let info = SourceInfo::for_test();
+        let node = YamlWithSourceInfo::new_scalar(yaml, info);
+
+        assert!(node.content_source_info().is_none());
     }
 
     #[test]

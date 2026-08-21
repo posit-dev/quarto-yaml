@@ -1,6 +1,7 @@
 //! YAML parser that builds YamlWithSourceInfo trees.
 
 use crate::{Error, Result, SourceInfo, YamlHashEntry, YamlWithSourceInfo};
+use quarto_source_map::ProvenanceBuilder;
 use std::cell::Cell;
 use yaml_rust2::Yaml;
 use yaml_rust2::parser::{Event, MarkedEventReceiver, Parser, Tag};
@@ -374,17 +375,33 @@ impl<'a> YamlBuilder<'a> {
         }
     }
 
-    /// Compute how many bytes of source a scalar occupies.
+    /// Compute how many bytes of source a scalar occupies, and — separately —
+    /// the provenance of its *decoded content* (`None` iff the lockstep walk
+    /// desynced).
     ///
-    /// The scalar's *value* is not a reliable measure: quotes are not part of
-    /// it, escapes are already decoded, and line breaks in multi-line scalars
-    /// have been folded away. So the extent is measured against the source
-    /// text, using the style to know what to look for. Quoted scalars include
-    /// their quotes, which is what a diagnostic wants to underline.
-    fn compute_scalar_len(&self, marker: &Marker, value: &str, style: TScalarStyle) -> usize {
+    /// The scalar's *value* is not a reliable measure of its **span**: quotes
+    /// are not part of it, escapes are already decoded, and line breaks in
+    /// multi-line scalars have been folded away. So the span is measured
+    /// against the source text, using the style to know what to look for.
+    /// Quoted scalars' span includes their quotes, which is what a
+    /// diagnostic wants to underline.
+    ///
+    /// Content provenance is a second, independent derivation over the same
+    /// marker: `quarto-yaml` does not re-implement YAML scalar decoding, so
+    /// it walks `value` (already decoded by yaml-rust2) lockstep against the
+    /// raw source, taking segmentation from the grammar and content lengths
+    /// from `value`. See § How the pieces are derived in
+    /// `claude-notes/plans/2026-08-20-provenance-1-foundations.md` (q2 repo)
+    /// for the four rules and the header-skip rule this implements.
+    fn compute_scalar_provenance(
+        &self,
+        marker: &Marker,
+        value: &str,
+        style: TScalarStyle,
+    ) -> (usize, Option<SourceInfo>) {
         let start = self.byte_offset(marker);
         let Some(rest) = self.source.get(start..) else {
-            return 0;
+            return (0, None);
         };
 
         let len = match style {
@@ -395,8 +412,100 @@ impl<'a> YamlBuilder<'a> {
             // character, so the `|`/`>` header is not covered by the span.
             TScalarStyle::Literal | TScalarStyle::Folded => block_scalar_len(rest, marker.col()),
         };
+        let len = len.min(rest.len());
 
-        len.min(rest.len())
+        // --- content provenance -------------------------------------------
+
+        let (esc, block, quoted) = match style {
+            TScalarStyle::Plain => (None, false, false),
+            TScalarStyle::SingleQuoted => (Some(b'\''), false, true),
+            TScalarStyle::DoubleQuoted => (Some(b'\\'), false, true),
+            TScalarStyle::Literal | TScalarStyle::Folded => (None, true, false),
+        };
+
+        // Where the walk starts (`raw`'s first byte). Quoted scalars skip
+        // the opening delimiter. Block scalars normally start at the marker
+        // (which already points at the first content character), except the
+        // header-skip rule below.
+        let walk_start = if quoted {
+            start + 1
+        } else if block && self.at_empty_block_header(start, value) {
+            // The marker points at the `|`/`>` header rather than at content
+            // (the empty-body case): start the walk at the newline ending
+            // the header line instead. No span changes — `len` above still
+            // covers the header, which is what a diagnostic should
+            // underline.
+            self.source[start..]
+                .find('\n')
+                .map(|i| start + i)
+                .unwrap_or(start + len)
+        } else {
+            start
+        };
+
+        // Indent per style: block styles strip `indent` bytes of leading
+        // whitespace per continuation line; flow styles fold away all
+        // line-leading whitespace, so they pass 0 (nothing to preserve, no
+        // rewind to perform).
+        let indent = if block { marker.col() } else { 0 };
+
+        // Rule 1's entry condition is style-conditional too, for the same
+        // underlying reason as `indent`: flow scalars strip trailing
+        // whitespace before a line break (so it belongs to the fold, and
+        // rule 1 must claim it starting from its own leading edge), while a
+        // block literal's trailing whitespace is content (so it must stay
+        // with rule 3, unclaimed by rule 1 until the newline itself). See
+        // `walk_scalar_provenance`'s `wide_entry` parameter.
+        let wide_entry = !block;
+
+        // The walk is bounded by `value`, not by the scalar's own span: it
+        // reads source past the span's end when the value asks for it (a
+        // clip-chomped block scalar's synthesized trailing newline, `|+`'s
+        // kept newlines, a trailing-spaces line `block_scalar_len` trims).
+        // Passing the full remaining source is safe for every style because
+        // the walk loop terminates once `value` is exhausted, regardless of
+        // how much further source remains.
+        let provenance = self.source.get(walk_start..).and_then(|walk_rest| {
+            let mut builder = self.provenance_builder(start);
+            walk_scalar_provenance(
+                walk_rest,
+                value,
+                indent,
+                esc,
+                wide_entry,
+                walk_start,
+                &mut builder,
+            )
+            .ok()?;
+            Some(builder.finish())
+        });
+
+        (len, provenance)
+    }
+
+    /// The header-skip predicate: does `start` sit on a block scalar's `|`/`>`
+    /// header, with an empty (or all-newline) decoded body?
+    ///
+    /// Must not be a bare byte test — for a block scalar whose *content*
+    /// starts with a pipe, the marker points at that content byte, not a
+    /// header, and the byte test alone would fire falsely and desync the
+    /// walk. An empty body is the only case where the marker can sit on the
+    /// header, so both clauses are required.
+    fn at_empty_block_header(&self, start: usize, value: &str) -> bool {
+        matches!(self.source.as_bytes().get(start), Some(b'|') | Some(b'>'))
+            && value.bytes().all(|c| c == b'\n')
+    }
+
+    /// Start a [`ProvenanceBuilder`] rooted the same way this builder's other
+    /// `SourceInfo`s are: `in_parent` when parsing a substring (mirroring
+    /// [`make_source_info`](Self::make_source_info)), `in_file` otherwise.
+    /// `anchor` is the scalar's span start (the marker's byte offset).
+    fn provenance_builder(&self, anchor: usize) -> ProvenanceBuilder {
+        if let Some(ref parent) = self.parent {
+            ProvenanceBuilder::in_parent(parent.clone(), anchor)
+        } else {
+            ProvenanceBuilder::in_file(quarto_source_map::FileId(0), anchor)
+        }
     }
 
     /// Find the source extent of the tag preceding a node that starts at
@@ -503,14 +612,65 @@ impl<'a> MarkedEventReceiver for YamlBuilder<'a> {
                     .as_ref()
                     .map(|t| self.make_tag_info(t, self.byte_offset(&marker)));
 
-                // Compute source info for the value itself
-                // The marker points to the start of the value
-                let len = self.compute_scalar_len(&marker, &value, style);
+                // Compute source info for the value itself, and the
+                // provenance of its decoded content (the lockstep walk).
+                // The marker points to the start of the value.
+                let (len, content_provenance) =
+                    self.compute_scalar_provenance(&marker, &value, style);
                 let source_info = self.make_source_info(&marker, len);
+
+                // Content-provenance invariants. Both need yaml-rust2's
+                // decoded `value: String` — `YamlWithSourceInfo::new_scalar`
+                // only ever sees the resolved `Yaml` and cannot check
+                // either — so they live here, at the point of derivation,
+                // rather than downstream.
+                if let Some(si) = &content_provenance {
+                    // Unconditional (not feature-gated): a `Some` is always
+                    // byte-exact under the lockstep derivation, so this
+                    // should never fire even in ordinary debug builds.
+                    //
+                    // This is a tripwire, not a proof. The walk consumes
+                    // the whole decoded value or fails, so length equality
+                    // is close to tautological here — a `Concat` piece list
+                    // could tile the right total length while pointing at
+                    // the wrong source ranges and this check would not
+                    // catch it. The load-bearing check is desync
+                    // detection, i.e. the strict-provenance assert below,
+                    // not this one.
+                    debug_assert_eq!(
+                        si.length(),
+                        value.len(),
+                        "content-provenance length mismatch: derived {} content bytes, \
+                         decoded value is {} bytes",
+                        si.length(),
+                        value.len(),
+                    );
+                }
+                // Feature-gated: replaces the compiler enforcement the
+                // additive (non-breaking) provenance design gave up. Every
+                // `Event::Scalar` runs derivation (unlike `Event::Alias`,
+                // which is `None` by construction — see its arm below), so
+                // `None` here can only mean the lockstep walk desynced —
+                // a `quarto-yaml` bug. Off by default because it turns that
+                // bug into a panic instead of the graceful `None` normal
+                // callers see.
+                #[cfg(feature = "strict-provenance")]
+                if content_provenance.is_none() {
+                    panic!(
+                        "content-provenance desync: derivation ran for this scalar but \
+                         produced no provenance (source cursor: byte offset {} in source; \
+                         value cursor: {value:?}, {} bytes)",
+                        self.byte_offset(&marker),
+                        value.len(),
+                    );
+                }
 
                 // Create the Yaml value
                 let yaml = resolve_scalar(&value, style, tag.as_ref());
-                let node = YamlWithSourceInfo::new_scalar_with_tag(yaml, source_info, tag_info);
+                let mut node = YamlWithSourceInfo::new_scalar_with_tag(yaml, source_info, tag_info);
+                if let Some(si) = content_provenance {
+                    node = node.with_content_provenance(si);
+                }
 
                 self.push_complete(node);
             }
@@ -628,8 +788,18 @@ impl<'a> MarkedEventReceiver for YamlBuilder<'a> {
             }
 
             Event::Alias(_anchor_id) => {
-                // For now, we don't support aliases
-                // We could add support later by tracking anchors
+                // We don't resolve aliases to the anchored node's value —
+                // this is a deliberate design decision, not a gap to fill in
+                // later. An alias's *source text* is `*name`, but its
+                // *value* is the anchored node's; "content provenance"
+                // therefore has two defensible answers (derive from the
+                // alias's own `*name` text, or from the anchor's source),
+                // and this crate implements neither. `new_scalar` leaves
+                // content provenance at its default `None` — not
+                // `Some(<empty>)`, which is reserved for a scalar that
+                // genuinely decodes to zero content bytes (see
+                // `YamlWithSourceInfo::content_source_info`'s doc for the
+                // "no derivation ran" vs. "derives to empty" distinction).
                 let source_info = self.make_source_info(&marker, 0);
                 let node = YamlWithSourceInfo::new_scalar(Yaml::Null, source_info);
                 self.push_complete(node);
@@ -874,6 +1044,189 @@ fn block_scalar_len(rest: &str, indent: usize) -> usize {
     }
 
     end
+}
+
+/// Walk `value` (already decoded by yaml-rust2) lockstep against `raw` (the
+/// source text starting at the scalar's walk-start offset), feeding
+/// `builder` the pieces that tile `value` against the source bytes it came
+/// from. Returns `Err` on desync.
+///
+/// `indent` is `marker.col()` for block styles, `0` for flow styles
+/// (plain, single- and double-quoted — folding in a flow scalar strips all
+/// line-leading whitespace, so there is no indent to preserve). `esc` is the
+/// escape-introducing byte for the style (`'\''` for single-quoted, `'\\'`
+/// for double-quoted), or `None` for plain and block styles, which have no
+/// escapes. `wide_entry` is `true` for flow styles, `false` for block —
+/// see rule 1 below; it is the trailing-edge counterpart of the same
+/// style fact `indent` already encodes.
+///
+/// `quarto-yaml` does not re-implement YAML scalar decoding: only
+/// *segmentation* (where a transformation starts, how many source bytes it
+/// consumes) is derived here; *evaluation* (what content bytes it produces)
+/// is read off `value`, so the piece list tiles exactly the string the
+/// caller holds, by construction.
+///
+/// Four rules, evaluated **in this order** — the order is load-bearing:
+/// verbatim (rule 3) must be tried only after break (rule 1) and escape
+/// (rule 2), because the bytes being equal is exactly the condition under
+/// which break and escape fire, so trying verbatim first strands the walk
+/// (see § How the pieces are derived,
+/// `claude-notes/plans/2026-08-20-provenance-1-foundations.md` in the q2
+/// repo, for the measured counterexamples).
+fn walk_scalar_provenance(
+    raw: &str,
+    value: &str,
+    indent: usize,
+    esc: Option<u8>,
+    wide_entry: bool,
+    base: usize,
+    builder: &mut ProvenanceBuilder,
+) -> std::result::Result<(), ()> {
+    let (rb, vb) = (raw.as_bytes(), value.as_bytes());
+    let (mut si, mut vi) = (0usize, 0usize);
+
+    while vi < vb.len() {
+        // Rule 1: break region. The value is at a space, newline or tab
+        // (note the asymmetry: a tab is an entry condition but is never
+        // advanced over below — deliberate, and matches the design this
+        // implements). The *source*-side entry test is style-conditional:
+        //
+        // - Flow styles (`wide_entry`): the source is at a whitespace run
+        //   that *contains* a newline — not just at the `\n`/`\r` itself.
+        //   A plain or quoted scalar's trailing spaces before a line break
+        //   are stripped (`key: a \n  b` decodes to `a b`), so they belong
+        //   to the same folded region as the break, not to a separate
+        //   verbatim run. (Entering only at the newline byte let rule 3
+        //   consume such a trailing space as verbatim one iteration before
+        //   rule 1 recognized the fold was starting, stranding the walk —
+        //   a real desync on trivially valid YAML, caught by
+        //   `strict-provenance`.)
+        // - Block styles: the source is at `\n`/`\r` exactly, as before.
+        //   A block literal's trailing spaces are *content* (kept, not
+        //   stripped — see `block_pipe_trailing_spaces_last_line`'s
+        //   fixture), so they must fall through to rule 3 as verbatim;
+        //   widening entry here would absorb them into a break-region
+        //   piece the value-side cap below can't accommodate (that cap
+        //   assumes entry starts at a real newline, which block styles
+        //   still guarantee).
+        //
+        // Absorb the maximal source whitespace run — computed once, from
+        // the current cursor, whether or not it turns out to contain a
+        // newline — and the value's run of space-or-newline, capped so
+        // neither side eats a more-indented line's content-leading
+        // whitespace. Tag the piece verbatim iff the two runs are
+        // byte-identical, never by length alone.
+        if si < rb.len()
+            && matches!(vb[vi], b' ' | b'\n' | b'\t')
+            && if wide_entry {
+                (rb[si] as char).is_whitespace()
+            } else {
+                rb[si] == b'\n' || rb[si] == b'\r'
+            }
+        {
+            let mut se = si;
+            let mut newlines = 0;
+            while se < rb.len() && (rb[se] as char).is_whitespace() {
+                if rb[se] == b'\n' {
+                    newlines += 1;
+                }
+                se += 1;
+            }
+
+            // Not actually a break region (no newline in the run): fall
+            // through to rules 2-4, which handle this byte on its own.
+            if newlines > 0 {
+                if indent > 0 {
+                    let last_nl = raw[si..se].rfind('\n').map(|i| si + i + 1).unwrap_or(si);
+                    se = se.min(last_nl + indent);
+                }
+
+                let mut ve = vi;
+                while ve < vb.len() && matches!(vb[ve], b' ' | b'\n') {
+                    ve += 1;
+                }
+                ve = ve.min(vi + newlines.max(1));
+
+                if rb[si..se] == vb[vi..ve] {
+                    builder.verbatim(base + si..base + se);
+                } else {
+                    builder.replacement(base + si..base + se, ve - vi);
+                }
+                si = se;
+                vi = ve;
+                continue;
+            }
+        }
+
+        // Rule 2: escape. The source is at `\` (double-quoted) or at a `'`
+        // whose successor is also `'` (single-quoted).
+        if let Some(e) = esc
+            && si < rb.len()
+            && rb[si] == e
+        {
+            let (slen, olen) = escape_len(&raw[si..], e);
+            if slen > 0 {
+                builder.replacement(base + si..base + si + slen, olen);
+                si += slen;
+                vi += olen;
+                continue;
+            }
+        }
+
+        // Rule 3: verbatim. The value byte equals the source byte.
+        if si < rb.len() && rb[si] == vb[vi] {
+            builder.verbatim(base + si..base + si + 1);
+            si += 1;
+            vi += 1;
+            continue;
+        }
+
+        // Rule 4: synthesis, or desync. The value has bytes left and the
+        // source is exhausted: if what remains is all newlines, emit one
+        // zero-width piece (e.g. a clip-chomped block scalar's trailing
+        // newline at EOF, which has no source byte at all); otherwise this
+        // is a desync.
+        if si >= rb.len() {
+            if vb[vi..].iter().all(|c| *c == b'\n') {
+                builder.replacement(base + si..base + si, vb.len() - vi);
+                return Ok(());
+            }
+            return Err(());
+        }
+        return Err(());
+    }
+    Ok(())
+}
+
+/// Byte length of an escape sequence starting at `tail[0]` (which is `esc`),
+/// and the number of content bytes it decodes to. `(0, 0)` means "not
+/// actually an escape here" — e.g. a lone `'` in a single-quoted scalar not
+/// followed by another `'`.
+fn escape_len(tail: &str, esc: u8) -> (usize, usize) {
+    let b = tail.as_bytes();
+    if esc == b'\'' {
+        return if b.len() >= 2 && b[1] == b'\'' {
+            (2, 1)
+        } else {
+            (0, 0)
+        };
+    }
+    match b.get(1) {
+        Some(b'n' | b't' | b'r' | b'0' | b'a' | b'b' | b'"' | b'\\' | b'/') => (2, 1),
+        Some(b'x') => (4, 1),
+        Some(b'u') => {
+            let cp = u32::from_str_radix(&tail[2..6.min(tail.len())], 16).unwrap_or(0);
+            (6, char::from_u32(cp).map_or(1, |c| c.len_utf8()))
+        }
+        Some(b'\n' | b'\r') => {
+            let mut i = 1;
+            while i < b.len() && (b[i] as char).is_whitespace() {
+                i += 1;
+            }
+            (i, 0)
+        }
+        _ => (0, 0),
+    }
 }
 
 /// Returns `true` if `value` is a YAML 1.2 core-schema float.

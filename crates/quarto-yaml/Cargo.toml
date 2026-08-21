@@ -11,6 +11,15 @@ readme = "README.md"
 keywords = ["yaml", "parser", "source-map", "spans", "diagnostics"]
 categories = ["parsing", "development-tools"]
 
+[features]
+# Off by default. Turns the content-provenance walker's desync response from
+# a silent `None` into a panic, and asserts that every scalar whose
+# derivation ran produced `Some` — the runtime check that replaces the
+# compiler enforcement the additive (non-breaking) provenance design gave
+# up. See the asserts next to `Event::Scalar` in `parser.rs` for what is and
+# isn't proven by them.
+strict-provenance = []
+
 [dependencies]
 yaml-rust2 = { workspace = true }
 serde = { workspace = true }

@@ -333,9 +333,9 @@ dependencies = [
 
 [[package]]
 name = "quarto-source-map"
-version = "0.1.0"
+version = "0.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2e3d29b1ef6088d016dfe84d831e5aa3daaba4624e23621364c2aef6d593114f"
+checksum = "8a89e06e4e076edf57f2cc0389c03e9d5a58a9c2ae51d69be1e91db931e8e3cc"
 dependencies = [
  "serde",
  "serde_json",
@@ -344,7 +344,7 @@ dependencies = [
 
 [[package]]
 name = "quarto-yaml"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "quarto-source-map",
  "regex",
@@ -355,7 +355,7 @@ dependencies = [
 
 [[package]]
 name = "quarto-yaml-validation"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "anyhow",
  "insta",
