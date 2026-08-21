@@ -601,6 +601,52 @@ impl<'a> MarkedEventReceiver for YamlBuilder<'a> {
                     self.compute_scalar_provenance(&marker, &value, style);
                 let source_info = self.make_source_info(&marker, len);
 
+                // Content-provenance invariants. Both need yaml-rust2's
+                // decoded `value: String` — `YamlWithSourceInfo::new_scalar`
+                // only ever sees the resolved `Yaml` and cannot check
+                // either — so they live here, at the point of derivation,
+                // rather than downstream.
+                if let Some(si) = &content_provenance {
+                    // Unconditional (not feature-gated): a `Some` is always
+                    // byte-exact under the lockstep derivation, so this
+                    // should never fire even in ordinary debug builds.
+                    //
+                    // This is a tripwire, not a proof. The walk consumes
+                    // the whole decoded value or fails, so length equality
+                    // is close to tautological here — a `Concat` piece list
+                    // could tile the right total length while pointing at
+                    // the wrong source ranges and this check would not
+                    // catch it. The load-bearing check is desync
+                    // detection, i.e. the strict-provenance assert below,
+                    // not this one.
+                    debug_assert_eq!(
+                        si.length(),
+                        value.len(),
+                        "content-provenance length mismatch: derived {} content bytes, \
+                         decoded value is {} bytes",
+                        si.length(),
+                        value.len(),
+                    );
+                }
+                // Feature-gated: replaces the compiler enforcement the
+                // additive (non-breaking) provenance design gave up. Every
+                // `Event::Scalar` runs derivation (unlike `Event::Alias`,
+                // which is `None` by construction — see its arm below), so
+                // `None` here can only mean the lockstep walk desynced —
+                // a `quarto-yaml` bug. Off by default because it turns that
+                // bug into a panic instead of the graceful `None` normal
+                // callers see.
+                #[cfg(feature = "strict-provenance")]
+                if content_provenance.is_none() {
+                    panic!(
+                        "content-provenance desync: derivation ran for this scalar but \
+                         produced no provenance (source cursor: byte offset {} in source; \
+                         value cursor: {value:?}, {} bytes)",
+                        self.byte_offset(&marker),
+                        value.len(),
+                    );
+                }
+
                 // Create the Yaml value
                 let yaml = resolve_scalar(&value, style, tag.as_ref());
                 let mut node = YamlWithSourceInfo::new_scalar_with_tag(yaml, source_info, tag_info);
@@ -724,8 +770,18 @@ impl<'a> MarkedEventReceiver for YamlBuilder<'a> {
             }
 
             Event::Alias(_anchor_id) => {
-                // For now, we don't support aliases
-                // We could add support later by tracking anchors
+                // We don't resolve aliases to the anchored node's value —
+                // this is a deliberate design decision, not a gap to fill in
+                // later. An alias's *source text* is `*name`, but its
+                // *value* is the anchored node's; "content provenance"
+                // therefore has two defensible answers (derive from the
+                // alias's own `*name` text, or from the anchor's source),
+                // and this crate implements neither. `new_scalar` leaves
+                // content provenance at its default `None` — not
+                // `Some(<empty>)`, which is reserved for a scalar that
+                // genuinely decodes to zero content bytes (see
+                // `YamlWithSourceInfo::content_source_info`'s doc for the
+                // "no derivation ran" vs. "derives to empty" distinction).
                 let source_info = self.make_source_info(&marker, 0);
                 let node = YamlWithSourceInfo::new_scalar(Yaml::Null, source_info);
                 self.push_complete(node);

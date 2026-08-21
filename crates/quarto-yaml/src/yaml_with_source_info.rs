@@ -89,10 +89,20 @@ pub struct YamlHashEntry {
     /// The value with source tracking
     pub value: YamlWithSourceInfo,
 
-    /// Source location of just the key
+    /// Source location of the key's source text, **including delimiters**
+    /// (the quotes of a quoted scalar, the per-line indentation of a block
+    /// scalar — decoding strips both). This is `key.source_info.clone()`,
+    /// not a span over the key's *decoded* content; use
+    /// [`YamlWithSourceInfo::content_source_info`] on `key` for the span to
+    /// add content offsets to.
     pub key_span: SourceInfo,
 
-    /// Source location of just the value
+    /// Source location of the value's source text, **including delimiters**
+    /// (the quotes of a quoted scalar, the per-line indentation of a block
+    /// scalar — decoding strips both). This is `value.source_info.clone()`,
+    /// not a span over the value's *decoded* content; use
+    /// [`YamlWithSourceInfo::content_source_info`] on `value` for the span to
+    /// add content offsets to.
     pub value_span: SourceInfo,
 
     /// Source location of the entire entry (key + value)
