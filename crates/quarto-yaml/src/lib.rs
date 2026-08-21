@@ -32,6 +32,8 @@
 //! }
 //! ```
 
+#[cfg(test)]
+mod content_provenance_tests;
 mod error;
 mod parser;
 mod yaml_with_source_info;
