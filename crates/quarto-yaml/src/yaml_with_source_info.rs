@@ -164,7 +164,12 @@ impl YamlWithSourceInfo {
     /// Attach derived content provenance, replacing any existing value.
     /// The parser calls this immediately after `new_scalar*`; see
     /// § How the pieces are derived.
+    ///
+    /// Scalar-only, unlike `with_tag` (a struct-level field valid on any node
+    /// shape): calling this on a non-scalar node is a bug in the caller, not
+    /// a shape this API supports silently ignoring.
     pub fn with_content_provenance(mut self, si: SourceInfo) -> Self {
+        debug_assert!(self.is_scalar(), "with_content_provenance: not a scalar");
         if let Children::Scalar {
             content_source_info,
         } = &mut self.children
@@ -342,9 +347,11 @@ mod tests {
 
     #[test]
     fn test_scalar_content_source_info_defaults_to_none() {
-        // No derivation has run yet, so a freshly-built scalar has no content
-        // provenance. This is the stub's honest contract: the next task flips
-        // this to `Some` once the parser derives it.
+        // Constructed directly via `new_scalar`, bypassing the parser (which
+        // is what derives and attaches content provenance) — so this pins
+        // the constructor's default, not parser behavior. It will pass
+        // forever; the parser-driven derivation is covered by
+        // `content_provenance_tests`.
         let yaml = Yaml::String("test".into());
         let info = SourceInfo::for_test();
         let node = YamlWithSourceInfo::new_scalar(yaml, info);
