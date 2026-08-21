@@ -254,6 +254,23 @@ fn plain_multi_line_crlf() {
     assert_eq!(v.content_source_info(), Some(&expected));
 }
 
+#[test]
+fn plain_multi_line_trailing_space_before_fold() {
+    // A plain scalar's trailing space is stripped before the line-break
+    // fold, so it belongs to rule 1's break region, not to a separate
+    // verbatim byte via rule 3 — the source's `' '` before the `\n` has no
+    // content byte of its own. Getting this wrong strands the walk: rule 3
+    // would consume the trailing space as a 1-byte verbatim piece one
+    // iteration before rule 1 recognizes the fold is starting, and the
+    // following `\n` then has no matching value byte to pair with. This is
+    // the shape that caught the desync (fix round 2 of the Phase 2 task).
+    let src = "k: a \n  b\n";
+    let yaml = parse(src).unwrap();
+    let v = yaml.get_hash_value("k").unwrap();
+    let expected = concat(&[(0..1, 3..4), (1..2, 4..8), (2..3, 8..9)]);
+    assert_eq!(v.content_source_info(), Some(&expected));
+}
+
 // ---------------------------------------------------------------------
 // single-quoted
 // ---------------------------------------------------------------------
