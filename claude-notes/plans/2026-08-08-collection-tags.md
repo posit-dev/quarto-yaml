@@ -117,9 +117,9 @@ by a test asserting the tag is still captured and its span stays in-bounds.
 - [x] New tests (see matrix below) — all shapes covered; 363 workspace tests
       pass, clippy clean
 - [x] `cargo test --workspace`, `cargo clippy --workspace`, `cargo fmt`
-- [ ] Close the strand; comment on GH issue #14 (after PR merge)
-- [ ] Follow-up (separate PR per release process): version bump to 0.1.2 so
-      q2 can depend on the fix
+- [x] Close the strand (GH issue #14 auto-closed by PR #15's merge)
+- [x] Release 0.1.2 via PR #16 — workflow succeeded, `v0.1.2` tagged, both
+      crates at 0.1.2 on crates.io (verified 2026-08-08)
 
 Comment-between-tag-and-node limitation filed as strand `qy-yqstv88w`
 (discovered-from `qy-8pf7s9ot`); decision: keep parity with scalars for now.
