@@ -3,7 +3,7 @@ resolver = "3"
 members = ["crates/*"]
 
 [workspace.package]
-version = "0.1.3"
+version = "0.2.0"
 edition = "2024"
 authors = ["Posit Software, PBC"]
 license = "MIT"
@@ -20,10 +20,10 @@ large_enum_variant = "allow"
 
 [workspace.dependencies]
 # Intra-workspace
-quarto-yaml = { version = "0.1.3", path = "crates/quarto-yaml" }
+quarto-yaml = { version = "0.2.0", path = "crates/quarto-yaml" }
 
 # Published foundation crate
-quarto-source-map = "0.1.3"
+quarto-source-map = "0.2.0"
 
 # Shared third-party deps (versions pinned to match the q2 monorepo at
 # extraction time, 2026-06-29)
@@ -35,7 +35,7 @@ anyhow = "1.0.101"
 regex = "1.12"
 
 # Published foundation crate (diagnostics host); json wire shape not needed here.
-quarto-error-reporting = "0.1.0"
+quarto-error-reporting = "0.3.0"
 
 # Dev-only
 insta = "1.46.3"
