@@ -5,7 +5,7 @@ use quarto_source_map::ProvenanceBuilder;
 use std::cell::Cell;
 use yaml_rust2::Yaml;
 use yaml_rust2::parser::{Event, MarkedEventReceiver, Parser, Tag};
-use yaml_rust2::scanner::{Marker, TScalarStyle};
+use yaml_rust2::scanner::{Marker, ScanError, TScalarStyle};
 
 /// The handle of the standard YAML tags, written `!!str`, `!!int`, … in source.
 const STANDARD_TAG_HANDLE: &str = "tag:yaml.org,2002:";
@@ -150,7 +150,7 @@ fn parse_impl(
 
     parser
         .load(&mut builder, false) // false = single document only
-        .map_err(Error::from)?;
+        .map_err(|err| builder.scan_error(&err))?;
 
     builder.result()
 }
@@ -308,10 +308,29 @@ impl<'a> YamlBuilder<'a> {
     }
 
     fn result(self) -> Result<YamlWithSourceInfo> {
+        let location = self.make_source_info_at_offset(0, 0);
         self.root.ok_or_else(|| Error::ParseError {
             message: "No YAML document found".into(),
-            location: None,
+            location: Some(location),
         })
+    }
+
+    /// Convert a yaml-rust2 error into an [`Error`] located in the source.
+    ///
+    /// The location spans the character at the marker, or is zero-width
+    /// when the marker sits at the end of the source. The message omits
+    /// `ScanError`'s Display suffix: its "byte" index counts characters, and
+    /// its line and column are relative to `source`, not to `parent`.
+    fn scan_error(&self, err: &ScanError) -> Error {
+        let start = self.byte_offset(err.marker());
+        let len = self.source[start..]
+            .chars()
+            .next()
+            .map_or(0, char::len_utf8);
+        Error::ParseError {
+            message: err.info().to_owned(),
+            location: Some(self.make_source_info_at_offset(start, len)),
+        }
     }
 
     fn push_complete(&mut self, node: YamlWithSourceInfo) {
