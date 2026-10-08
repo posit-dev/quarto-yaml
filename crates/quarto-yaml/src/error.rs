@@ -7,6 +7,11 @@ use std::fmt;
 pub type Result<T> = std::result::Result<T, Error>;
 
 /// Errors that can occur during YAML parsing.
+///
+/// `Display` renders only the message. A location is a [`SourceInfo`] of
+/// byte offsets, and turning it into a file, row and column needs a
+/// `SourceContext`. To show it, convert the error to a diagnostic and render
+/// it with quarto-error-reporting.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Error {
     /// YAML syntax error
@@ -28,50 +33,16 @@ pub enum Error {
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Error::ParseError { message, location } => {
-                write!(f, "Parse error: {}", message)?;
-                // TODO: Proper location display requires SourceContext to map offsets to row/column.
-                // For now, we only show the error message without location details.
-                // To fix: refactor Error type to carry SourceContext or resolve locations before creating errors.
-                if let Some(_loc) = location {
-                    // Location information available but cannot display without SourceContext
-                }
-                Ok(())
-            }
-            Error::UnexpectedEof { location } => {
-                write!(f, "Unexpected end of input")?;
-                // TODO: Proper location display requires SourceContext to map offsets to row/column.
-                // For now, we only show the error message without location details.
-                // To fix: refactor Error type to carry SourceContext or resolve locations before creating errors.
-                if let Some(_loc) = location {
-                    // Location information available but cannot display without SourceContext
-                }
-                Ok(())
-            }
-            Error::InvalidStructure { message, location } => {
-                write!(f, "Invalid YAML structure: {}", message)?;
-                // TODO: Proper location display requires SourceContext to map offsets to row/column.
-                // For now, we only show the error message without location details.
-                // To fix: refactor Error type to carry SourceContext or resolve locations before creating errors.
-                if let Some(_loc) = location {
-                    // Location information available but cannot display without SourceContext
-                }
-                Ok(())
+            Error::ParseError { message, .. } => write!(f, "Parse error: {}", message),
+            Error::UnexpectedEof { .. } => write!(f, "Unexpected end of input"),
+            Error::InvalidStructure { message, .. } => {
+                write!(f, "Invalid YAML structure: {}", message)
             }
         }
     }
 }
 
 impl std::error::Error for Error {}
-
-impl From<yaml_rust2::ScanError> for Error {
-    fn from(err: yaml_rust2::ScanError) -> Self {
-        Error::ParseError {
-            message: err.to_string(),
-            location: None,
-        }
-    }
-}
 
 #[cfg(test)]
 mod tests {
@@ -94,7 +65,7 @@ mod tests {
             message: "invalid syntax".to_string(),
             location: Some(location),
         };
-        // Location is not displayed currently (see TODO in code)
+        // Display never renders the location; see the `Error` docs.
         assert_eq!(error.to_string(), "Parse error: invalid syntax");
     }
 
