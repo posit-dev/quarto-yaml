@@ -1,0 +1,101 @@
+==== "a: |\nb: y\n"
+0..10 "a: |\nb: y\n" Hash({String("a"): String(""), String("b"): String("y")}) 
+ entry 0..9
+  0..1 "a" String("a") prov=0..1
+  5..9 "b: y" String("") prov=5..5
+ entry 5..9
+  5..6 "b" String("b") prov=5..6
+  8..9 "y" String("y") prov=8..9
+
+==== "a: |"
+0..4 "a: |" Hash({String("a"): String("")}) 
+ entry 0..4
+  0..1 "a" String("a") prov=0..1
+  3..4 "|" String("") prov=3..3
+
+==== "a: |\n"
+0..5 "a: |\n" Hash({String("a"): String("\n")}) 
+ entry 0..4
+  0..1 "a" String("a") prov=0..1
+  3..4 "|" String("\n") prov=4..5
+
+==== "a: |\n\n"
+0..6 "a: |\n\n" Hash({String("a"): String("\n")}) 
+ entry 0..4
+  0..1 "a" String("a") prov=0..1
+  3..4 "|" String("\n") prov=0..1
+
+==== "a: >\n  \nb: 1\n"
+0..13 "a: >\n  \nb: 1\n" Hash({String("a"): String(""), String("b"): Integer(1)}) 
+ entry 0..12
+  0..1 "a" String("a") prov=0..1
+  8..12 "b: 1" String("") prov=8..8
+ entry 8..12
+  8..9 "b" String("b") prov=8..9
+  11..12 "1" Integer(1) prov=11..12
+
+==== "k:\n  a: |\nj: 1\n"
+0..15 "k:\n  a: |\nj: 1\n" Hash({String("k"): Hash({String("a"): String("")}), String("j"): Integer(1)}) 
+ entry 0..10
+  0..1 "k" String("k") prov=0..1
+  5..10 "a: |\n" Hash({String("a"): String("")}) 
+   entry 5..14
+    5..6 "a" String("a") prov=5..6
+    10..14 "j: 1" String("") prov=10..10
+ entry 10..14
+  10..11 "j" String("j") prov=10..11
+  13..14 "1" Integer(1) prov=13..14
+
+==== "a:\nb: ~\n"
+0..8 "a:\nb: ~\n" Hash({String("a"): Null, String("b"): Null}) 
+ entry 0..3
+  0..1 "a" String("a") prov=0..1
+  3..3 "" Null prov=3..3
+ entry 3..7
+  3..4 "b" String("b") prov=3..4
+  6..7 "~" Null prov=6..7
+
+==== "a:"
+0..2 "a:" Hash({String("a"): Null}) 
+ entry 0..2
+  0..1 "a" String("a") prov=0..1
+  2..2 "" Null prov=2..2
+
+==== "d:\n  - \n  - x\n"
+0..14 "d:\n  - \n  - x\n" Hash({String("d"): Array([Null, String("x")])}) 
+ entry 0..14
+  0..1 "d" String("d") prov=0..1
+  5..14 "- \n  - x\n" Array([Null, String("x")]) 
+    12..12 "" Null prov=12..12
+    12..13 "x" String("x") prov=12..13
+
+==== "a: {b c}\n"
+0..9 "a: {b c}\n" Hash({String("a"): Hash({String("b c"): Null})}) 
+ entry 0..8
+  0..1 "a" String("a") prov=0..1
+  3..8 "{b c}" Hash({String("b c"): Null}) 
+   entry 4..7
+    4..7 "b c" String("b c") prov=4..7
+    7..7 "" Null prov=7..7
+
+==== "status: >\n  v2 — x\nbeads: y\n"
+0..30 "status: >\n  v2 — x\nbeads: y\n" Hash({String("status"): String("v2 — x\n"), String("beads"): String("y")}) 
+ entry 0..20
+  0..6 "status" String("status") prov=0..6
+  12..20 "v2 — x" String("v2 — x\n") prov=12..21
+ entry 23..30
+  23..28 "ads: " String("beads") prov=NONE
+  30..30 "" String("y") prov=NONE
+
+==== "a: |+\n  x\n\n\nb: 1\n"
+0..17 "a: |+\n  x\n\n\nb: 1\n" Hash({String("a"): String("x\n\n\n"), String("b"): Integer(1)}) 
+ entry 0..9
+  0..1 "a" String("a") prov=0..1
+  8..9 "x" String("x\n\n\n") prov=8..12
+ entry 12..16
+  12..13 "b" String("b") prov=12..13
+  15..16 "1" Integer(1) prov=15..16
+
+==== "d: *anc\n"
+ERROR: Parse error: while parsing node, found unknown anchor Some((3, 4))
+

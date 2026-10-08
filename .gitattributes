@@ -2,3 +2,7 @@
 # test-fixtures/*.{yaml,json} that some tests compare against generated output;
 # a CRLF checkout on Windows would spuriously fail those comparisons.
 * text=auto eol=lf
+
+# The golden corpus must keep its exact bytes (some cases are CRLF, some
+# lack a final newline).
+crates/quarto-yaml/tests/corpus/** -text

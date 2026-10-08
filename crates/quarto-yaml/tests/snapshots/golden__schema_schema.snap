@@ -1,0 +1,1046 @@
+---
+source: crates/quarto-yaml/tests/golden.rs
+expression: dump(&src)
+---
+0..8627 "- id: schema/scalar\n  anyOf:\n    - number\n    - boolean\n    - string\n    - enum: [null]\n\n- id: schema/description\n  anyOf:\n    - string\n    - object:\n        closed: true\n        properties:\n          short: string\n          long: string\n\n- id: schema/base\n  object:\n    closed: true\n    properties:\n      additionalCompletions:\n        arrayOf: string\n      completions:\n        arrayOf: string\n      id: string\n      hidden: boolean\n      tags: object\n      errorDescription: string\n      description:\n        ref: schema/description\n      default: any\n\n- id: schema/enum\n  object:\n    closed: true\n    super:\n      resolveRef: schema/base\n    required:\n      - enum\n    properties:\n      enum:\n        anyOf:\n          - arrayOf:\n              ref: schema/scalar\n          - object:\n              closed: true\n              super:\n                resolveRef: schema/base\n              properties:\n                values:\n                  arrayOf:\n                    ref: schema/scalar\n\n- id: schema/null\n  anyOf:\n    - enum: [\"null\"]\n    - object:\n        closed: true\n        required:\n          - \"null\"\n        properties:\n          \"null\":\n            anyOf:\n              - ref: schema/base\n\n- id: schema/explicit-schema\n  object:\n    closed: true\n    required:\n      - \"schema\"\n    super:\n      resolveRef: schema/base\n    properties:\n      schema:\n        ref: schema/schema\n\n- id: schema/explicit-pattern-string\n  object:\n    closed: true\n    super:\n      resolveRef: schema/base\n    required:\n      - \"pattern\"\n    properties:\n      pattern: string\n\n- id: schema/string\n  anyOf:\n    - enum: [\"string\", \"path\"]\n    - ref: schema/explicit-pattern-string\n    - object:\n        closed: true\n        super:\n          resolveRef: schema/base\n        required:\n          - \"path\"\n        properties:\n          path:\n            anyOf:\n              - ref: schema/explicit-pattern-string\n              - ref: schema/base\n    - object:\n        closed: true\n        super:\n          resolveRef: schema/base\n        required:\n          - \"string\"\n        properties:\n          string:\n            anyOf:\n              - ref: schema/explicit-pattern-string\n              - ref: schema/base\n\n- id: schema/number\n  anyOf:\n    - enum: [\"number\"]\n    - object:\n        closed: true\n        super:\n          resolveRef: schema/base\n        required:\n          - number\n        properties:\n          number:\n            anyOf:\n              - ref: schema/schema\n              - ref: schema/base\n\n- id: schema/boolean\n  anyOf:\n    - enum: [\"boolean\"]\n    - object:\n        closed: true\n        required:\n          - boolean\n        super:\n          resolveRef: schema/base\n        properties:\n          boolean:\n            anyOf:\n              - ref: schema/schema\n              - ref: schema/base\n\n- id: schema/resolve-ref\n  object:\n    closed: true\n    required:\n      - \"resolveRef\"\n    properties:\n      resolveRef: string\n\n- id: schema/ref\n  object:\n    closed: true\n    required:\n      - \"ref\"\n    properties:\n      ref: string\n      description:\n        ref: schema/description\n  # NB: schema/ref is _not_ a schema/base.\n\n  #object:\n  #  super:\n  #    resolveRef: schema/base\n  #  properties:\n  #    ref: string\n\n- id: schema/maybe-array-of\n  object:\n    closed: true\n    required:\n      - maybeArrayOf\n    super:\n      resolveRef: schema/base\n    properties:\n      maybeArrayOf:\n        ref: schema/schema\n\n- id: schema/array-of\n  object:\n    closed: true\n    super:\n      resolveRef: schema/base\n    required:\n      - \"arrayOf\"\n    properties:\n      arrayOf:\n        anyOf:\n          - ref: schema/schema\n          - object:\n              closed: true\n              super:\n                resolveRef: schema/base\n              properties:\n                length: number\n                schema:\n                  ref: schema/schema\n\n- id: schema/all-of\n  object:\n    closed: true\n    super:\n      resolveRef: schema/base\n    required:\n      - \"allOf\"\n    properties:\n      allOf:\n        anyOf:\n          - arrayOf:\n              ref: schema/schema\n          - object:\n              super:\n                resolveRef: schema/base\n              properties:\n                schemas:\n                  arrayOf:\n                    ref: schema/schema\n\n- id: schema/any-of\n  object:\n    closed: true\n    super:\n      resolveRef: schema/base\n    required:\n      - \"anyOf\"\n    properties:\n      anyOf:\n        anyOf:\n          - arrayOf:\n              ref: schema/schema\n          - object:\n              super:\n                resolveRef: schema/base\n              properties:\n                schemas:\n                  arrayOf:\n                    ref: schema/schema\n\n- id: schema/record\n  object:\n    closed: true\n    super:\n      resolveRef: schema/base\n    required:\n      - \"record\"\n    properties:\n      record:\n        anyOf:\n          - object:\n              additionalProperties:\n                ref: schema/schema\n          - object:\n              closed: true\n              super:\n                resolveRef: schema/base\n              properties:\n                properties:\n                  object:\n                    additionalProperties:\n                      ref: schema/schema\n              required: [properties]\n\n- id: schema/object\n  anyOf:\n    - enum: [\"object\"]\n    - object:\n        closed: true\n        super:\n          resolveRef: schema/base\n        required:\n          - \"object\"\n        properties:\n          object:\n            object:\n              super:\n                resolveRef: schema/base\n              closed: true\n              properties:\n                namingConvention:\n                  anyOf:\n                    - enum: [\"ignore\"]\n                    - arrayOf:\n                        enum:\n                          # because this particular setup is especially likely to lead to typos,\n                          # we support all naming conventions in describing naming conventions\n                          - \"camelCase\"\n                          - \"camel-case\"\n                          - \"camel_case\"\n                          - \"capitalizationCase\"\n                          - \"capitalization-case\"\n                          - \"capitalization_case\"\n                          - \"underscoreCase\"\n                          - \"underscore-case\"\n                          - \"underscore_case\"\n                          - \"snakeCase\"\n                          - \"snake-case\"\n                          - \"snake_case\"\n                          - \"dashCase\"\n                          - \"dash-case\"\n                          - \"dash_case\"\n                          - \"kebabCase\"\n                          - \"kebab-case\"\n                          - \"kebab_case\"\n                properties:\n                  object:\n                    additionalProperties:\n                      ref: schema/schema\n                patternProperties:\n                  object:\n                    additionalProperties:\n                      ref: schema/schema\n                propertyNames:\n                  ref: schema/schema\n                additionalProperties:\n                  ref: schema/schema\n                super:\n                  maybeArrayOf:\n                    ref: schema/schema\n                required:\n                  anyOf:\n                    - enum: [\"all\"]\n                    - arrayOf: string\n                closed: boolean\n                description:\n                  ref: schema/description\n                completions:\n                  arrayOf: string\n\n- id: schema/schema\n  anyOf:\n    - ref: schema/enum\n    - ref: schema/null\n    - ref: schema/explicit-schema\n    - ref: schema/string\n    - ref: schema/number\n    - ref: schema/boolean\n    - ref: schema/ref\n    - ref: schema/resolve-ref\n    - ref: schema/any-of\n    - ref: schema/array-of\n    - ref: schema/maybe-array-of\n    - ref: schema/all-of\n    - ref: schema/record\n    - ref: schema/object\n    - enum: [null, \"any\"]\n  description: \"be a yaml schema\"\n\n- id: schema/schema-field\n  object:\n    properties:\n      name: string\n      schema:\n        ref: schema/schema\n      hidden: boolean\n      alias: string\n      disabled:\n        maybeArrayOf: string\n      enabled:\n        maybeArrayOf: string\n      description:\n        ref: schema/description\n      tags: object\n      errorMessage: string\n    namingConvention: ignore\n    required: [\"name\", \"schema\", \"description\"]\n    propertyNames:\n      enum:\n        - name\n        - schema\n        - hidden\n        - alias\n        - disabled\n        - enabled\n        - description\n        - tags\n        - errorMessage\n        - default # no schema, but entry allowed\n" Array(20)
+  2..89 "id: schema/scalar\n  anyOf:\n    - number\n    - boolean\n    - string\n    - enum: [null]\n\n" Hash(2)
+   entry 2..19
+    2..4 "id" String("id") content=2..4
+    6..19 "schema/scalar" String("schema/scalar") content=6..19
+   entry 22..89
+    22..27 "anyOf" String("anyOf") content=22..27
+    33..89 "- number\n    - boolean\n    - string\n    - enum: [null]\n\n" Array(4)
+      35..41 "number" String("number") content=35..41
+      48..55 "boolean" String("boolean") content=48..55
+      62..68 "string" String("string") content=62..68
+      75..89 "enum: [null]\n\n" Hash(1)
+       entry 75..87
+        75..79 "enum" String("enum") content=75..79
+        81..87 "[null]" Array(1)
+          82..86 "null" Null content=82..86
+  91..239 "id: schema/description\n  anyOf:\n    - string\n    - object:\n        closed: true\n        properties:\n          short: string\n          long: string\n\n" Hash(2)
+   entry 91..113
+    91..93 "id" String("id") content=91..93
+    95..113 "schema/description" String("schema/description") content=95..113
+   entry 116..239
+    116..121 "anyOf" String("anyOf") content=116..121
+    127..239 "- string\n    - object:\n        closed: true\n        properties:\n          short: string\n          long: string\n\n" Array(2)
+      129..135 "string" String("string") content=129..135
+      142..239 "object:\n        closed: true\n        properties:\n          short: string\n          long: string\n\n" Hash(1)
+       entry 142..239
+        142..148 "object" String("object") content=142..148
+        158..239 "closed: true\n        properties:\n          short: string\n          long: string\n\n" Hash(2)
+         entry 158..170
+          158..164 "closed" String("closed") content=158..164
+          166..170 "true" Boolean(true) content=166..170
+         entry 179..239
+          179..189 "properties" String("properties") content=179..189
+          201..239 "short: string\n          long: string\n\n" Hash(2)
+           entry 201..214
+            201..206 "short" String("short") content=201..206
+            208..214 "string" String("string") content=208..214
+           entry 225..237
+            225..229 "long" String("long") content=225..229
+            231..237 "string" String("string") content=231..237
+  241..556 "id: schema/base\n  object:\n    closed: true\n    properties:\n      additionalCompletions:\n        arrayOf: string\n      completions:\n        arrayOf: string\n      id: string\n      hidden: boolean\n      tags: object\n      errorDescription: string\n      description:\n        ref: schema/description\n      default: any\n\n" Hash(2)
+   entry 241..256
+    241..243 "id" String("id") content=241..243
+    245..256 "schema/base" String("schema/base") content=245..256
+   entry 259..556
+    259..265 "object" String("object") content=259..265
+    271..556 "closed: true\n    properties:\n      additionalCompletions:\n        arrayOf: string\n      completions:\n        arrayOf: string\n      id: string\n      hidden: boolean\n      tags: object\n      errorDescription: string\n      description:\n        ref: schema/description\n      default: any\n\n" Hash(2)
+     entry 271..283
+      271..277 "closed" String("closed") content=271..277
+      279..283 "true" Boolean(true) content=279..283
+     entry 288..556
+      288..298 "properties" String("properties") content=288..298
+      306..556 "additionalCompletions:\n        arrayOf: string\n      completions:\n        arrayOf: string\n      id: string\n      hidden: boolean\n      tags: object\n      errorDescription: string\n      description:\n        ref: schema/description\n      default: any\n\n" Hash(8)
+       entry 306..359
+        306..327 "additionalCompletions" String("additionalCompletions") content=306..327
+        337..359 "arrayOf: string\n      " Hash(1)
+         entry 337..352
+          337..344 "arrayOf" String("arrayOf") content=337..344
+          346..352 "string" String("string") content=346..352
+       entry 359..402
+        359..370 "completions" String("completions") content=359..370
+        380..402 "arrayOf: string\n      " Hash(1)
+         entry 380..395
+          380..387 "arrayOf" String("arrayOf") content=380..387
+          389..395 "string" String("string") content=389..395
+       entry 402..412
+        402..404 "id" String("id") content=402..404
+        406..412 "string" String("string") content=406..412
+       entry 419..434
+        419..425 "hidden" String("hidden") content=419..425
+        427..434 "boolean" String("boolean") content=427..434
+       entry 441..453
+        441..445 "tags" String("tags") content=441..445
+        447..453 "object" String("object") content=447..453
+       entry 460..484
+        460..476 "errorDescription" String("errorDescription") content=460..476
+        478..484 "string" String("string") content=478..484
+       entry 491..542
+        491..502 "description" String("description") content=491..502
+        512..542 "ref: schema/description\n      " Hash(1)
+         entry 512..535
+          512..515 "ref" String("ref") content=512..515
+          517..535 "schema/description" String("schema/description") content=517..535
+       entry 542..554
+        542..549 "default" String("default") content=542..549
+        551..554 "any" String("any") content=551..554
+  558..991 "id: schema/enum\n  object:\n    closed: true\n    super:\n      resolveRef: schema/base\n    required:\n      - enum\n    properties:\n      enum:\n        anyOf:\n          - arrayOf:\n              ref: schema/scalar\n          - object:\n              closed: true\n              super:\n                resolveRef: schema/base\n              properties:\n                values:\n                  arrayOf:\n                    ref: schema/scalar\n\n" Hash(2)
+   entry 558..573
+    558..560 "id" String("id") content=558..560
+    562..573 "schema/enum" String("schema/enum") content=562..573
+   entry 576..991
+    576..582 "object" String("object") content=576..582
+    588..991 "closed: true\n    super:\n      resolveRef: schema/base\n    required:\n      - enum\n    properties:\n      enum:\n        anyOf:\n          - arrayOf:\n              ref: schema/scalar\n          - object:\n              closed: true\n              super:\n                resolveRef: schema/base\n              properties:\n                values:\n                  arrayOf:\n                    ref: schema/scalar\n\n" Hash(4)
+     entry 588..600
+      588..594 "closed" String("closed") content=588..594
+      596..600 "true" Boolean(true) content=596..600
+     entry 605..646
+      605..610 "super" String("super") content=605..610
+      618..646 "resolveRef: schema/base\n    " Hash(1)
+       entry 618..641
+        618..628 "resolveRef" String("resolveRef") content=618..628
+        630..641 "schema/base" String("schema/base") content=630..641
+     entry 646..673
+      646..654 "required" String("required") content=646..654
+      662..673 "- enum\n    " Array(1)
+        664..668 "enum" String("enum") content=664..668
+     entry 673..991
+      673..683 "properties" String("properties") content=673..683
+      691..991 "enum:\n        anyOf:\n          - arrayOf:\n              ref: schema/scalar\n          - object:\n              closed: true\n              super:\n                resolveRef: schema/base\n              properties:\n                values:\n                  arrayOf:\n                    ref: schema/scalar\n\n" Hash(1)
+       entry 691..991
+        691..695 "enum" String("enum") content=691..695
+        705..991 "anyOf:\n          - arrayOf:\n              ref: schema/scalar\n          - object:\n              closed: true\n              super:\n                resolveRef: schema/base\n              properties:\n                values:\n                  arrayOf:\n                    ref: schema/scalar\n\n" Hash(1)
+         entry 705..991
+          705..710 "anyOf" String("anyOf") content=705..710
+          722..991 "- arrayOf:\n              ref: schema/scalar\n          - object:\n              closed: true\n              super:\n                resolveRef: schema/base\n              properties:\n                values:\n                  arrayOf:\n                    ref: schema/scalar\n\n" Array(2)
+            724..776 "arrayOf:\n              ref: schema/scalar\n          " Hash(1)
+             entry 724..776
+              724..731 "arrayOf" String("arrayOf") content=724..731
+              747..776 "ref: schema/scalar\n          " Hash(1)
+               entry 747..765
+                747..750 "ref" String("ref") content=747..750
+                752..765 "schema/scalar" String("schema/scalar") content=752..765
+            778..991 "object:\n              closed: true\n              super:\n                resolveRef: schema/base\n              properties:\n                values:\n                  arrayOf:\n                    ref: schema/scalar\n\n" Hash(1)
+             entry 778..991
+              778..784 "object" String("object") content=778..784
+              800..991 "closed: true\n              super:\n                resolveRef: schema/base\n              properties:\n                values:\n                  arrayOf:\n                    ref: schema/scalar\n\n" Hash(3)
+               entry 800..812
+                800..806 "closed" String("closed") content=800..806
+                808..812 "true" Boolean(true) content=808..812
+               entry 827..888
+                827..832 "super" String("super") content=827..832
+                850..888 "resolveRef: schema/base\n              " Hash(1)
+                 entry 850..873
+                  850..860 "resolveRef" String("resolveRef") content=850..860
+                  862..873 "schema/base" String("schema/base") content=862..873
+               entry 888..991
+                888..898 "properties" String("properties") content=888..898
+                916..991 "values:\n                  arrayOf:\n                    ref: schema/scalar\n\n" Hash(1)
+                 entry 916..991
+                  916..922 "values" String("values") content=916..922
+                  942..991 "arrayOf:\n                    ref: schema/scalar\n\n" Hash(1)
+                   entry 942..991
+                    942..949 "arrayOf" String("arrayOf") content=942..949
+                    971..991 "ref: schema/scalar\n\n" Hash(1)
+                     entry 971..989
+                      971..974 "ref" String("ref") content=971..974
+                      976..989 "schema/scalar" String("schema/scalar") content=976..989
+  993..1202 "id: schema/null\n  anyOf:\n    - enum: [\"null\"]\n    - object:\n        closed: true\n        required:\n          - \"null\"\n        properties:\n          \"null\":\n            anyOf:\n              - ref: schema/base\n\n" Hash(2)
+   entry 993..1008
+    993..995 "id" String("id") content=993..995
+    997..1008 "schema/null" String("schema/null") content=997..1008
+   entry 1011..1202
+    1011..1016 "anyOf" String("anyOf") content=1011..1016
+    1022..1202 "- enum: [\"null\"]\n    - object:\n        closed: true\n        required:\n          - \"null\"\n        properties:\n          \"null\":\n            anyOf:\n              - ref: schema/base\n\n" Array(2)
+      1024..1043 "enum: [\"null\"]\n    " Hash(1)
+       entry 1024..1038
+        1024..1028 "enum" String("enum") content=1024..1028
+        1030..1038 "[\"null\"]" Array(1)
+          1031..1037 "\"null\"" String("null") content=1032..1036
+      1045..1202 "object:\n        closed: true\n        required:\n          - \"null\"\n        properties:\n          \"null\":\n            anyOf:\n              - ref: schema/base\n\n" Hash(1)
+       entry 1045..1202
+        1045..1051 "object" String("object") content=1045..1051
+        1061..1202 "closed: true\n        required:\n          - \"null\"\n        properties:\n          \"null\":\n            anyOf:\n              - ref: schema/base\n\n" Hash(3)
+         entry 1061..1073
+          1061..1067 "closed" String("closed") content=1061..1067
+          1069..1073 "true" Boolean(true) content=1069..1073
+         entry 1082..1119
+          1082..1090 "required" String("required") content=1082..1090
+          1102..1119 "- \"null\"\n        " Array(1)
+            1104..1110 "\"null\"" String("null") content=1105..1109
+         entry 1119..1202
+          1119..1129 "properties" String("properties") content=1119..1129
+          1141..1202 "\"null\":\n            anyOf:\n              - ref: schema/base\n\n" Hash(1)
+           entry 1141..1202
+            1141..1147 "\"null\"" String("null") content=1142..1146
+            1161..1202 "anyOf:\n              - ref: schema/base\n\n" Hash(1)
+             entry 1161..1202
+              1161..1166 "anyOf" String("anyOf") content=1161..1166
+              1182..1202 "- ref: schema/base\n\n" Array(1)
+                1184..1202 "ref: schema/base\n\n" Hash(1)
+                 entry 1184..1200
+                  1184..1187 "ref" String("ref") content=1184..1187
+                  1189..1200 "schema/base" String("schema/base") content=1189..1200
+  1204..1388 "id: schema/explicit-schema\n  object:\n    closed: true\n    required:\n      - \"schema\"\n    super:\n      resolveRef: schema/base\n    properties:\n      schema:\n        ref: schema/schema\n\n" Hash(2)
+   entry 1204..1230
+    1204..1206 "id" String("id") content=1204..1206
+    1208..1230 "schema/explicit-schema" String("schema/explicit-schema") content=1208..1230
+   entry 1233..1388
+    1233..1239 "object" String("object") content=1233..1239
+    1245..1388 "closed: true\n    required:\n      - \"schema\"\n    super:\n      resolveRef: schema/base\n    properties:\n      schema:\n        ref: schema/schema\n\n" Hash(4)
+     entry 1245..1257
+      1245..1251 "closed" String("closed") content=1245..1251
+      1253..1257 "true" Boolean(true) content=1253..1257
+     entry 1262..1293
+      1262..1270 "required" String("required") content=1262..1270
+      1278..1293 "- \"schema\"\n    " Array(1)
+        1280..1288 "\"schema\"" String("schema") content=1281..1287
+     entry 1293..1334
+      1293..1298 "super" String("super") content=1293..1298
+      1306..1334 "resolveRef: schema/base\n    " Hash(1)
+       entry 1306..1329
+        1306..1316 "resolveRef" String("resolveRef") content=1306..1316
+        1318..1329 "schema/base" String("schema/base") content=1318..1329
+     entry 1334..1388
+      1334..1344 "properties" String("properties") content=1334..1344
+      1352..1388 "schema:\n        ref: schema/schema\n\n" Hash(1)
+       entry 1352..1388
+        1352..1358 "schema" String("schema") content=1352..1358
+        1368..1388 "ref: schema/schema\n\n" Hash(1)
+         entry 1368..1386
+          1368..1371 "ref" String("ref") content=1368..1371
+          1373..1386 "schema/schema" String("schema/schema") content=1373..1386
+  1390..1564 "id: schema/explicit-pattern-string\n  object:\n    closed: true\n    super:\n      resolveRef: schema/base\n    required:\n      - \"pattern\"\n    properties:\n      pattern: string\n\n" Hash(2)
+   entry 1390..1424
+    1390..1392 "id" String("id") content=1390..1392
+    1394..1424 "schema/explicit-pattern-string" String("schema/explicit-pattern-string") content=1394..1424
+   entry 1427..1564
+    1427..1433 "object" String("object") content=1427..1433
+    1439..1564 "closed: true\n    super:\n      resolveRef: schema/base\n    required:\n      - \"pattern\"\n    properties:\n      pattern: string\n\n" Hash(4)
+     entry 1439..1451
+      1439..1445 "closed" String("closed") content=1439..1445
+      1447..1451 "true" Boolean(true) content=1447..1451
+     entry 1456..1497
+      1456..1461 "super" String("super") content=1456..1461
+      1469..1497 "resolveRef: schema/base\n    " Hash(1)
+       entry 1469..1492
+        1469..1479 "resolveRef" String("resolveRef") content=1469..1479
+        1481..1492 "schema/base" String("schema/base") content=1481..1492
+     entry 1497..1529
+      1497..1505 "required" String("required") content=1497..1505
+      1513..1529 "- \"pattern\"\n    " Array(1)
+        1515..1524 "\"pattern\"" String("pattern") content=1516..1523
+     entry 1529..1564
+      1529..1539 "properties" String("properties") content=1529..1539
+      1547..1564 "pattern: string\n\n" Hash(1)
+       entry 1547..1562
+        1547..1554 "pattern" String("pattern") content=1547..1554
+        1556..1562 "string" String("string") content=1556..1562
+  1566..2193 "id: schema/string\n  anyOf:\n    - enum: [\"string\", \"path\"]\n    - ref: schema/explicit-pattern-string\n    - object:\n        closed: true\n        super:\n          resolveRef: schema/base\n        required:\n          - \"path\"\n        properties:\n          path:\n            anyOf:\n              - ref: schema/explicit-pattern-string\n              - ref: schema/base\n    - object:\n        closed: true\n        super:\n          resolveRef: schema/base\n        required:\n          - \"string\"\n        properties:\n          string:\n            anyOf:\n              - ref: schema/explicit-pattern-string\n              - ref: schema/base\n\n" Hash(2)
+   entry 1566..1583
+    1566..1568 "id" String("id") content=1566..1568
+    1570..1583 "schema/string" String("schema/string") content=1570..1583
+   entry 1586..2193
+    1586..1591 "anyOf" String("anyOf") content=1586..1591
+    1597..2193 "- enum: [\"string\", \"path\"]\n    - ref: schema/explicit-pattern-string\n    - object:\n        closed: true\n        super:\n          resolveRef: schema/base\n        required:\n          - \"path\"\n        properties:\n          path:\n            anyOf:\n              - ref: schema/explicit-pattern-string\n              - ref: schema/base\n    - object:\n        closed: true\n        super:\n          resolveRef: schema/base\n        required:\n          - \"string\"\n        properties:\n          string:\n            anyOf:\n              - ref: schema/explicit-pattern-string\n              - ref: schema/base\n\n" Array(4)
+      1599..1628 "enum: [\"string\", \"path\"]\n    " Hash(1)
+       entry 1599..1623
+        1599..1603 "enum" String("enum") content=1599..1603
+        1605..1623 "[\"string\", \"path\"]" Array(2)
+          1606..1614 "\"string\"" String("string") content=1607..1613
+          1616..1622 "\"path\"" String("path") content=1617..1621
+      1630..1670 "ref: schema/explicit-pattern-string\n    " Hash(1)
+       entry 1630..1665
+        1630..1633 "ref" String("ref") content=1630..1633
+        1635..1665 "schema/explicit-pattern-string" String("schema/explicit-pattern-string") content=1635..1665
+      1672..1931 "object:\n        closed: true\n        super:\n          resolveRef: schema/base\n        required:\n          - \"path\"\n        properties:\n          path:\n            anyOf:\n              - ref: schema/explicit-pattern-string\n              - ref: schema/base\n    " Hash(1)
+       entry 1672..1931
+        1672..1678 "object" String("object") content=1672..1678
+        1688..1931 "closed: true\n        super:\n          resolveRef: schema/base\n        required:\n          - \"path\"\n        properties:\n          path:\n            anyOf:\n              - ref: schema/explicit-pattern-string\n              - ref: schema/base\n    " Hash(4)
+         entry 1688..1700
+          1688..1694 "closed" String("closed") content=1688..1694
+          1696..1700 "true" Boolean(true) content=1696..1700
+         entry 1709..1758
+          1709..1714 "super" String("super") content=1709..1714
+          1726..1758 "resolveRef: schema/base\n        " Hash(1)
+           entry 1726..1749
+            1726..1736 "resolveRef" String("resolveRef") content=1726..1736
+            1738..1749 "schema/base" String("schema/base") content=1738..1749
+         entry 1758..1795
+          1758..1766 "required" String("required") content=1758..1766
+          1778..1795 "- \"path\"\n        " Array(1)
+            1780..1786 "\"path\"" String("path") content=1781..1785
+         entry 1795..1931
+          1795..1805 "properties" String("properties") content=1795..1805
+          1817..1931 "path:\n            anyOf:\n              - ref: schema/explicit-pattern-string\n              - ref: schema/base\n    " Hash(1)
+           entry 1817..1931
+            1817..1821 "path" String("path") content=1817..1821
+            1835..1931 "anyOf:\n              - ref: schema/explicit-pattern-string\n              - ref: schema/base\n    " Hash(1)
+             entry 1835..1931
+              1835..1840 "anyOf" String("anyOf") content=1835..1840
+              1856..1931 "- ref: schema/explicit-pattern-string\n              - ref: schema/base\n    " Array(2)
+                1858..1908 "ref: schema/explicit-pattern-string\n              " Hash(1)
+                 entry 1858..1893
+                  1858..1861 "ref" String("ref") content=1858..1861
+                  1863..1893 "schema/explicit-pattern-string" String("schema/explicit-pattern-string") content=1863..1893
+                1910..1931 "ref: schema/base\n    " Hash(1)
+                 entry 1910..1926
+                  1910..1913 "ref" String("ref") content=1910..1913
+                  1915..1926 "schema/base" String("schema/base") content=1915..1926
+      1933..2193 "object:\n        closed: true\n        super:\n          resolveRef: schema/base\n        required:\n          - \"string\"\n        properties:\n          string:\n            anyOf:\n              - ref: schema/explicit-pattern-string\n              - ref: schema/base\n\n" Hash(1)
+       entry 1933..2193
+        1933..1939 "object" String("object") content=1933..1939
+        1949..2193 "closed: true\n        super:\n          resolveRef: schema/base\n        required:\n          - \"string\"\n        properties:\n          string:\n            anyOf:\n              - ref: schema/explicit-pattern-string\n              - ref: schema/base\n\n" Hash(4)
+         entry 1949..1961
+          1949..1955 "closed" String("closed") content=1949..1955
+          1957..1961 "true" Boolean(true) content=1957..1961
+         entry 1970..2019
+          1970..1975 "super" String("super") content=1970..1975
+          1987..2019 "resolveRef: schema/base\n        " Hash(1)
+           entry 1987..2010
+            1987..1997 "resolveRef" String("resolveRef") content=1987..1997
+            1999..2010 "schema/base" String("schema/base") content=1999..2010
+         entry 2019..2058
+          2019..2027 "required" String("required") content=2019..2027
+          2039..2058 "- \"string\"\n        " Array(1)
+            2041..2049 "\"string\"" String("string") content=2042..2048
+         entry 2058..2193
+          2058..2068 "properties" String("properties") content=2058..2068
+          2080..2193 "string:\n            anyOf:\n              - ref: schema/explicit-pattern-string\n              - ref: schema/base\n\n" Hash(1)
+           entry 2080..2193
+            2080..2086 "string" String("string") content=2080..2086
+            2100..2193 "anyOf:\n              - ref: schema/explicit-pattern-string\n              - ref: schema/base\n\n" Hash(1)
+             entry 2100..2193
+              2100..2105 "anyOf" String("anyOf") content=2100..2105
+              2121..2193 "- ref: schema/explicit-pattern-string\n              - ref: schema/base\n\n" Array(2)
+                2123..2173 "ref: schema/explicit-pattern-string\n              " Hash(1)
+                 entry 2123..2158
+                  2123..2126 "ref" String("ref") content=2123..2126
+                  2128..2158 "schema/explicit-pattern-string" String("schema/explicit-pattern-string") content=2128..2158
+                2175..2193 "ref: schema/base\n\n" Hash(1)
+                 entry 2175..2191
+                  2175..2178 "ref" String("ref") content=2175..2178
+                  2180..2191 "schema/base" String("schema/base") content=2180..2191
+  2195..2492 "id: schema/number\n  anyOf:\n    - enum: [\"number\"]\n    - object:\n        closed: true\n        super:\n          resolveRef: schema/base\n        required:\n          - number\n        properties:\n          number:\n            anyOf:\n              - ref: schema/schema\n              - ref: schema/base\n\n" Hash(2)
+   entry 2195..2212
+    2195..2197 "id" String("id") content=2195..2197
+    2199..2212 "schema/number" String("schema/number") content=2199..2212
+   entry 2215..2492
+    2215..2220 "anyOf" String("anyOf") content=2215..2220
+    2226..2492 "- enum: [\"number\"]\n    - object:\n        closed: true\n        super:\n          resolveRef: schema/base\n        required:\n          - number\n        properties:\n          number:\n            anyOf:\n              - ref: schema/schema\n              - ref: schema/base\n\n" Array(2)
+      2228..2249 "enum: [\"number\"]\n    " Hash(1)
+       entry 2228..2244
+        2228..2232 "enum" String("enum") content=2228..2232
+        2234..2244 "[\"number\"]" Array(1)
+          2235..2243 "\"number\"" String("number") content=2236..2242
+      2251..2492 "object:\n        closed: true\n        super:\n          resolveRef: schema/base\n        required:\n          - number\n        properties:\n          number:\n            anyOf:\n              - ref: schema/schema\n              - ref: schema/base\n\n" Hash(1)
+       entry 2251..2492
+        2251..2257 "object" String("object") content=2251..2257
+        2267..2492 "closed: true\n        super:\n          resolveRef: schema/base\n        required:\n          - number\n        properties:\n          number:\n            anyOf:\n              - ref: schema/schema\n              - ref: schema/base\n\n" Hash(4)
+         entry 2267..2279
+          2267..2273 "closed" String("closed") content=2267..2273
+          2275..2279 "true" Boolean(true) content=2275..2279
+         entry 2288..2337
+          2288..2293 "super" String("super") content=2288..2293
+          2305..2337 "resolveRef: schema/base\n        " Hash(1)
+           entry 2305..2328
+            2305..2315 "resolveRef" String("resolveRef") content=2305..2315
+            2317..2328 "schema/base" String("schema/base") content=2317..2328
+         entry 2337..2374
+          2337..2345 "required" String("required") content=2337..2345
+          2357..2374 "- number\n        " Array(1)
+            2359..2365 "number" String("number") content=2359..2365
+         entry 2374..2492
+          2374..2384 "properties" String("properties") content=2374..2384
+          2396..2492 "number:\n            anyOf:\n              - ref: schema/schema\n              - ref: schema/base\n\n" Hash(1)
+           entry 2396..2492
+            2396..2402 "number" String("number") content=2396..2402
+            2416..2492 "anyOf:\n              - ref: schema/schema\n              - ref: schema/base\n\n" Hash(1)
+             entry 2416..2492
+              2416..2421 "anyOf" String("anyOf") content=2416..2421
+              2437..2492 "- ref: schema/schema\n              - ref: schema/base\n\n" Array(2)
+                2439..2472 "ref: schema/schema\n              " Hash(1)
+                 entry 2439..2457
+                  2439..2442 "ref" String("ref") content=2439..2442
+                  2444..2457 "schema/schema" String("schema/schema") content=2444..2457
+                2474..2492 "ref: schema/base\n\n" Hash(1)
+                 entry 2474..2490
+                  2474..2477 "ref" String("ref") content=2474..2477
+                  2479..2490 "schema/base" String("schema/base") content=2479..2490
+  2494..2795 "id: schema/boolean\n  anyOf:\n    - enum: [\"boolean\"]\n    - object:\n        closed: true\n        required:\n          - boolean\n        super:\n          resolveRef: schema/base\n        properties:\n          boolean:\n            anyOf:\n              - ref: schema/schema\n              - ref: schema/base\n\n" Hash(2)
+   entry 2494..2512
+    2494..2496 "id" String("id") content=2494..2496
+    2498..2512 "schema/boolean" String("schema/boolean") content=2498..2512
+   entry 2515..2795
+    2515..2520 "anyOf" String("anyOf") content=2515..2520
+    2526..2795 "- enum: [\"boolean\"]\n    - object:\n        closed: true\n        required:\n          - boolean\n        super:\n          resolveRef: schema/base\n        properties:\n          boolean:\n            anyOf:\n              - ref: schema/schema\n              - ref: schema/base\n\n" Array(2)
+      2528..2550 "enum: [\"boolean\"]\n    " Hash(1)
+       entry 2528..2545
+        2528..2532 "enum" String("enum") content=2528..2532
+        2534..2545 "[\"boolean\"]" Array(1)
+          2535..2544 "\"boolean\"" String("boolean") content=2536..2543
+      2552..2795 "object:\n        closed: true\n        required:\n          - boolean\n        super:\n          resolveRef: schema/base\n        properties:\n          boolean:\n            anyOf:\n              - ref: schema/schema\n              - ref: schema/base\n\n" Hash(1)
+       entry 2552..2795
+        2552..2558 "object" String("object") content=2552..2558
+        2568..2795 "closed: true\n        required:\n          - boolean\n        super:\n          resolveRef: schema/base\n        properties:\n          boolean:\n            anyOf:\n              - ref: schema/schema\n              - ref: schema/base\n\n" Hash(4)
+         entry 2568..2580
+          2568..2574 "closed" String("closed") content=2568..2574
+          2576..2580 "true" Boolean(true) content=2576..2580
+         entry 2589..2627
+          2589..2597 "required" String("required") content=2589..2597
+          2609..2627 "- boolean\n        " Array(1)
+            2611..2618 "boolean" String("boolean") content=2611..2618
+         entry 2627..2676
+          2627..2632 "super" String("super") content=2627..2632
+          2644..2676 "resolveRef: schema/base\n        " Hash(1)
+           entry 2644..2667
+            2644..2654 "resolveRef" String("resolveRef") content=2644..2654
+            2656..2667 "schema/base" String("schema/base") content=2656..2667
+         entry 2676..2795
+          2676..2686 "properties" String("properties") content=2676..2686
+          2698..2795 "boolean:\n            anyOf:\n              - ref: schema/schema\n              - ref: schema/base\n\n" Hash(1)
+           entry 2698..2795
+            2698..2705 "boolean" String("boolean") content=2698..2705
+            2719..2795 "anyOf:\n              - ref: schema/schema\n              - ref: schema/base\n\n" Hash(1)
+             entry 2719..2795
+              2719..2724 "anyOf" String("anyOf") content=2719..2724
+              2740..2795 "- ref: schema/schema\n              - ref: schema/base\n\n" Array(2)
+                2742..2775 "ref: schema/schema\n              " Hash(1)
+                 entry 2742..2760
+                  2742..2745 "ref" String("ref") content=2742..2745
+                  2747..2760 "schema/schema" String("schema/schema") content=2747..2760
+                2777..2795 "ref: schema/base\n\n" Hash(1)
+                 entry 2777..2793
+                  2777..2780 "ref" String("ref") content=2777..2780
+                  2782..2793 "schema/base" String("schema/base") content=2782..2793
+  2797..2924 "id: schema/resolve-ref\n  object:\n    closed: true\n    required:\n      - \"resolveRef\"\n    properties:\n      resolveRef: string\n\n" Hash(2)
+   entry 2797..2819
+    2797..2799 "id" String("id") content=2797..2799
+    2801..2819 "schema/resolve-ref" String("schema/resolve-ref") content=2801..2819
+   entry 2822..2924
+    2822..2828 "object" String("object") content=2822..2828
+    2834..2924 "closed: true\n    required:\n      - \"resolveRef\"\n    properties:\n      resolveRef: string\n\n" Hash(3)
+     entry 2834..2846
+      2834..2840 "closed" String("closed") content=2834..2840
+      2842..2846 "true" Boolean(true) content=2842..2846
+     entry 2851..2886
+      2851..2859 "required" String("required") content=2851..2859
+      2867..2886 "- \"resolveRef\"\n    " Array(1)
+        2869..2881 "\"resolveRef\"" String("resolveRef") content=2870..2880
+     entry 2886..2924
+      2886..2896 "properties" String("properties") content=2886..2896
+      2904..2924 "resolveRef: string\n\n" Hash(1)
+       entry 2904..2922
+        2904..2914 "resolveRef" String("resolveRef") content=2904..2914
+        2916..2922 "string" String("string") content=2916..2922
+  2926..3216 "id: schema/ref\n  object:\n    closed: true\n    required:\n      - \"ref\"\n    properties:\n      ref: string\n      description:\n        ref: schema/description\n  # NB: schema/ref is _not_ a schema/base.\n\n  #object:\n  #  super:\n  #    resolveRef: schema/base\n  #  properties:\n  #    ref: string\n\n" Hash(2)
+   entry 2926..2940
+    2926..2928 "id" String("id") content=2926..2928
+    2930..2940 "schema/ref" String("schema/ref") content=2930..2940
+   entry 2943..3216
+    2943..2949 "object" String("object") content=2943..2949
+    2955..3216 "closed: true\n    required:\n      - \"ref\"\n    properties:\n      ref: string\n      description:\n        ref: schema/description\n  # NB: schema/ref is _not_ a schema/base.\n\n  #object:\n  #  super:\n  #    resolveRef: schema/base\n  #  properties:\n  #    ref: string\n\n" Hash(3)
+     entry 2955..2967
+      2955..2961 "closed" String("closed") content=2955..2961
+      2963..2967 "true" Boolean(true) content=2963..2967
+     entry 2972..3000
+      2972..2980 "required" String("required") content=2972..2980
+      2988..3000 "- \"ref\"\n    " Array(1)
+        2990..2995 "\"ref\"" String("ref") content=2991..2994
+     entry 3000..3216
+      3000..3010 "properties" String("properties") content=3000..3010
+      3018..3216 "ref: string\n      description:\n        ref: schema/description\n  # NB: schema/ref is _not_ a schema/base.\n\n  #object:\n  #  super:\n  #    resolveRef: schema/base\n  #  properties:\n  #    ref: string\n\n" Hash(2)
+       entry 3018..3029
+        3018..3021 "ref" String("ref") content=3018..3021
+        3023..3029 "string" String("string") content=3023..3029
+       entry 3036..3216
+        3036..3047 "description" String("description") content=3036..3047
+        3057..3216 "ref: schema/description\n  # NB: schema/ref is _not_ a schema/base.\n\n  #object:\n  #  super:\n  #    resolveRef: schema/base\n  #  properties:\n  #    ref: string\n\n" Hash(1)
+         entry 3057..3080
+          3057..3060 "ref" String("ref") content=3057..3060
+          3062..3080 "schema/description" String("schema/description") content=3062..3080
+  3218..3411 "id: schema/maybe-array-of\n  object:\n    closed: true\n    required:\n      - maybeArrayOf\n    super:\n      resolveRef: schema/base\n    properties:\n      maybeArrayOf:\n        ref: schema/schema\n\n" Hash(2)
+   entry 3218..3243
+    3218..3220 "id" String("id") content=3218..3220
+    3222..3243 "schema/maybe-array-of" String("schema/maybe-array-of") content=3222..3243
+   entry 3246..3411
+    3246..3252 "object" String("object") content=3246..3252
+    3258..3411 "closed: true\n    required:\n      - maybeArrayOf\n    super:\n      resolveRef: schema/base\n    properties:\n      maybeArrayOf:\n        ref: schema/schema\n\n" Hash(4)
+     entry 3258..3270
+      3258..3264 "closed" String("closed") content=3258..3264
+      3266..3270 "true" Boolean(true) content=3266..3270
+     entry 3275..3310
+      3275..3283 "required" String("required") content=3275..3283
+      3291..3310 "- maybeArrayOf\n    " Array(1)
+        3293..3305 "maybeArrayOf" String("maybeArrayOf") content=3293..3305
+     entry 3310..3351
+      3310..3315 "super" String("super") content=3310..3315
+      3323..3351 "resolveRef: schema/base\n    " Hash(1)
+       entry 3323..3346
+        3323..3333 "resolveRef" String("resolveRef") content=3323..3333
+        3335..3346 "schema/base" String("schema/base") content=3335..3346
+     entry 3351..3411
+      3351..3361 "properties" String("properties") content=3351..3361
+      3369..3411 "maybeArrayOf:\n        ref: schema/schema\n\n" Hash(1)
+       entry 3369..3411
+        3369..3381 "maybeArrayOf" String("maybeArrayOf") content=3369..3381
+        3391..3411 "ref: schema/schema\n\n" Hash(1)
+         entry 3391..3409
+          3391..3394 "ref" String("ref") content=3391..3394
+          3396..3409 "schema/schema" String("schema/schema") content=3396..3409
+  3413..3837 "id: schema/array-of\n  object:\n    closed: true\n    super:\n      resolveRef: schema/base\n    required:\n      - \"arrayOf\"\n    properties:\n      arrayOf:\n        anyOf:\n          - ref: schema/schema\n          - object:\n              closed: true\n              super:\n                resolveRef: schema/base\n              properties:\n                length: number\n                schema:\n                  ref: schema/schema\n\n" Hash(2)
+   entry 3413..3432
+    3413..3415 "id" String("id") content=3413..3415
+    3417..3432 "schema/array-of" String("schema/array-of") content=3417..3432
+   entry 3435..3837
+    3435..3441 "object" String("object") content=3435..3441
+    3447..3837 "closed: true\n    super:\n      resolveRef: schema/base\n    required:\n      - \"arrayOf\"\n    properties:\n      arrayOf:\n        anyOf:\n          - ref: schema/schema\n          - object:\n              closed: true\n              super:\n                resolveRef: schema/base\n              properties:\n                length: number\n                schema:\n                  ref: schema/schema\n\n" Hash(4)
+     entry 3447..3459
+      3447..3453 "closed" String("closed") content=3447..3453
+      3455..3459 "true" Boolean(true) content=3455..3459
+     entry 3464..3505
+      3464..3469 "super" String("super") content=3464..3469
+      3477..3505 "resolveRef: schema/base\n    " Hash(1)
+       entry 3477..3500
+        3477..3487 "resolveRef" String("resolveRef") content=3477..3487
+        3489..3500 "schema/base" String("schema/base") content=3489..3500
+     entry 3505..3537
+      3505..3513 "required" String("required") content=3505..3513
+      3521..3537 "- \"arrayOf\"\n    " Array(1)
+        3523..3532 "\"arrayOf\"" String("arrayOf") content=3524..3531
+     entry 3537..3837
+      3537..3547 "properties" String("properties") content=3537..3547
+      3555..3837 "arrayOf:\n        anyOf:\n          - ref: schema/schema\n          - object:\n              closed: true\n              super:\n                resolveRef: schema/base\n              properties:\n                length: number\n                schema:\n                  ref: schema/schema\n\n" Hash(1)
+       entry 3555..3837
+        3555..3562 "arrayOf" String("arrayOf") content=3555..3562
+        3572..3837 "anyOf:\n          - ref: schema/schema\n          - object:\n              closed: true\n              super:\n                resolveRef: schema/base\n              properties:\n                length: number\n                schema:\n                  ref: schema/schema\n\n" Hash(1)
+         entry 3572..3837
+          3572..3577 "anyOf" String("anyOf") content=3572..3577
+          3589..3837 "- ref: schema/schema\n          - object:\n              closed: true\n              super:\n                resolveRef: schema/base\n              properties:\n                length: number\n                schema:\n                  ref: schema/schema\n\n" Array(2)
+            3591..3620 "ref: schema/schema\n          " Hash(1)
+             entry 3591..3609
+              3591..3594 "ref" String("ref") content=3591..3594
+              3596..3609 "schema/schema" String("schema/schema") content=3596..3609
+            3622..3837 "object:\n              closed: true\n              super:\n                resolveRef: schema/base\n              properties:\n                length: number\n                schema:\n                  ref: schema/schema\n\n" Hash(1)
+             entry 3622..3837
+              3622..3628 "object" String("object") content=3622..3628
+              3644..3837 "closed: true\n              super:\n                resolveRef: schema/base\n              properties:\n                length: number\n                schema:\n                  ref: schema/schema\n\n" Hash(3)
+               entry 3644..3656
+                3644..3650 "closed" String("closed") content=3644..3650
+                3652..3656 "true" Boolean(true) content=3652..3656
+               entry 3671..3732
+                3671..3676 "super" String("super") content=3671..3676
+                3694..3732 "resolveRef: schema/base\n              " Hash(1)
+                 entry 3694..3717
+                  3694..3704 "resolveRef" String("resolveRef") content=3694..3704
+                  3706..3717 "schema/base" String("schema/base") content=3706..3717
+               entry 3732..3837
+                3732..3742 "properties" String("properties") content=3732..3742
+                3760..3837 "length: number\n                schema:\n                  ref: schema/schema\n\n" Hash(2)
+                 entry 3760..3774
+                  3760..3766 "length" String("length") content=3760..3766
+                  3768..3774 "number" String("number") content=3768..3774
+                 entry 3791..3837
+                  3791..3797 "schema" String("schema") content=3791..3797
+                  3817..3837 "ref: schema/schema\n\n" Hash(1)
+                   entry 3817..3835
+                    3817..3820 "ref" String("ref") content=3817..3820
+                    3822..3835 "schema/schema" String("schema/schema") content=3822..3835
+  3839..4252 "id: schema/all-of\n  object:\n    closed: true\n    super:\n      resolveRef: schema/base\n    required:\n      - \"allOf\"\n    properties:\n      allOf:\n        anyOf:\n          - arrayOf:\n              ref: schema/schema\n          - object:\n              super:\n                resolveRef: schema/base\n              properties:\n                schemas:\n                  arrayOf:\n                    ref: schema/schema\n\n" Hash(2)
+   entry 3839..3856
+    3839..3841 "id" String("id") content=3839..3841
+    3843..3856 "schema/all-of" String("schema/all-of") content=3843..3856
+   entry 3859..4252
+    3859..3865 "object" String("object") content=3859..3865
+    3871..4252 "closed: true\n    super:\n      resolveRef: schema/base\n    required:\n      - \"allOf\"\n    properties:\n      allOf:\n        anyOf:\n          - arrayOf:\n              ref: schema/schema\n          - object:\n              super:\n                resolveRef: schema/base\n              properties:\n                schemas:\n                  arrayOf:\n                    ref: schema/schema\n\n" Hash(4)
+     entry 3871..3883
+      3871..3877 "closed" String("closed") content=3871..3877
+      3879..3883 "true" Boolean(true) content=3879..3883
+     entry 3888..3929
+      3888..3893 "super" String("super") content=3888..3893
+      3901..3929 "resolveRef: schema/base\n    " Hash(1)
+       entry 3901..3924
+        3901..3911 "resolveRef" String("resolveRef") content=3901..3911
+        3913..3924 "schema/base" String("schema/base") content=3913..3924
+     entry 3929..3959
+      3929..3937 "required" String("required") content=3929..3937
+      3945..3959 "- \"allOf\"\n    " Array(1)
+        3947..3954 "\"allOf\"" String("allOf") content=3948..3953
+     entry 3959..4252
+      3959..3969 "properties" String("properties") content=3959..3969
+      3977..4252 "allOf:\n        anyOf:\n          - arrayOf:\n              ref: schema/schema\n          - object:\n              super:\n                resolveRef: schema/base\n              properties:\n                schemas:\n                  arrayOf:\n                    ref: schema/schema\n\n" Hash(1)
+       entry 3977..4252
+        3977..3982 "allOf" String("allOf") content=3977..3982
+        3992..4252 "anyOf:\n          - arrayOf:\n              ref: schema/schema\n          - object:\n              super:\n                resolveRef: schema/base\n              properties:\n                schemas:\n                  arrayOf:\n                    ref: schema/schema\n\n" Hash(1)
+         entry 3992..4252
+          3992..3997 "anyOf" String("anyOf") content=3992..3997
+          4009..4252 "- arrayOf:\n              ref: schema/schema\n          - object:\n              super:\n                resolveRef: schema/base\n              properties:\n                schemas:\n                  arrayOf:\n                    ref: schema/schema\n\n" Array(2)
+            4011..4063 "arrayOf:\n              ref: schema/schema\n          " Hash(1)
+             entry 4011..4063
+              4011..4018 "arrayOf" String("arrayOf") content=4011..4018
+              4034..4063 "ref: schema/schema\n          " Hash(1)
+               entry 4034..4052
+                4034..4037 "ref" String("ref") content=4034..4037
+                4039..4052 "schema/schema" String("schema/schema") content=4039..4052
+            4065..4252 "object:\n              super:\n                resolveRef: schema/base\n              properties:\n                schemas:\n                  arrayOf:\n                    ref: schema/schema\n\n" Hash(1)
+             entry 4065..4252
+              4065..4071 "object" String("object") content=4065..4071
+              4087..4252 "super:\n                resolveRef: schema/base\n              properties:\n                schemas:\n                  arrayOf:\n                    ref: schema/schema\n\n" Hash(2)
+               entry 4087..4148
+                4087..4092 "super" String("super") content=4087..4092
+                4110..4148 "resolveRef: schema/base\n              " Hash(1)
+                 entry 4110..4133
+                  4110..4120 "resolveRef" String("resolveRef") content=4110..4120
+                  4122..4133 "schema/base" String("schema/base") content=4122..4133
+               entry 4148..4252
+                4148..4158 "properties" String("properties") content=4148..4158
+                4176..4252 "schemas:\n                  arrayOf:\n                    ref: schema/schema\n\n" Hash(1)
+                 entry 4176..4252
+                  4176..4183 "schemas" String("schemas") content=4176..4183
+                  4203..4252 "arrayOf:\n                    ref: schema/schema\n\n" Hash(1)
+                   entry 4203..4252
+                    4203..4210 "arrayOf" String("arrayOf") content=4203..4210
+                    4232..4252 "ref: schema/schema\n\n" Hash(1)
+                     entry 4232..4250
+                      4232..4235 "ref" String("ref") content=4232..4235
+                      4237..4250 "schema/schema" String("schema/schema") content=4237..4250
+  4254..4667 "id: schema/any-of\n  object:\n    closed: true\n    super:\n      resolveRef: schema/base\n    required:\n      - \"anyOf\"\n    properties:\n      anyOf:\n        anyOf:\n          - arrayOf:\n              ref: schema/schema\n          - object:\n              super:\n                resolveRef: schema/base\n              properties:\n                schemas:\n                  arrayOf:\n                    ref: schema/schema\n\n" Hash(2)
+   entry 4254..4271
+    4254..4256 "id" String("id") content=4254..4256
+    4258..4271 "schema/any-of" String("schema/any-of") content=4258..4271
+   entry 4274..4667
+    4274..4280 "object" String("object") content=4274..4280
+    4286..4667 "closed: true\n    super:\n      resolveRef: schema/base\n    required:\n      - \"anyOf\"\n    properties:\n      anyOf:\n        anyOf:\n          - arrayOf:\n              ref: schema/schema\n          - object:\n              super:\n                resolveRef: schema/base\n              properties:\n                schemas:\n                  arrayOf:\n                    ref: schema/schema\n\n" Hash(4)
+     entry 4286..4298
+      4286..4292 "closed" String("closed") content=4286..4292
+      4294..4298 "true" Boolean(true) content=4294..4298
+     entry 4303..4344
+      4303..4308 "super" String("super") content=4303..4308
+      4316..4344 "resolveRef: schema/base\n    " Hash(1)
+       entry 4316..4339
+        4316..4326 "resolveRef" String("resolveRef") content=4316..4326
+        4328..4339 "schema/base" String("schema/base") content=4328..4339
+     entry 4344..4374
+      4344..4352 "required" String("required") content=4344..4352
+      4360..4374 "- \"anyOf\"\n    " Array(1)
+        4362..4369 "\"anyOf\"" String("anyOf") content=4363..4368
+     entry 4374..4667
+      4374..4384 "properties" String("properties") content=4374..4384
+      4392..4667 "anyOf:\n        anyOf:\n          - arrayOf:\n              ref: schema/schema\n          - object:\n              super:\n                resolveRef: schema/base\n              properties:\n                schemas:\n                  arrayOf:\n                    ref: schema/schema\n\n" Hash(1)
+       entry 4392..4667
+        4392..4397 "anyOf" String("anyOf") content=4392..4397
+        4407..4667 "anyOf:\n          - arrayOf:\n              ref: schema/schema\n          - object:\n              super:\n                resolveRef: schema/base\n              properties:\n                schemas:\n                  arrayOf:\n                    ref: schema/schema\n\n" Hash(1)
+         entry 4407..4667
+          4407..4412 "anyOf" String("anyOf") content=4407..4412
+          4424..4667 "- arrayOf:\n              ref: schema/schema\n          - object:\n              super:\n                resolveRef: schema/base\n              properties:\n                schemas:\n                  arrayOf:\n                    ref: schema/schema\n\n" Array(2)
+            4426..4478 "arrayOf:\n              ref: schema/schema\n          " Hash(1)
+             entry 4426..4478
+              4426..4433 "arrayOf" String("arrayOf") content=4426..4433
+              4449..4478 "ref: schema/schema\n          " Hash(1)
+               entry 4449..4467
+                4449..4452 "ref" String("ref") content=4449..4452
+                4454..4467 "schema/schema" String("schema/schema") content=4454..4467
+            4480..4667 "object:\n              super:\n                resolveRef: schema/base\n              properties:\n                schemas:\n                  arrayOf:\n                    ref: schema/schema\n\n" Hash(1)
+             entry 4480..4667
+              4480..4486 "object" String("object") content=4480..4486
+              4502..4667 "super:\n                resolveRef: schema/base\n              properties:\n                schemas:\n                  arrayOf:\n                    ref: schema/schema\n\n" Hash(2)
+               entry 4502..4563
+                4502..4507 "super" String("super") content=4502..4507
+                4525..4563 "resolveRef: schema/base\n              " Hash(1)
+                 entry 4525..4548
+                  4525..4535 "resolveRef" String("resolveRef") content=4525..4535
+                  4537..4548 "schema/base" String("schema/base") content=4537..4548
+               entry 4563..4667
+                4563..4573 "properties" String("properties") content=4563..4573
+                4591..4667 "schemas:\n                  arrayOf:\n                    ref: schema/schema\n\n" Hash(1)
+                 entry 4591..4667
+                  4591..4598 "schemas" String("schemas") content=4591..4598
+                  4618..4667 "arrayOf:\n                    ref: schema/schema\n\n" Hash(1)
+                   entry 4618..4667
+                    4618..4625 "arrayOf" String("arrayOf") content=4618..4625
+                    4647..4667 "ref: schema/schema\n\n" Hash(1)
+                     entry 4647..4665
+                      4647..4650 "ref" String("ref") content=4647..4650
+                      4652..4665 "schema/schema" String("schema/schema") content=4652..4665
+  4669..5231 "id: schema/record\n  object:\n    closed: true\n    super:\n      resolveRef: schema/base\n    required:\n      - \"record\"\n    properties:\n      record:\n        anyOf:\n          - object:\n              additionalProperties:\n                ref: schema/schema\n          - object:\n              closed: true\n              super:\n                resolveRef: schema/base\n              properties:\n                properties:\n                  object:\n                    additionalProperties:\n                      ref: schema/schema\n              required: [properties]\n\n" Hash(2)
+   entry 4669..4686
+    4669..4671 "id" String("id") content=4669..4671
+    4673..4686 "schema/record" String("schema/record") content=4673..4686
+   entry 4689..5231
+    4689..4695 "object" String("object") content=4689..4695
+    4701..5231 "closed: true\n    super:\n      resolveRef: schema/base\n    required:\n      - \"record\"\n    properties:\n      record:\n        anyOf:\n          - object:\n              additionalProperties:\n                ref: schema/schema\n          - object:\n              closed: true\n              super:\n                resolveRef: schema/base\n              properties:\n                properties:\n                  object:\n                    additionalProperties:\n                      ref: schema/schema\n              required: [properties]\n\n" Hash(4)
+     entry 4701..4713
+      4701..4707 "closed" String("closed") content=4701..4707
+      4709..4713 "true" Boolean(true) content=4709..4713
+     entry 4718..4759
+      4718..4723 "super" String("super") content=4718..4723
+      4731..4759 "resolveRef: schema/base\n    " Hash(1)
+       entry 4731..4754
+        4731..4741 "resolveRef" String("resolveRef") content=4731..4741
+        4743..4754 "schema/base" String("schema/base") content=4743..4754
+     entry 4759..4790
+      4759..4767 "required" String("required") content=4759..4767
+      4775..4790 "- \"record\"\n    " Array(1)
+        4777..4785 "\"record\"" String("record") content=4778..4784
+     entry 4790..5231
+      4790..4800 "properties" String("properties") content=4790..4800
+      4808..5231 "record:\n        anyOf:\n          - object:\n              additionalProperties:\n                ref: schema/schema\n          - object:\n              closed: true\n              super:\n                resolveRef: schema/base\n              properties:\n                properties:\n                  object:\n                    additionalProperties:\n                      ref: schema/schema\n              required: [properties]\n\n" Hash(1)
+       entry 4808..5231
+        4808..4814 "record" String("record") content=4808..4814
+        4824..5231 "anyOf:\n          - object:\n              additionalProperties:\n                ref: schema/schema\n          - object:\n              closed: true\n              super:\n                resolveRef: schema/base\n              properties:\n                properties:\n                  object:\n                    additionalProperties:\n                      ref: schema/schema\n              required: [properties]\n\n" Hash(1)
+         entry 4824..5231
+          4824..4829 "anyOf" String("anyOf") content=4824..4829
+          4841..5231 "- object:\n              additionalProperties:\n                ref: schema/schema\n          - object:\n              closed: true\n              super:\n                resolveRef: schema/base\n              properties:\n                properties:\n                  object:\n                    additionalProperties:\n                      ref: schema/schema\n              required: [properties]\n\n" Array(2)
+            4843..4932 "object:\n              additionalProperties:\n                ref: schema/schema\n          " Hash(1)
+             entry 4843..4932
+              4843..4849 "object" String("object") content=4843..4849
+              4865..4932 "additionalProperties:\n                ref: schema/schema\n          " Hash(1)
+               entry 4865..4932
+                4865..4885 "additionalProperties" String("additionalProperties") content=4865..4885
+                4903..4932 "ref: schema/schema\n          " Hash(1)
+                 entry 4903..4921
+                  4903..4906 "ref" String("ref") content=4903..4906
+                  4908..4921 "schema/schema" String("schema/schema") content=4908..4921
+            4934..5231 "object:\n              closed: true\n              super:\n                resolveRef: schema/base\n              properties:\n                properties:\n                  object:\n                    additionalProperties:\n                      ref: schema/schema\n              required: [properties]\n\n" Hash(1)
+             entry 4934..5231
+              4934..4940 "object" String("object") content=4934..4940
+              4956..5231 "closed: true\n              super:\n                resolveRef: schema/base\n              properties:\n                properties:\n                  object:\n                    additionalProperties:\n                      ref: schema/schema\n              required: [properties]\n\n" Hash(4)
+               entry 4956..4968
+                4956..4962 "closed" String("closed") content=4956..4962
+                4964..4968 "true" Boolean(true) content=4964..4968
+               entry 4983..5044
+                4983..4988 "super" String("super") content=4983..4988
+                5006..5044 "resolveRef: schema/base\n              " Hash(1)
+                 entry 5006..5029
+                  5006..5016 "resolveRef" String("resolveRef") content=5006..5016
+                  5018..5029 "schema/base" String("schema/base") content=5018..5029
+               entry 5044..5207
+                5044..5054 "properties" String("properties") content=5044..5054
+                5072..5207 "properties:\n                  object:\n                    additionalProperties:\n                      ref: schema/schema\n              " Hash(1)
+                 entry 5072..5207
+                  5072..5082 "properties" String("properties") content=5072..5082
+                  5102..5207 "object:\n                    additionalProperties:\n                      ref: schema/schema\n              " Hash(1)
+                   entry 5102..5207
+                    5102..5108 "object" String("object") content=5102..5108
+                    5130..5207 "additionalProperties:\n                      ref: schema/schema\n              " Hash(1)
+                     entry 5130..5207
+                      5130..5150 "additionalProperties" String("additionalProperties") content=5130..5150
+                      5174..5207 "ref: schema/schema\n              " Hash(1)
+                       entry 5174..5192
+                        5174..5177 "ref" String("ref") content=5174..5177
+                        5179..5192 "schema/schema" String("schema/schema") content=5179..5192
+               entry 5207..5229
+                5207..5215 "required" String("required") content=5207..5215
+                5217..5229 "[properties]" Array(1)
+                  5218..5228 "properties" String("properties") content=5218..5228
+  5233..7510 "id: schema/object\n  anyOf:\n    - enum: [\"object\"]\n    - object:\n        closed: true\n        super:\n          resolveRef: schema/base\n        required:\n          - \"object\"\n        properties:\n          object:\n            object:\n              super:\n                resolveRef: schema/base\n              closed: true\n              properties:\n                namingConvention:\n                  anyOf:\n                    - enum: [\"ignore\"]\n                    - arrayOf:\n                        enum:\n                          # because this particular setup is especially likely to lead to typos,\n                          # we support all naming conventions in describing naming conventions\n                          - \"camelCase\"\n                          - \"camel-case\"\n                          - \"camel_case\"\n                          - \"capitalizationCase\"\n                          - \"capitalization-case\"\n                          - \"capitalization_case\"\n                          - \"underscoreCase\"\n                          - \"underscore-case\"\n                          - \"underscore_case\"\n                          - \"snakeCase\"\n                          - \"snake-case\"\n                          - \"snake_case\"\n                          - \"dashCase\"\n                          - \"dash-case\"\n                          - \"dash_case\"\n                          - \"kebabCase\"\n                          - \"kebab-case\"\n                          - \"kebab_case\"\n                properties:\n                  object:\n                    additionalProperties:\n                      ref: schema/schema\n                patternProperties:\n                  object:\n                    additionalProperties:\n                      ref: schema/schema\n                propertyNames:\n                  ref: schema/schema\n                additionalProperties:\n                  ref: schema/schema\n                super:\n                  maybeArrayOf:\n                    ref: schema/schema\n                required:\n                  anyOf:\n                    - enum: [\"all\"]\n                    - arrayOf: string\n                closed: boolean\n                description:\n                  ref: schema/description\n                completions:\n                  arrayOf: string\n\n" Hash(2)
+   entry 5233..5250
+    5233..5235 "id" String("id") content=5233..5235
+    5237..5250 "schema/object" String("schema/object") content=5237..5250
+   entry 5253..7510
+    5253..5258 "anyOf" String("anyOf") content=5253..5258
+    5264..7510 "- enum: [\"object\"]\n    - object:\n        closed: true\n        super:\n          resolveRef: schema/base\n        required:\n          - \"object\"\n        properties:\n          object:\n            object:\n              super:\n                resolveRef: schema/base\n              closed: true\n              properties:\n                namingConvention:\n                  anyOf:\n                    - enum: [\"ignore\"]\n                    - arrayOf:\n                        enum:\n                          # because this particular setup is especially likely to lead to typos,\n                          # we support all naming conventions in describing naming conventions\n                          - \"camelCase\"\n                          - \"camel-case\"\n                          - \"camel_case\"\n                          - \"capitalizationCase\"\n                          - \"capitalization-case\"\n                          - \"capitalization_case\"\n                          - \"underscoreCase\"\n                          - \"underscore-case\"\n                          - \"underscore_case\"\n                          - \"snakeCase\"\n                          - \"snake-case\"\n                          - \"snake_case\"\n                          - \"dashCase\"\n                          - \"dash-case\"\n                          - \"dash_case\"\n                          - \"kebabCase\"\n                          - \"kebab-case\"\n                          - \"kebab_case\"\n                properties:\n                  object:\n                    additionalProperties:\n                      ref: schema/schema\n                patternProperties:\n                  object:\n                    additionalProperties:\n                      ref: schema/schema\n                propertyNames:\n                  ref: schema/schema\n                additionalProperties:\n                  ref: schema/schema\n                super:\n                  maybeArrayOf:\n                    ref: schema/schema\n                required:\n                  anyOf:\n                    - enum: [\"all\"]\n                    - arrayOf: string\n                closed: boolean\n                description:\n                  ref: schema/description\n                completions:\n                  arrayOf: string\n\n" Array(2)
+      5266..5287 "enum: [\"object\"]\n    " Hash(1)
+       entry 5266..5282
+        5266..5270 "enum" String("enum") content=5266..5270
+        5272..5282 "[\"object\"]" Array(1)
+          5273..5281 "\"object\"" String("object") content=5274..5280
+      5289..7510 "object:\n        closed: true\n        super:\n          resolveRef: schema/base\n        required:\n          - \"object\"\n        properties:\n          object:\n            object:\n              super:\n                resolveRef: schema/base\n              closed: true\n              properties:\n                namingConvention:\n                  anyOf:\n                    - enum: [\"ignore\"]\n                    - arrayOf:\n                        enum:\n                          # because this particular setup is especially likely to lead to typos,\n                          # we support all naming conventions in describing naming conventions\n                          - \"camelCase\"\n                          - \"camel-case\"\n                          - \"camel_case\"\n                          - \"capitalizationCase\"\n                          - \"capitalization-case\"\n                          - \"capitalization_case\"\n                          - \"underscoreCase\"\n                          - \"underscore-case\"\n                          - \"underscore_case\"\n                          - \"snakeCase\"\n                          - \"snake-case\"\n                          - \"snake_case\"\n                          - \"dashCase\"\n                          - \"dash-case\"\n                          - \"dash_case\"\n                          - \"kebabCase\"\n                          - \"kebab-case\"\n                          - \"kebab_case\"\n                properties:\n                  object:\n                    additionalProperties:\n                      ref: schema/schema\n                patternProperties:\n                  object:\n                    additionalProperties:\n                      ref: schema/schema\n                propertyNames:\n                  ref: schema/schema\n                additionalProperties:\n                  ref: schema/schema\n                super:\n                  maybeArrayOf:\n                    ref: schema/schema\n                required:\n                  anyOf:\n                    - enum: [\"all\"]\n                    - arrayOf: string\n                closed: boolean\n                description:\n                  ref: schema/description\n                completions:\n                  arrayOf: string\n\n" Hash(1)
+       entry 5289..7510
+        5289..5295 "object" String("object") content=5289..5295
+        5305..7510 "closed: true\n        super:\n          resolveRef: schema/base\n        required:\n          - \"object\"\n        properties:\n          object:\n            object:\n              super:\n                resolveRef: schema/base\n              closed: true\n              properties:\n                namingConvention:\n                  anyOf:\n                    - enum: [\"ignore\"]\n                    - arrayOf:\n                        enum:\n                          # because this particular setup is especially likely to lead to typos,\n                          # we support all naming conventions in describing naming conventions\n                          - \"camelCase\"\n                          - \"camel-case\"\n                          - \"camel_case\"\n                          - \"capitalizationCase\"\n                          - \"capitalization-case\"\n                          - \"capitalization_case\"\n                          - \"underscoreCase\"\n                          - \"underscore-case\"\n                          - \"underscore_case\"\n                          - \"snakeCase\"\n                          - \"snake-case\"\n                          - \"snake_case\"\n                          - \"dashCase\"\n                          - \"dash-case\"\n                          - \"dash_case\"\n                          - \"kebabCase\"\n                          - \"kebab-case\"\n                          - \"kebab_case\"\n                properties:\n                  object:\n                    additionalProperties:\n                      ref: schema/schema\n                patternProperties:\n                  object:\n                    additionalProperties:\n                      ref: schema/schema\n                propertyNames:\n                  ref: schema/schema\n                additionalProperties:\n                  ref: schema/schema\n                super:\n                  maybeArrayOf:\n                    ref: schema/schema\n                required:\n                  anyOf:\n                    - enum: [\"all\"]\n                    - arrayOf: string\n                closed: boolean\n                description:\n                  ref: schema/description\n                completions:\n                  arrayOf: string\n\n" Hash(4)
+         entry 5305..5317
+          5305..5311 "closed" String("closed") content=5305..5311
+          5313..5317 "true" Boolean(true) content=5313..5317
+         entry 5326..5375
+          5326..5331 "super" String("super") content=5326..5331
+          5343..5375 "resolveRef: schema/base\n        " Hash(1)
+           entry 5343..5366
+            5343..5353 "resolveRef" String("resolveRef") content=5343..5353
+            5355..5366 "schema/base" String("schema/base") content=5355..5366
+         entry 5375..5414
+          5375..5383 "required" String("required") content=5375..5383
+          5395..5414 "- \"object\"\n        " Array(1)
+            5397..5405 "\"object\"" String("object") content=5398..5404
+         entry 5414..7510
+          5414..5424 "properties" String("properties") content=5414..5424
+          5436..7510 "object:\n            object:\n              super:\n                resolveRef: schema/base\n              closed: true\n              properties:\n                namingConvention:\n                  anyOf:\n                    - enum: [\"ignore\"]\n                    - arrayOf:\n                        enum:\n                          # because this particular setup is especially likely to lead to typos,\n                          # we support all naming conventions in describing naming conventions\n                          - \"camelCase\"\n                          - \"camel-case\"\n                          - \"camel_case\"\n                          - \"capitalizationCase\"\n                          - \"capitalization-case\"\n                          - \"capitalization_case\"\n                          - \"underscoreCase\"\n                          - \"underscore-case\"\n                          - \"underscore_case\"\n                          - \"snakeCase\"\n                          - \"snake-case\"\n                          - \"snake_case\"\n                          - \"dashCase\"\n                          - \"dash-case\"\n                          - \"dash_case\"\n                          - \"kebabCase\"\n                          - \"kebab-case\"\n                          - \"kebab_case\"\n                properties:\n                  object:\n                    additionalProperties:\n                      ref: schema/schema\n                patternProperties:\n                  object:\n                    additionalProperties:\n                      ref: schema/schema\n                propertyNames:\n                  ref: schema/schema\n                additionalProperties:\n                  ref: schema/schema\n                super:\n                  maybeArrayOf:\n                    ref: schema/schema\n                required:\n                  anyOf:\n                    - enum: [\"all\"]\n                    - arrayOf: string\n                closed: boolean\n                description:\n                  ref: schema/description\n                completions:\n                  arrayOf: string\n\n" Hash(1)
+           entry 5436..7510
+            5436..5442 "object" String("object") content=5436..5442
+            5456..7510 "object:\n              super:\n                resolveRef: schema/base\n              closed: true\n              properties:\n                namingConvention:\n                  anyOf:\n                    - enum: [\"ignore\"]\n                    - arrayOf:\n                        enum:\n                          # because this particular setup is especially likely to lead to typos,\n                          # we support all naming conventions in describing naming conventions\n                          - \"camelCase\"\n                          - \"camel-case\"\n                          - \"camel_case\"\n                          - \"capitalizationCase\"\n                          - \"capitalization-case\"\n                          - \"capitalization_case\"\n                          - \"underscoreCase\"\n                          - \"underscore-case\"\n                          - \"underscore_case\"\n                          - \"snakeCase\"\n                          - \"snake-case\"\n                          - \"snake_case\"\n                          - \"dashCase\"\n                          - \"dash-case\"\n                          - \"dash_case\"\n                          - \"kebabCase\"\n                          - \"kebab-case\"\n                          - \"kebab_case\"\n                properties:\n                  object:\n                    additionalProperties:\n                      ref: schema/schema\n                patternProperties:\n                  object:\n                    additionalProperties:\n                      ref: schema/schema\n                propertyNames:\n                  ref: schema/schema\n                additionalProperties:\n                  ref: schema/schema\n                super:\n                  maybeArrayOf:\n                    ref: schema/schema\n                required:\n                  anyOf:\n                    - enum: [\"all\"]\n                    - arrayOf: string\n                closed: boolean\n                description:\n                  ref: schema/description\n                completions:\n                  arrayOf: string\n\n" Hash(1)
+             entry 5456..7510
+              5456..5462 "object" String("object") content=5456..5462
+              5478..7510 "super:\n                resolveRef: schema/base\n              closed: true\n              properties:\n                namingConvention:\n                  anyOf:\n                    - enum: [\"ignore\"]\n                    - arrayOf:\n                        enum:\n                          # because this particular setup is especially likely to lead to typos,\n                          # we support all naming conventions in describing naming conventions\n                          - \"camelCase\"\n                          - \"camel-case\"\n                          - \"camel_case\"\n                          - \"capitalizationCase\"\n                          - \"capitalization-case\"\n                          - \"capitalization_case\"\n                          - \"underscoreCase\"\n                          - \"underscore-case\"\n                          - \"underscore_case\"\n                          - \"snakeCase\"\n                          - \"snake-case\"\n                          - \"snake_case\"\n                          - \"dashCase\"\n                          - \"dash-case\"\n                          - \"dash_case\"\n                          - \"kebabCase\"\n                          - \"kebab-case\"\n                          - \"kebab_case\"\n                properties:\n                  object:\n                    additionalProperties:\n                      ref: schema/schema\n                patternProperties:\n                  object:\n                    additionalProperties:\n                      ref: schema/schema\n                propertyNames:\n                  ref: schema/schema\n                additionalProperties:\n                  ref: schema/schema\n                super:\n                  maybeArrayOf:\n                    ref: schema/schema\n                required:\n                  anyOf:\n                    - enum: [\"all\"]\n                    - arrayOf: string\n                closed: boolean\n                description:\n                  ref: schema/description\n                completions:\n                  arrayOf: string\n\n" Hash(3)
+               entry 5478..5539
+                5478..5483 "super" String("super") content=5478..5483
+                5501..5539 "resolveRef: schema/base\n              " Hash(1)
+                 entry 5501..5524
+                  5501..5511 "resolveRef" String("resolveRef") content=5501..5511
+                  5513..5524 "schema/base" String("schema/base") content=5513..5524
+               entry 5539..5551
+                5539..5545 "closed" String("closed") content=5539..5545
+                5547..5551 "true" Boolean(true) content=5547..5551
+               entry 5566..7510
+                5566..5576 "properties" String("properties") content=5566..5576
+                5594..7510 "namingConvention:\n                  anyOf:\n                    - enum: [\"ignore\"]\n                    - arrayOf:\n                        enum:\n                          # because this particular setup is especially likely to lead to typos,\n                          # we support all naming conventions in describing naming conventions\n                          - \"camelCase\"\n                          - \"camel-case\"\n                          - \"camel_case\"\n                          - \"capitalizationCase\"\n                          - \"capitalization-case\"\n                          - \"capitalization_case\"\n                          - \"underscoreCase\"\n                          - \"underscore-case\"\n                          - \"underscore_case\"\n                          - \"snakeCase\"\n                          - \"snake-case\"\n                          - \"snake_case\"\n                          - \"dashCase\"\n                          - \"dash-case\"\n                          - \"dash_case\"\n                          - \"kebabCase\"\n                          - \"kebab-case\"\n                          - \"kebab_case\"\n                properties:\n                  object:\n                    additionalProperties:\n                      ref: schema/schema\n                patternProperties:\n                  object:\n                    additionalProperties:\n                      ref: schema/schema\n                propertyNames:\n                  ref: schema/schema\n                additionalProperties:\n                  ref: schema/schema\n                super:\n                  maybeArrayOf:\n                    ref: schema/schema\n                required:\n                  anyOf:\n                    - enum: [\"all\"]\n                    - arrayOf: string\n                closed: boolean\n                description:\n                  ref: schema/description\n                completions:\n                  arrayOf: string\n\n" Hash(10)
+                 entry 5594..6716
+                  5594..5610 "namingConvention" String("namingConvention") content=5594..5610
+                  5630..6716 "anyOf:\n                    - enum: [\"ignore\"]\n                    - arrayOf:\n                        enum:\n                          # because this particular setup is especially likely to lead to typos,\n                          # we support all naming conventions in describing naming conventions\n                          - \"camelCase\"\n                          - \"camel-case\"\n                          - \"camel_case\"\n                          - \"capitalizationCase\"\n                          - \"capitalization-case\"\n                          - \"capitalization_case\"\n                          - \"underscoreCase\"\n                          - \"underscore-case\"\n                          - \"underscore_case\"\n                          - \"snakeCase\"\n                          - \"snake-case\"\n                          - \"snake_case\"\n                          - \"dashCase\"\n                          - \"dash-case\"\n                          - \"dash_case\"\n                          - \"kebabCase\"\n                          - \"kebab-case\"\n                          - \"kebab_case\"\n                " Hash(1)
+                   entry 5630..6716
+                    5630..5635 "anyOf" String("anyOf") content=5630..5635
+                    5657..6716 "- enum: [\"ignore\"]\n                    - arrayOf:\n                        enum:\n                          # because this particular setup is especially likely to lead to typos,\n                          # we support all naming conventions in describing naming conventions\n                          - \"camelCase\"\n                          - \"camel-case\"\n                          - \"camel_case\"\n                          - \"capitalizationCase\"\n                          - \"capitalization-case\"\n                          - \"capitalization_case\"\n                          - \"underscoreCase\"\n                          - \"underscore-case\"\n                          - \"underscore_case\"\n                          - \"snakeCase\"\n                          - \"snake-case\"\n                          - \"snake_case\"\n                          - \"dashCase\"\n                          - \"dash-case\"\n                          - \"dash_case\"\n                          - \"kebabCase\"\n                          - \"kebab-case\"\n                          - \"kebab_case\"\n                " Array(2)
+                      5659..5696 "enum: [\"ignore\"]\n                    " Hash(1)
+                       entry 5659..5675
+                        5659..5663 "enum" String("enum") content=5659..5663
+                        5665..5675 "[\"ignore\"]" Array(1)
+                          5666..5674 "\"ignore\"" String("ignore") content=5667..5673
+                      5698..6716 "arrayOf:\n                        enum:\n                          # because this particular setup is especially likely to lead to typos,\n                          # we support all naming conventions in describing naming conventions\n                          - \"camelCase\"\n                          - \"camel-case\"\n                          - \"camel_case\"\n                          - \"capitalizationCase\"\n                          - \"capitalization-case\"\n                          - \"capitalization_case\"\n                          - \"underscoreCase\"\n                          - \"underscore-case\"\n                          - \"underscore_case\"\n                          - \"snakeCase\"\n                          - \"snake-case\"\n                          - \"snake_case\"\n                          - \"dashCase\"\n                          - \"dash-case\"\n                          - \"dash_case\"\n                          - \"kebabCase\"\n                          - \"kebab-case\"\n                          - \"kebab_case\"\n                " Hash(1)
+                       entry 5698..6716
+                        5698..5705 "arrayOf" String("arrayOf") content=5698..5705
+                        5731..6716 "enum:\n                          # because this particular setup is especially likely to lead to typos,\n                          # we support all naming conventions in describing naming conventions\n                          - \"camelCase\"\n                          - \"camel-case\"\n                          - \"camel_case\"\n                          - \"capitalizationCase\"\n                          - \"capitalization-case\"\n                          - \"capitalization_case\"\n                          - \"underscoreCase\"\n                          - \"underscore-case\"\n                          - \"underscore_case\"\n                          - \"snakeCase\"\n                          - \"snake-case\"\n                          - \"snake_case\"\n                          - \"dashCase\"\n                          - \"dash-case\"\n                          - \"dash_case\"\n                          - \"kebabCase\"\n                          - \"kebab-case\"\n                          - \"kebab_case\"\n                " Hash(1)
+                         entry 5731..6716
+                          5731..5735 "enum" String("enum") content=5731..5735
+                          5955..6716 "- \"camelCase\"\n                          - \"camel-case\"\n                          - \"camel_case\"\n                          - \"capitalizationCase\"\n                          - \"capitalization-case\"\n                          - \"capitalization_case\"\n                          - \"underscoreCase\"\n                          - \"underscore-case\"\n                          - \"underscore_case\"\n                          - \"snakeCase\"\n                          - \"snake-case\"\n                          - \"snake_case\"\n                          - \"dashCase\"\n                          - \"dash-case\"\n                          - \"dash_case\"\n                          - \"kebabCase\"\n                          - \"kebab-case\"\n                          - \"kebab_case\"\n                " Array(18)
+                            5957..5968 "\"camelCase\"" String("camelCase") content=5958..5967
+                            5997..6009 "\"camel-case\"" String("camel-case") content=5998..6008
+                            6038..6050 "\"camel_case\"" String("camel_case") content=6039..6049
+                            6079..6099 "\"capitalizationCase\"" String("capitalizationCase") content=6080..6098
+                            6128..6149 "\"capitalization-case\"" String("capitalization-case") content=6129..6148
+                            6178..6199 "\"capitalization_case\"" String("capitalization_case") content=6179..6198
+                            6228..6244 "\"underscoreCase\"" String("underscoreCase") content=6229..6243
+                            6273..6290 "\"underscore-case\"" String("underscore-case") content=6274..6289
+                            6319..6336 "\"underscore_case\"" String("underscore_case") content=6320..6335
+                            6365..6376 "\"snakeCase\"" String("snakeCase") content=6366..6375
+                            6405..6417 "\"snake-case\"" String("snake-case") content=6406..6416
+                            6446..6458 "\"snake_case\"" String("snake_case") content=6447..6457
+                            6487..6497 "\"dashCase\"" String("dashCase") content=6488..6496
+                            6526..6537 "\"dash-case\"" String("dash-case") content=6527..6536
+                            6566..6577 "\"dash_case\"" String("dash_case") content=6567..6576
+                            6606..6617 "\"kebabCase\"" String("kebabCase") content=6607..6616
+                            6646..6658 "\"kebab-case\"" String("kebab-case") content=6647..6657
+                            6687..6699 "\"kebab_case\"" String("kebab_case") content=6688..6698
+                 entry 6716..6853
+                  6716..6726 "properties" String("properties") content=6716..6726
+                  6746..6853 "object:\n                    additionalProperties:\n                      ref: schema/schema\n                " Hash(1)
+                   entry 6746..6853
+                    6746..6752 "object" String("object") content=6746..6752
+                    6774..6853 "additionalProperties:\n                      ref: schema/schema\n                " Hash(1)
+                     entry 6774..6853
+                      6774..6794 "additionalProperties" String("additionalProperties") content=6774..6794
+                      6818..6853 "ref: schema/schema\n                " Hash(1)
+                       entry 6818..6836
+                        6818..6821 "ref" String("ref") content=6818..6821
+                        6823..6836 "schema/schema" String("schema/schema") content=6823..6836
+                 entry 6853..6997
+                  6853..6870 "patternProperties" String("patternProperties") content=6853..6870
+                  6890..6997 "object:\n                    additionalProperties:\n                      ref: schema/schema\n                " Hash(1)
+                   entry 6890..6997
+                    6890..6896 "object" String("object") content=6890..6896
+                    6918..6997 "additionalProperties:\n                      ref: schema/schema\n                " Hash(1)
+                     entry 6918..6997
+                      6918..6938 "additionalProperties" String("additionalProperties") content=6918..6938
+                      6962..6997 "ref: schema/schema\n                " Hash(1)
+                       entry 6962..6980
+                        6962..6965 "ref" String("ref") content=6962..6965
+                        6967..6980 "schema/schema" String("schema/schema") content=6967..6980
+                 entry 6997..7065
+                  6997..7010 "propertyNames" String("propertyNames") content=6997..7010
+                  7030..7065 "ref: schema/schema\n                " Hash(1)
+                   entry 7030..7048
+                    7030..7033 "ref" String("ref") content=7030..7033
+                    7035..7048 "schema/schema" String("schema/schema") content=7035..7048
+                 entry 7065..7140
+                  7065..7085 "additionalProperties" String("additionalProperties") content=7065..7085
+                  7105..7140 "ref: schema/schema\n                " Hash(1)
+                   entry 7105..7123
+                    7105..7108 "ref" String("ref") content=7105..7108
+                    7110..7123 "schema/schema" String("schema/schema") content=7110..7123
+                 entry 7140..7234
+                  7140..7145 "super" String("super") content=7140..7145
+                  7165..7234 "maybeArrayOf:\n                    ref: schema/schema\n                " Hash(1)
+                   entry 7165..7234
+                    7165..7177 "maybeArrayOf" String("maybeArrayOf") content=7165..7177
+                    7199..7234 "ref: schema/schema\n                " Hash(1)
+                     entry 7199..7217
+                      7199..7202 "ref" String("ref") content=7199..7202
+                      7204..7217 "schema/schema" String("schema/schema") content=7204..7217
+                 entry 7234..7359
+                  7234..7242 "required" String("required") content=7234..7242
+                  7262..7359 "anyOf:\n                    - enum: [\"all\"]\n                    - arrayOf: string\n                " Hash(1)
+                   entry 7262..7359
+                    7262..7267 "anyOf" String("anyOf") content=7262..7267
+                    7289..7359 "- enum: [\"all\"]\n                    - arrayOf: string\n                " Array(2)
+                      7291..7325 "enum: [\"all\"]\n                    " Hash(1)
+                       entry 7291..7304
+                        7291..7295 "enum" String("enum") content=7291..7295
+                        7297..7304 "[\"all\"]" Array(1)
+                          7298..7303 "\"all\"" String("all") content=7299..7302
+                      7327..7359 "arrayOf: string\n                " Hash(1)
+                       entry 7327..7342
+                        7327..7334 "arrayOf" String("arrayOf") content=7327..7334
+                        7336..7342 "string" String("string") content=7336..7342
+                 entry 7359..7374
+                  7359..7365 "closed" String("closed") content=7359..7365
+                  7367..7374 "boolean" String("boolean") content=7367..7374
+                 entry 7391..7462
+                  7391..7402 "description" String("description") content=7391..7402
+                  7422..7462 "ref: schema/description\n                " Hash(1)
+                   entry 7422..7445
+                    7422..7425 "ref" String("ref") content=7422..7425
+                    7427..7445 "schema/description" String("schema/description") content=7427..7445
+                 entry 7462..7510
+                  7462..7473 "completions" String("completions") content=7462..7473
+                  7493..7510 "arrayOf: string\n\n" Hash(1)
+                   entry 7493..7508
+                    7493..7500 "arrayOf" String("arrayOf") content=7493..7500
+                    7502..7508 "string" String("string") content=7502..7508
+  7512..7968 "id: schema/schema\n  anyOf:\n    - ref: schema/enum\n    - ref: schema/null\n    - ref: schema/explicit-schema\n    - ref: schema/string\n    - ref: schema/number\n    - ref: schema/boolean\n    - ref: schema/ref\n    - ref: schema/resolve-ref\n    - ref: schema/any-of\n    - ref: schema/array-of\n    - ref: schema/maybe-array-of\n    - ref: schema/all-of\n    - ref: schema/record\n    - ref: schema/object\n    - enum: [null, \"any\"]\n  description: \"be a yaml schema\"\n\n" Hash(3)
+   entry 7512..7529
+    7512..7514 "id" String("id") content=7512..7514
+    7516..7529 "schema/schema" String("schema/schema") content=7516..7529
+   entry 7532..7935
+    7532..7537 "anyOf" String("anyOf") content=7532..7537
+    7543..7935 "- ref: schema/enum\n    - ref: schema/null\n    - ref: schema/explicit-schema\n    - ref: schema/string\n    - ref: schema/number\n    - ref: schema/boolean\n    - ref: schema/ref\n    - ref: schema/resolve-ref\n    - ref: schema/any-of\n    - ref: schema/array-of\n    - ref: schema/maybe-array-of\n    - ref: schema/all-of\n    - ref: schema/record\n    - ref: schema/object\n    - enum: [null, \"any\"]\n  " Array(15)
+      7545..7566 "ref: schema/enum\n    " Hash(1)
+       entry 7545..7561
+        7545..7548 "ref" String("ref") content=7545..7548
+        7550..7561 "schema/enum" String("schema/enum") content=7550..7561
+      7568..7589 "ref: schema/null\n    " Hash(1)
+       entry 7568..7584
+        7568..7571 "ref" String("ref") content=7568..7571
+        7573..7584 "schema/null" String("schema/null") content=7573..7584
+      7591..7623 "ref: schema/explicit-schema\n    " Hash(1)
+       entry 7591..7618
+        7591..7594 "ref" String("ref") content=7591..7594
+        7596..7618 "schema/explicit-schema" String("schema/explicit-schema") content=7596..7618
+      7625..7648 "ref: schema/string\n    " Hash(1)
+       entry 7625..7643
+        7625..7628 "ref" String("ref") content=7625..7628
+        7630..7643 "schema/string" String("schema/string") content=7630..7643
+      7650..7673 "ref: schema/number\n    " Hash(1)
+       entry 7650..7668
+        7650..7653 "ref" String("ref") content=7650..7653
+        7655..7668 "schema/number" String("schema/number") content=7655..7668
+      7675..7699 "ref: schema/boolean\n    " Hash(1)
+       entry 7675..7694
+        7675..7678 "ref" String("ref") content=7675..7678
+        7680..7694 "schema/boolean" String("schema/boolean") content=7680..7694
+      7701..7721 "ref: schema/ref\n    " Hash(1)
+       entry 7701..7716
+        7701..7704 "ref" String("ref") content=7701..7704
+        7706..7716 "schema/ref" String("schema/ref") content=7706..7716
+      7723..7751 "ref: schema/resolve-ref\n    " Hash(1)
+       entry 7723..7746
+        7723..7726 "ref" String("ref") content=7723..7726
+        7728..7746 "schema/resolve-ref" String("schema/resolve-ref") content=7728..7746
+      7753..7776 "ref: schema/any-of\n    " Hash(1)
+       entry 7753..7771
+        7753..7756 "ref" String("ref") content=7753..7756
+        7758..7771 "schema/any-of" String("schema/any-of") content=7758..7771
+      7778..7803 "ref: schema/array-of\n    " Hash(1)
+       entry 7778..7798
+        7778..7781 "ref" String("ref") content=7778..7781
+        7783..7798 "schema/array-of" String("schema/array-of") content=7783..7798
+      7805..7836 "ref: schema/maybe-array-of\n    " Hash(1)
+       entry 7805..7831
+        7805..7808 "ref" String("ref") content=7805..7808
+        7810..7831 "schema/maybe-array-of" String("schema/maybe-array-of") content=7810..7831
+      7838..7861 "ref: schema/all-of\n    " Hash(1)
+       entry 7838..7856
+        7838..7841 "ref" String("ref") content=7838..7841
+        7843..7856 "schema/all-of" String("schema/all-of") content=7843..7856
+      7863..7886 "ref: schema/record\n    " Hash(1)
+       entry 7863..7881
+        7863..7866 "ref" String("ref") content=7863..7866
+        7868..7881 "schema/record" String("schema/record") content=7868..7881
+      7888..7911 "ref: schema/object\n    " Hash(1)
+       entry 7888..7906
+        7888..7891 "ref" String("ref") content=7888..7891
+        7893..7906 "schema/object" String("schema/object") content=7893..7906
+      7913..7935 "enum: [null, \"any\"]\n  " Hash(1)
+       entry 7913..7932
+        7913..7917 "enum" String("enum") content=7913..7917
+        7919..7932 "[null, \"any\"]" Array(2)
+          7920..7924 "null" Null content=7920..7924
+          7926..7931 "\"any\"" String("any") content=7927..7930
+   entry 7935..7966
+    7935..7946 "description" String("description") content=7935..7946
+    7948..7966 "\"be a yaml schema\"" String("be a yaml schema") content=7949..7965
+  7970..8627 "id: schema/schema-field\n  object:\n    properties:\n      name: string\n      schema:\n        ref: schema/schema\n      hidden: boolean\n      alias: string\n      disabled:\n        maybeArrayOf: string\n      enabled:\n        maybeArrayOf: string\n      description:\n        ref: schema/description\n      tags: object\n      errorMessage: string\n    namingConvention: ignore\n    required: [\"name\", \"schema\", \"description\"]\n    propertyNames:\n      enum:\n        - name\n        - schema\n        - hidden\n        - alias\n        - disabled\n        - enabled\n        - description\n        - tags\n        - errorMessage\n        - default # no schema, but entry allowed\n" Hash(2)
+   entry 7970..7993
+    7970..7972 "id" String("id") content=7970..7972
+    7974..7993 "schema/schema-field" String("schema/schema-field") content=7974..7993
+   entry 7996..8627
+    7996..8002 "object" String("object") content=7996..8002
+    8008..8627 "properties:\n      name: string\n      schema:\n        ref: schema/schema\n      hidden: boolean\n      alias: string\n      disabled:\n        maybeArrayOf: string\n      enabled:\n        maybeArrayOf: string\n      description:\n        ref: schema/description\n      tags: object\n      errorMessage: string\n    namingConvention: ignore\n    required: [\"name\", \"schema\", \"description\"]\n    propertyNames:\n      enum:\n        - name\n        - schema\n        - hidden\n        - alias\n        - disabled\n        - enabled\n        - description\n        - tags\n        - errorMessage\n        - default # no schema, but entry allowed\n" Hash(4)
+     entry 8008..8312
+      8008..8018 "properties" String("properties") content=8008..8018
+      8026..8312 "name: string\n      schema:\n        ref: schema/schema\n      hidden: boolean\n      alias: string\n      disabled:\n        maybeArrayOf: string\n      enabled:\n        maybeArrayOf: string\n      description:\n        ref: schema/description\n      tags: object\n      errorMessage: string\n    " Hash(9)
+       entry 8026..8038
+        8026..8030 "name" String("name") content=8026..8030
+        8032..8038 "string" String("string") content=8032..8038
+       entry 8045..8086
+        8045..8051 "schema" String("schema") content=8045..8051
+        8061..8086 "ref: schema/schema\n      " Hash(1)
+         entry 8061..8079
+          8061..8064 "ref" String("ref") content=8061..8064
+          8066..8079 "schema/schema" String("schema/schema") content=8066..8079
+       entry 8086..8101
+        8086..8092 "hidden" String("hidden") content=8086..8092
+        8094..8101 "boolean" String("boolean") content=8094..8101
+       entry 8108..8121
+        8108..8113 "alias" String("alias") content=8108..8113
+        8115..8121 "string" String("string") content=8115..8121
+       entry 8128..8173
+        8128..8136 "disabled" String("disabled") content=8128..8136
+        8146..8173 "maybeArrayOf: string\n      " Hash(1)
+         entry 8146..8166
+          8146..8158 "maybeArrayOf" String("maybeArrayOf") content=8146..8158
+          8160..8166 "string" String("string") content=8160..8166
+       entry 8173..8217
+        8173..8180 "enabled" String("enabled") content=8173..8180
+        8190..8217 "maybeArrayOf: string\n      " Hash(1)
+         entry 8190..8210
+          8190..8202 "maybeArrayOf" String("maybeArrayOf") content=8190..8202
+          8204..8210 "string" String("string") content=8204..8210
+       entry 8217..8268
+        8217..8228 "description" String("description") content=8217..8228
+        8238..8268 "ref: schema/description\n      " Hash(1)
+         entry 8238..8261
+          8238..8241 "ref" String("ref") content=8238..8241
+          8243..8261 "schema/description" String("schema/description") content=8243..8261
+       entry 8268..8280
+        8268..8272 "tags" String("tags") content=8268..8272
+        8274..8280 "object" String("object") content=8274..8280
+       entry 8287..8307
+        8287..8299 "errorMessage" String("errorMessage") content=8287..8299
+        8301..8307 "string" String("string") content=8301..8307
+     entry 8312..8336
+      8312..8328 "namingConvention" String("namingConvention") content=8312..8328
+      8330..8336 "ignore" String("ignore") content=8330..8336
+     entry 8341..8384
+      8341..8349 "required" String("required") content=8341..8349
+      8351..8384 "[\"name\", \"schema\", \"description\"]" Array(3)
+        8352..8358 "\"name\"" String("name") content=8353..8357
+        8360..8368 "\"schema\"" String("schema") content=8361..8367
+        8370..8383 "\"description\"" String("description") content=8371..8382
+     entry 8389..8627
+      8389..8402 "propertyNames" String("propertyNames") content=8389..8402
+      8410..8627 "enum:\n        - name\n        - schema\n        - hidden\n        - alias\n        - disabled\n        - enabled\n        - description\n        - tags\n        - errorMessage\n        - default # no schema, but entry allowed\n" Hash(1)
+       entry 8410..8627
+        8410..8414 "enum" String("enum") content=8410..8414
+        8424..8627 "- name\n        - schema\n        - hidden\n        - alias\n        - disabled\n        - enabled\n        - description\n        - tags\n        - errorMessage\n        - default # no schema, but entry allowed\n" Array(10)
+          8426..8430 "name" String("name") content=8426..8430
+          8441..8447 "schema" String("schema") content=8441..8447
+          8458..8464 "hidden" String("hidden") content=8458..8464
+          8475..8480 "alias" String("alias") content=8475..8480
+          8491..8499 "disabled" String("disabled") content=8491..8499
+          8510..8517 "enabled" String("enabled") content=8510..8517
+          8528..8539 "description" String("description") content=8528..8539
+          8550..8554 "tags" String("tags") content=8550..8554
+          8565..8577 "errorMessage" String("errorMessage") content=8565..8577
+          8588..8595 "default" String("default") content=8588..8595

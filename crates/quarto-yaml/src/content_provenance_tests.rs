@@ -426,7 +426,10 @@ fn empty_value() {
     let src = "k:\n";
     let yaml = parse(src).unwrap();
     let v = yaml.get_hash_value("k").unwrap();
-    assert_eq!(v.content_source_info(), Some(&contiguous(3, 3)));
+    // A missing value sits just after the `:` (see `YamlBuilder::scalar_start`),
+    // not at the next token, which here would be the end of the input.
+    assert_eq!(v.content_source_info(), Some(&contiguous(2, 2)));
+    assert_eq!(v.source_info, contiguous(2, 2));
 }
 
 #[test]

@@ -1,0 +1,191 @@
+---
+source: crates/quarto-yaml/tests/golden.rs
+expression: dump(&src)
+---
+0..2289 "- name: search\n  schema: boolean\n  tags:\n    formats: [$html-doc]\n  default: true\n  description: Setting this to false prevents this document from being included in searches.\n\n- name: repo-actions\n  schema:\n    anyOf:\n      - boolean\n      - maybeArrayOf:\n          enum: [none, edit, source, issue]\n          description:\n            short: \"Links to source repository actions\"\n            long: \"Links to source repository actions (`none` or one or more of `edit`, `source`, `issue`)\"\n\n  tags:\n    formats: [$html-doc]\n  description: | \n    Setting this to false prevents the `repo-actions` from appearing on this page.\n    Other possible values are `none` or one or more of `edit`, `source`, and `issue`, *e.g.* `[edit, source, issue]`.\n\n- name: aliases\n  schema:\n    arrayOf: string\n  tags:\n    formats: [$html-doc]\n  description: URLs that alias this document, when included in a website.\n\n- name: image\n  schema:\n    anyOf:\n      - path\n      - boolean\n  tags:\n    formats: [$html-doc]\n  description:\n    short: The path to a preview image for this document.\n    long: |\n      The path to a preview image for this content. By default, \n      Quarto will use the image value from the site: metadata. \n      If you provide an image, you may also optionally provide \n      an image-width and image-height to improve \n      the appearance of your Twitter Card.\n\n      If image is not provided, Quarto will automatically attempt \n      to locate a preview image.\n\n- name: image-height\n  schema: string\n  tags:\n    formats: [$html-doc]\n  description: The height of the preview image for this document.\n\n- name: image-width\n  schema: string\n  tags:\n    formats: [$html-doc]\n  description: The width of the preview image for this document.\n\n- name: image-alt\n  schema: string\n  tags:\n    formats: [$html-doc]\n  description: The alt text for preview image on this page.\n\n- name: image-lazy-loading\n  schema: boolean\n  tags:\n    formats: [$html-doc]\n  description:\n    short: If true, the preview image will only load when it comes into view.\n    long: |\n      Enables lazy loading for the preview image. If true, the preview image element \n      will have `loading=\"lazy\"`, and will only load when it comes into view.\n\n      If false, the preview image will load immediately.\n  default: true\n" Array(8)
+  2..176 "name: search\n  schema: boolean\n  tags:\n    formats: [$html-doc]\n  default: true\n  description: Setting this to false prevents this document from being included in searches.\n\n" Hash(5)
+   entry 2..14
+    2..6 "name" String("name") content=2..6
+    8..14 "search" String("search") content=8..14
+   entry 17..32
+    17..23 "schema" String("schema") content=17..23
+    25..32 "boolean" String("boolean") content=25..32
+   entry 35..68
+    35..39 "tags" String("tags") content=35..39
+    45..68 "formats: [$html-doc]\n  " Hash(1)
+     entry 45..65
+      45..52 "formats" String("formats") content=45..52
+      54..65 "[$html-doc]" Array(1)
+        55..64 "$html-doc" String("$html-doc") content=55..64
+   entry 68..81
+    68..75 "default" String("default") content=68..75
+    77..81 "true" Boolean(true) content=77..81
+   entry 84..174
+    84..95 "description" String("description") content=84..95
+    97..174 "Setting this to false prevents this document from being included in searches." String("Setting this to false prevents this document from being included in searches.") content=97..174
+  178..741 "name: repo-actions\n  schema:\n    anyOf:\n      - boolean\n      - maybeArrayOf:\n          enum: [none, edit, source, issue]\n          description:\n            short: \"Links to source repository actions\"\n            long: \"Links to source repository actions (`none` or one or more of `edit`, `source`, `issue`)\"\n\n  tags:\n    formats: [$html-doc]\n  description: | \n    Setting this to false prevents the `repo-actions` from appearing on this page.\n    Other possible values are `none` or one or more of `edit`, `source`, and `issue`, *e.g.* `[edit, source, issue]`.\n\n" Hash(4)
+   entry 178..196
+    178..182 "name" String("name") content=178..182
+    184..196 "repo-actions" String("repo-actions") content=184..196
+   entry 199..490
+    199..205 "schema" String("schema") content=199..205
+    211..490 "anyOf:\n      - boolean\n      - maybeArrayOf:\n          enum: [none, edit, source, issue]\n          description:\n            short: \"Links to source repository actions\"\n            long: \"Links to source repository actions (`none` or one or more of `edit`, `source`, `issue`)\"\n\n  " Hash(1)
+     entry 211..490
+      211..216 "anyOf" String("anyOf") content=211..216
+      224..490 "- boolean\n      - maybeArrayOf:\n          enum: [none, edit, source, issue]\n          description:\n            short: \"Links to source repository actions\"\n            long: \"Links to source repository actions (`none` or one or more of `edit`, `source`, `issue`)\"\n\n  " Array(2)
+        226..233 "boolean" String("boolean") content=226..233
+        242..490 "maybeArrayOf:\n          enum: [none, edit, source, issue]\n          description:\n            short: \"Links to source repository actions\"\n            long: \"Links to source repository actions (`none` or one or more of `edit`, `source`, `issue`)\"\n\n  " Hash(1)
+         entry 242..490
+          242..254 "maybeArrayOf" String("maybeArrayOf") content=242..254
+          266..490 "enum: [none, edit, source, issue]\n          description:\n            short: \"Links to source repository actions\"\n            long: \"Links to source repository actions (`none` or one or more of `edit`, `source`, `issue`)\"\n\n  " Hash(2)
+           entry 266..299
+            266..270 "enum" String("enum") content=266..270
+            272..299 "[none, edit, source, issue]" Array(4)
+              273..277 "none" String("none") content=273..277
+              279..283 "edit" String("edit") content=279..283
+              285..291 "source" String("source") content=285..291
+              293..298 "issue" String("issue") content=293..298
+           entry 310..490
+            310..321 "description" String("description") content=310..321
+            335..490 "short: \"Links to source repository actions\"\n            long: \"Links to source repository actions (`none` or one or more of `edit`, `source`, `issue`)\"\n\n  " Hash(2)
+             entry 335..378
+              335..340 "short" String("short") content=335..340
+              342..378 "\"Links to source repository actions\"" String("Links to source repository actions") content=343..377
+             entry 391..486
+              391..395 "long" String("long") content=391..395
+              397..486 "\"Links to source repository actions (`none` or one or more of `edit`, `source`, `issue`)\"" String("Links to source repository actions (`none` or one or more of `edit`, `source`, `issue`)") content=398..485
+   entry 490..523
+    490..494 "tags" String("tags") content=490..494
+    500..523 "formats: [$html-doc]\n  " Hash(1)
+     entry 500..520
+      500..507 "formats" String("formats") content=500..507
+      509..520 "[$html-doc]" Array(1)
+        510..519 "$html-doc" String("$html-doc") content=510..519
+   entry 523..739
+    523..534 "description" String("description") content=523..534
+    543..739 "Setting this to false prevents the `repo-actions` from appearing on this page.\n    Other possible values are `none` or one or more of `edit`, `source`, and `issue`, *e.g.* `[edit, source, issue]`." String("Setting this to false prevents the `repo-actions` from appearing on this page.\nOther possible values are `none` or one or more of `edit`, `source`, and `issue`, *e.g.* `[edit, source, issue]`.\n") content=[543..621,621..626=>1,626..739,739..741=>1]
+  743..895 "name: aliases\n  schema:\n    arrayOf: string\n  tags:\n    formats: [$html-doc]\n  description: URLs that alias this document, when included in a website.\n\n" Hash(4)
+   entry 743..756
+    743..747 "name" String("name") content=743..747
+    749..756 "aliases" String("aliases") content=749..756
+   entry 759..789
+    759..765 "schema" String("schema") content=759..765
+    771..789 "arrayOf: string\n  " Hash(1)
+     entry 771..786
+      771..778 "arrayOf" String("arrayOf") content=771..778
+      780..786 "string" String("string") content=780..786
+   entry 789..822
+    789..793 "tags" String("tags") content=789..793
+    799..822 "formats: [$html-doc]\n  " Hash(1)
+     entry 799..819
+      799..806 "formats" String("formats") content=799..806
+      808..819 "[$html-doc]" Array(1)
+        809..818 "$html-doc" String("$html-doc") content=809..818
+   entry 822..893
+    822..833 "description" String("description") content=822..833
+    835..893 "URLs that alias this document, when included in a website." String("URLs that alias this document, when included in a website.") content=835..893
+  897..1465 "name: image\n  schema:\n    anyOf:\n      - path\n      - boolean\n  tags:\n    formats: [$html-doc]\n  description:\n    short: The path to a preview image for this document.\n    long: |\n      The path to a preview image for this content. By default, \n      Quarto will use the image value from the site: metadata. \n      If you provide an image, you may also optionally provide \n      an image-width and image-height to improve \n      the appearance of your Twitter Card.\n\n      If image is not provided, Quarto will automatically attempt \n      to locate a preview image.\n\n" Hash(4)
+   entry 897..908
+    897..901 "name" String("name") content=897..901
+    903..908 "image" String("image") content=903..908
+   entry 911..961
+    911..917 "schema" String("schema") content=911..917
+    923..961 "anyOf:\n      - path\n      - boolean\n  " Hash(1)
+     entry 923..961
+      923..928 "anyOf" String("anyOf") content=923..928
+      936..961 "- path\n      - boolean\n  " Array(2)
+        938..942 "path" String("path") content=938..942
+        951..958 "boolean" String("boolean") content=951..958
+   entry 961..994
+    961..965 "tags" String("tags") content=961..965
+    971..994 "formats: [$html-doc]\n  " Hash(1)
+     entry 971..991
+      971..978 "formats" String("formats") content=971..978
+      980..991 "[$html-doc]" Array(1)
+        981..990 "$html-doc" String("$html-doc") content=981..990
+   entry 994..1465
+    994..1005 "description" String("description") content=994..1005
+    1011..1465 "short: The path to a preview image for this document.\n    long: |\n      The path to a preview image for this content. By default, \n      Quarto will use the image value from the site: metadata. \n      If you provide an image, you may also optionally provide \n      an image-width and image-height to improve \n      the appearance of your Twitter Card.\n\n      If image is not provided, Quarto will automatically attempt \n      to locate a preview image.\n\n" Hash(2)
+     entry 1011..1064
+      1011..1016 "short" String("short") content=1011..1016
+      1018..1064 "The path to a preview image for this document." String("The path to a preview image for this document.") content=1018..1064
+     entry 1069..1463
+      1069..1073 "long" String("long") content=1069..1073
+      1083..1463 "The path to a preview image for this content. By default, \n      Quarto will use the image value from the site: metadata. \n      If you provide an image, you may also optionally provide \n      an image-width and image-height to improve \n      the appearance of your Twitter Card.\n\n      If image is not provided, Quarto will automatically attempt \n      to locate a preview image." String("The path to a preview image for this content. By default, \nQuarto will use the image value from the site: metadata. \nIf you provide an image, you may also optionally provide \nan image-width and image-height to improve \nthe appearance of your Twitter Card.\n\nIf image is not provided, Quarto will automatically attempt \nto locate a preview image.\n") content=[1083..1141,1141..1148=>1,1148..1205,1205..1212=>1,1212..1269,1269..1276=>1,1276..1319,1319..1326=>1,1326..1362,1362..1370=>2,1370..1430,1430..1437=>1,1437..1463,1463..1465=>1]
+  1467..1603 "name: image-height\n  schema: string\n  tags:\n    formats: [$html-doc]\n  description: The height of the preview image for this document.\n\n" Hash(4)
+   entry 1467..1485
+    1467..1471 "name" String("name") content=1467..1471
+    1473..1485 "image-height" String("image-height") content=1473..1485
+   entry 1488..1502
+    1488..1494 "schema" String("schema") content=1488..1494
+    1496..1502 "string" String("string") content=1496..1502
+   entry 1505..1538
+    1505..1509 "tags" String("tags") content=1505..1509
+    1515..1538 "formats: [$html-doc]\n  " Hash(1)
+     entry 1515..1535
+      1515..1522 "formats" String("formats") content=1515..1522
+      1524..1535 "[$html-doc]" Array(1)
+        1525..1534 "$html-doc" String("$html-doc") content=1525..1534
+   entry 1538..1601
+    1538..1549 "description" String("description") content=1538..1549
+    1551..1601 "The height of the preview image for this document." String("The height of the preview image for this document.") content=1551..1601
+  1605..1739 "name: image-width\n  schema: string\n  tags:\n    formats: [$html-doc]\n  description: The width of the preview image for this document.\n\n" Hash(4)
+   entry 1605..1622
+    1605..1609 "name" String("name") content=1605..1609
+    1611..1622 "image-width" String("image-width") content=1611..1622
+   entry 1625..1639
+    1625..1631 "schema" String("schema") content=1625..1631
+    1633..1639 "string" String("string") content=1633..1639
+   entry 1642..1675
+    1642..1646 "tags" String("tags") content=1642..1646
+    1652..1675 "formats: [$html-doc]\n  " Hash(1)
+     entry 1652..1672
+      1652..1659 "formats" String("formats") content=1652..1659
+      1661..1672 "[$html-doc]" Array(1)
+        1662..1671 "$html-doc" String("$html-doc") content=1662..1671
+   entry 1675..1737
+    1675..1686 "description" String("description") content=1675..1686
+    1688..1737 "The width of the preview image for this document." String("The width of the preview image for this document.") content=1688..1737
+  1741..1868 "name: image-alt\n  schema: string\n  tags:\n    formats: [$html-doc]\n  description: The alt text for preview image on this page.\n\n" Hash(4)
+   entry 1741..1756
+    1741..1745 "name" String("name") content=1741..1745
+    1747..1756 "image-alt" String("image-alt") content=1747..1756
+   entry 1759..1773
+    1759..1765 "schema" String("schema") content=1759..1765
+    1767..1773 "string" String("string") content=1767..1773
+   entry 1776..1809
+    1776..1780 "tags" String("tags") content=1776..1780
+    1786..1809 "formats: [$html-doc]\n  " Hash(1)
+     entry 1786..1806
+      1786..1793 "formats" String("formats") content=1786..1793
+      1795..1806 "[$html-doc]" Array(1)
+        1796..1805 "$html-doc" String("$html-doc") content=1796..1805
+   entry 1809..1866
+    1809..1820 "description" String("description") content=1809..1820
+    1822..1866 "The alt text for preview image on this page." String("The alt text for preview image on this page.") content=1822..1866
+  1870..2289 "name: image-lazy-loading\n  schema: boolean\n  tags:\n    formats: [$html-doc]\n  description:\n    short: If true, the preview image will only load when it comes into view.\n    long: |\n      Enables lazy loading for the preview image. If true, the preview image element \n      will have `loading=\"lazy\"`, and will only load when it comes into view.\n\n      If false, the preview image will load immediately.\n  default: true\n" Hash(5)
+   entry 1870..1894
+    1870..1874 "name" String("name") content=1870..1874
+    1876..1894 "image-lazy-loading" String("image-lazy-loading") content=1876..1894
+   entry 1897..1912
+    1897..1903 "schema" String("schema") content=1897..1903
+    1905..1912 "boolean" String("boolean") content=1905..1912
+   entry 1915..1948
+    1915..1919 "tags" String("tags") content=1915..1919
+    1925..1948 "formats: [$html-doc]\n  " Hash(1)
+     entry 1925..1945
+      1925..1932 "formats" String("formats") content=1925..1932
+      1934..1945 "[$html-doc]" Array(1)
+        1935..1944 "$html-doc" String("$html-doc") content=1935..1944
+   entry 1948..2275
+    1948..1959 "description" String("description") content=1948..1959
+    1965..2275 "short: If true, the preview image will only load when it comes into view.\n    long: |\n      Enables lazy loading for the preview image. If true, the preview image element \n      will have `loading=\"lazy\"`, and will only load when it comes into view.\n\n      If false, the preview image will load immediately.\n  " Hash(2)
+     entry 1965..2038
+      1965..1970 "short" String("short") content=1965..1970
+      1972..2038 "If true, the preview image will only load when it comes into view." String("If true, the preview image will only load when it comes into view.") content=1972..2038
+     entry 2043..2272
+      2043..2047 "long" String("long") content=2043..2047
+      2057..2272 "Enables lazy loading for the preview image. If true, the preview image element \n      will have `loading=\"lazy\"`, and will only load when it comes into view.\n\n      If false, the preview image will load immediately." String("Enables lazy loading for the preview image. If true, the preview image element \nwill have `loading=\"lazy\"`, and will only load when it comes into view.\n\nIf false, the preview image will load immediately.\n") content=[2057..2136,2136..2143=>1,2143..2214,2214..2222=>2,2222..2272,2272..2275=>1]
+   entry 2275..2288
+    2275..2282 "default" String("default") content=2275..2282
+    2284..2288 "true" Boolean(true) content=2284..2288

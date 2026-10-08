@@ -197,7 +197,7 @@ impl YamlWithSourceInfo {
     /// wrong. This is the value to add content offsets to.
     ///
     /// "Content" means the **decoded scalar text, before type resolution** — i.e.
-    /// yaml-rust2's `Event::Scalar` value string, not `self.yaml`. So `k: ~` has
+    /// the parser's `Event::Scalar` value string, not `self.yaml`. So `k: ~` has
     /// one content byte (`~`) and `k: true` has four, even though neither
     /// resolves to a string.
     ///

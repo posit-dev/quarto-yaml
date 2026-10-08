@@ -21,6 +21,7 @@ categories = ["parsing", "development-tools"]
 strict-provenance = []
 
 [dependencies]
+saphyr-parser = { workspace = true }
 yaml-rust2 = { workspace = true }
 serde = { workspace = true }
 thiserror = { workspace = true }
@@ -28,6 +29,7 @@ quarto-source-map = { workspace = true }
 
 [dev-dependencies]
 regex = { workspace = true }
+insta = { workspace = true }
 
 [[bench]]
 name = "memory_overhead"

@@ -1,0 +1,3351 @@
+---
+source: crates/quarto-yaml/tests/golden.rs
+expression: out
+---
+cases: 402  parsed: 305  rejected: 97  panicked: 0
+disagreements with the suite (7):
+  8G76.yaml: rejected
+  98YD.yaml: rejected
+  AVM7.yaml: rejected
+  HWV9.yaml: rejected
+  KS4U.fail.yaml: accepted (suite says it must fail)
+  QLJ7.fail.yaml: accepted (suite says it must fail)
+  QT73.yaml: rejected
+
+==== 229Q.yaml
+"-\n  name: Mark McGwire\n  hr:   65\n  avg:  0.278\n-\n  name: Sammy Sosa\n  hr:   63\n  avg:  0.288\n"
+0..94 "-\n  name: Mark McGwire\n  hr:   65\n  avg:  0.278\n-\n  name: Sammy Sosa\n  hr:   63\n  avg:  0.288\n" Array(2)
+  4..48 "name: Mark McGwire\n  hr:   65\n  avg:  0.278\n" Hash(3)
+   entry 4..22
+    4..8 "name" String("name") content=4..8
+    10..22 "Mark McGwire" String("Mark McGwire") content=10..22
+   entry 25..33
+    25..27 "hr" String("hr") content=25..27
+    31..33 "65" Integer(65) content=31..33
+   entry 36..47
+    36..39 "avg" String("avg") content=36..39
+    42..47 "0.278" Real("0.278") content=42..47
+  52..94 "name: Sammy Sosa\n  hr:   63\n  avg:  0.288\n" Hash(3)
+   entry 52..68
+    52..56 "name" String("name") content=52..56
+    58..68 "Sammy Sosa" String("Sammy Sosa") content=58..68
+   entry 71..79
+    71..73 "hr" String("hr") content=71..73
+    77..79 "63" Integer(63) content=77..79
+   entry 82..93
+    82..85 "avg" String("avg") content=82..85
+    88..93 "0.288" Real("0.288") content=88..93
+
+==== 236B.fail.yaml
+"foo:\n  bar\ninvalid\n"
+ERROR "simple key expect ':'" @ 19..19
+
+==== 26DV.yaml
+"\"top1\" : \n  \"key1\" : &alias1 scalar1\n'top2' : \n  'key2' : &alias2 scalar2\ntop3: &node3 \n  *alias1 : scalar3\ntop4: \n  *alias2 : scalar4\ntop5   :    \n  scalar5\ntop6: \n  &anchor6 'key6' : scalar6\n"
+0..193 "\"top1\" : \n  \"key1\" : &alias1 scalar1\n'top2' : \n  'key2' : &alias2 scalar2\ntop3: &node3 \n  *alias1 : scalar3\ntop4: \n  *alias2 : scalar4\ntop5   :    \n  scalar5\ntop6: \n  &anchor6 'key6' : scalar6\n" Hash(6)
+ entry 0..37
+  0..6 "\"top1\"" String("top1") content=1..5
+  12..37 "\"key1\" : &alias1 scalar1\n" Hash(1)
+   entry 12..36
+    12..18 "\"key1\"" String("key1") content=13..17
+    29..36 "scalar1" String("scalar1") content=29..36
+ entry 37..74
+  37..43 "'top2'" String("top2") content=38..42
+  49..74 "'key2' : &alias2 scalar2\n" Hash(1)
+   entry 49..73
+    49..55 "'key2'" String("key2") content=50..54
+    66..73 "scalar2" String("scalar2") content=66..73
+ entry 74..108
+  74..78 "top3" String("top3") content=74..78
+  90..108 "*alias1 : scalar3\n" Hash(1)
+   entry 90..107
+    90..90 "" Null content=NONE
+    100..107 "scalar3" String("scalar3") content=100..107
+ entry 108..135
+  108..112 "top4" String("top4") content=108..112
+  117..135 "*alias2 : scalar4\n" Hash(1)
+   entry 117..134
+    117..117 "" Null content=NONE
+    127..134 "scalar4" String("scalar4") content=127..134
+ entry 135..157
+  135..139 "top5" String("top5") content=135..139
+  150..157 "scalar5" String("scalar5") content=150..157
+ entry 158..193
+  158..162 "top6" String("top6") content=158..162
+  176..193 "'key6' : scalar6\n" Hash(1)
+   entry 176..192
+    176..182 "'key6'" String("key6") content=177..181
+    185..192 "scalar6" String("scalar6") content=185..192
+
+==== 27NA.yaml
+"%YAML 1.2\n--- text\n"
+14..18 "text" String("text") content=14..18
+
+==== 2AUY.yaml
+" - !!str a\n - b\n - !!int 42\n - d\n"
+1..33 "- !!str a\n - b\n - !!int 42\n - d\n" Array(4)
+  9..10 "a" String("a") content=9..10 tag=str@3..8
+  14..15 "b" String("b") content=14..15
+  25..27 "42" Integer(42) content=25..27 tag=int@19..24
+  31..32 "d" String("d") content=31..32
+
+==== 2CMS.fail.yaml
+"this\n is\n  invalid: x\n"
+ERROR "mapping values are not allowed in this context" @ 18..19
+
+==== 2EBW.yaml
+"a!\"#$%&'()*+,-./09:;<=>?@AZ[\\]^_`az{|}~: safe\n?foo: safe question mark\n:foo: safe colon\n-foo: safe dash\nthis is#not: a comment\n"
+0..127 "a!\"#$%&'()*+,-./09:;<=>?@AZ[\\]^_`az{|}~: safe\n?foo: safe question mark\n:foo: safe colon\n-foo: safe dash\nthis is#not: a comment\n" Hash(5)
+ entry 0..45
+  0..39 "a!\"#$%&'()*+,-./09:;<=>?@AZ[\\]^_`az{|}~" String("a!\"#$%&'()*+,-./09:;<=>?@AZ[\\]^_`az{|}~") content=0..39
+  41..45 "safe" String("safe") content=41..45
+ entry 46..70
+  46..50 "?foo" String("?foo") content=46..50
+  52..70 "safe question mark" String("safe question mark") content=52..70
+ entry 71..87
+  71..75 ":foo" String(":foo") content=71..75
+  77..87 "safe colon" String("safe colon") content=77..87
+ entry 88..103
+  88..92 "-foo" String("-foo") content=88..92
+  94..103 "safe dash" String("safe dash") content=94..103
+ entry 104..126
+  104..115 "this is#not" String("this is#not") content=104..115
+  117..126 "a comment" String("a comment") content=117..126
+
+==== 2G84-00.fail.yaml
+"--- |0\n"
+ERROR "while scanning a block scalar, found an indentation indicator equal to 0" @ 4..5
+
+==== 2G84-01.fail.yaml
+"--- |10\n"
+ERROR "while scanning a block scalar, did not find expected comment or line break" @ 4..5
+
+==== 2G84-02.yaml
+"--- |1-"
+4..7 "|1-" String("") content=4..4
+
+==== 2G84-03.yaml
+"--- |1+"
+4..7 "|1+" String("") content=4..4
+
+==== 2JQS.yaml
+": a\n: b\n"
+0..8 ": a\n: b\n" Hash(1)
+ entry 0..3
+  0..0 "" Null content=0..0
+  2..3 "a" String("a") content=2..3
+ entry 4..7
+  4..4 "" Null content=4..4
+  6..7 "b" String("b") content=6..7
+
+==== 2LFX.yaml
+"%FOO  bar baz # Should be ignored\n              # with a warning.\n---\n\"foo\"\n"
+70..75 "\"foo\"" String("foo") content=71..74
+
+==== 2SXE.yaml
+"&a: key: &a value\nfoo:\n  *a:\n"
+4..29 "key: &a value\nfoo:\n  *a:\n" Hash(2)
+ entry 4..17
+  4..7 "key" String("key") content=4..7
+  12..17 "value" String("value") content=12..17
+ entry 18..25
+  18..21 "foo" String("foo") content=18..21
+  25..25 "" Null content=NONE
+
+==== 2XXW.yaml
+"# Sets are represented as a\n# Mapping where each key is\n# associated with a null value\n--- !!set\n? Mark McGwire\n? Sammy Sosa\n? Ken Griff\n"
+99..137 "Mark McGwire\n? Sammy Sosa\n? Ken Griff\n" Hash(3) tag=set@99..103
+ entry 99..112
+  99..111 "Mark McGwire" String("Mark McGwire") content=99..111
+  112..112 "" Null content=112..112
+ entry 114..125
+  114..124 "Sammy Sosa" String("Sammy Sosa") content=114..124
+  125..125 "" Null content=125..125
+ entry 127..137
+  127..136 "Ken Griff" String("Ken Griff") content=127..136
+  137..137 "" Null content=137..137
+
+==== 33X3.yaml
+"---\n- !!int 1\n- !!int -2\n- !!int 33\n"
+4..36 "- !!int 1\n- !!int -2\n- !!int 33\n" Array(3)
+  12..13 "1" Integer(1) content=12..13 tag=int@6..11
+  22..24 "-2" Integer(-2) content=22..24 tag=int@16..21
+  33..35 "33" Integer(33) content=33..35 tag=int@27..32
+
+==== 35KP.yaml
+"--- !!map\n? a\n: b\n--- !!seq\n- !!str c\n--- !!str\nd\ne\n"
+12..18 "a\n: b\n" Hash(1) tag=map@12..16
+ entry 12..17
+  12..13 "a" String("a") content=12..13
+  16..17 "b" String("b") content=16..17
+
+==== 36F6.yaml
+"---\nplain: a\n b\n\n c\n"
+4..20 "plain: a\n b\n\n c\n" Hash(1)
+ entry 4..19
+  4..9 "plain" String("plain") content=4..9
+  11..19 "a\n b\n\n c" String("a b\nc") content=[11..12,12..14=>1,14..15,15..18=>1,18..19]
+
+==== 3ALJ.yaml
+"- - s1_i1\n  - s1_i2\n- s2\n"
+0..25 "- - s1_i1\n  - s1_i2\n- s2\n" Array(2)
+  2..20 "- s1_i1\n  - s1_i2\n" Array(2)
+    4..9 "s1_i1" String("s1_i1") content=4..9
+    14..19 "s1_i2" String("s1_i2") content=14..19
+  22..24 "s2" String("s2") content=22..24
+
+==== 3GZX.yaml
+"First occurrence: &anchor Foo\nSecond occurrence: *anchor\nOverride anchor: &anchor Bar\nReuse anchor: *anchor\n"
+0..108 "First occurrence: &anchor Foo\nSecond occurrence: *anchor\nOverride anchor: &anchor Bar\nReuse anchor: *anchor\n" Hash(4)
+ entry 0..29
+  0..16 "First occurrence" String("First occurrence") content=0..16
+  26..29 "Foo" String("Foo") content=26..29
+ entry 30..49
+  30..47 "Second occurrence" String("Second occurrence") content=30..47
+  49..49 "" Null content=NONE
+ entry 57..85
+  57..72 "Override anchor" String("Override anchor") content=57..72
+  82..85 "Bar" String("Bar") content=82..85
+ entry 86..100
+  86..98 "Reuse anchor" String("Reuse anchor") content=86..98
+  100..100 "" Null content=NONE
+
+==== 3HFZ.fail.yaml
+"---\nkey: value\n... invalid\n"
+ERROR "invalid content after document end marker" @ 19..20
+
+==== 3MYT.yaml
+"---\nk:#foo\n &a !t s\n"
+4..19 "k:#foo\n &a !t s" String("k:#foo &a !t s") content=[4..10,10..12=>1,12..19]
+
+==== 3R3P.yaml
+"&sequence\n- a\n"
+10..14 "- a\n" Array(1)
+  12..13 "a" String("a") content=12..13
+
+==== 3RLN-00.yaml
+"\"1 leading\n    \\ttab\"\n"
+0..21 "\"1 leading\n    \\ttab\"" String("1 leading \ttab") content=[1..10,10..15=>1,15..17=>1,17..20]
+
+==== 3RLN-01.yaml
+"\"2 leading\n    \\\ttab\"\n"
+0..21 "\"2 leading\n    \\\ttab\"" String("2 leading \ttab") content=NONE
+
+==== 3RLN-02.yaml
+"\"3 leading\n    \ttab\"\n"
+0..20 "\"3 leading\n    \ttab\"" String("3 leading tab") content=[1..10,10..16=>1,16..19]
+
+==== 3RLN-03.yaml
+"\"4 leading\n    \\t  tab\"\n"
+0..23 "\"4 leading\n    \\t  tab\"" String("4 leading \t  tab") content=[1..10,10..15=>1,15..17=>1,17..22]
+
+==== 3RLN-04.yaml
+"\"5 leading\n    \\\t  tab\"\n"
+0..23 "\"5 leading\n    \\\t  tab\"" String("5 leading \t  tab") content=NONE
+
+==== 3RLN-05.yaml
+"\"6 leading\n    \t  tab\"\n"
+0..22 "\"6 leading\n    \t  tab\"" String("6 leading tab") content=[1..10,10..18=>1,18..21]
+
+==== 3UYS.yaml
+"escaped slash: \"a\\/b\"\n"
+0..22 "escaped slash: \"a\\/b\"\n" Hash(1)
+ entry 0..21
+  0..13 "escaped slash" String("escaped slash") content=0..13
+  15..21 "\"a\\/b\"" String("a/b") content=[16..17,17..19=>1,19..20]
+
+==== 4ABK.yaml
+"{\nunquoted : \"separate\",\nhttp://foo.com,\nomitted value:,\n}\n"
+0..55 "{\nunquoted : \"separate\",\nhttp://foo.com,\nomitted value:" Hash(3)
+ entry 2..23
+  2..10 "unquoted" String("unquoted") content=2..10
+  13..23 "\"separate\"" String("separate") content=14..22
+ entry 25..39
+  25..39 "http://foo.com" String("http://foo.com") content=25..39
+  39..39 "" Null content=39..39
+ entry 41..55
+  41..54 "omitted value" String("omitted value") content=41..54
+  55..55 "" Null content=55..55
+
+==== 4CQQ.yaml
+"plain:\n  This unquoted scalar\n  spans many lines.\n\nquoted: \"So does this\n  quoted scalar.\\n\"\n"
+0..93 "plain:\n  This unquoted scalar\n  spans many lines.\n\nquoted: \"So does this\n  quoted scalar.\\n\"\n" Hash(2)
+ entry 0..49
+  0..5 "plain" String("plain") content=0..5
+  9..49 "This unquoted scalar\n  spans many lines." String("This unquoted scalar spans many lines.") content=[9..29,29..32=>1,32..49]
+ entry 51..92
+  51..57 "quoted" String("quoted") content=51..57
+  59..92 "\"So does this\n  quoted scalar.\\n\"" String("So does this quoted scalar.\n") content=[60..72,72..75=>1,75..89,89..91=>1]
+
+==== 4EJS.fail.yaml
+"---\na:\n\tb:\n\t\tc: value\n"
+ERROR "tabs disallowed within this context (block indentation)" @ 8..9
+
+==== 4FJ6.yaml
+"---\n[\n  [ a, [ [[b,c]]: d, e]]: 23\n]\n"
+4..36 "[\n  [ a, [ [[b,c]]: d, e]]: 23\n]" Array(1)
+  8..35 "[ a, [ [[b,c]]: d, e]]: 23\n" Hash(1)
+   entry 8..34
+    8..30 "[ a, [ [[b,c]]: d, e]]" Array(2)
+      10..11 "a" String("a") content=10..11
+      13..29 "[ [[b,c]]: d, e]" Array(2)
+        15..25 "[[b,c]]: d" Hash(1)
+         entry 15..25
+          15..22 "[[b,c]]" Array(1)
+            16..21 "[b,c]" Array(2)
+              17..18 "b" String("b") content=17..18
+              19..20 "c" String("c") content=19..20
+          24..25 "d" String("d") content=24..25
+        27..28 "e" String("e") content=27..28
+    32..34 "23" Integer(23) content=32..34
+
+==== 4GC6.yaml
+"'here''s to \"quotes\"'\n"
+0..21 "'here''s to \"quotes\"'" String("here's to \"quotes\"") content=[1..5,5..7=>1,7..20]
+
+==== 4H7K.fail.yaml
+"---\n[ a, b, c ] ]\n"
+ERROR "misplaced bracket" @ 16..17
+
+==== 4HVU.fail.yaml
+"key:\n   - ok\n   - also ok\n  - wrong\n"
+ERROR "while parsing a block mapping, did not find expected key" @ 28..29
+
+==== 4JVG.fail.yaml
+"top1: &node1\n  &k1 key1: val1\ntop2: &node2\n  &v2 val2\n"
+ERROR "while parsing a block mapping, did not find expected key" @ 45..46
+
+==== 4MUZ-00.yaml
+"{\"foo\"\n: \"bar\"}\n"
+0..15 "{\"foo\"\n: \"bar\"}" Hash(1)
+ entry 1..14
+  1..6 "\"foo\"" String("foo") content=2..5
+  9..14 "\"bar\"" String("bar") content=10..13
+
+==== 4MUZ-01.yaml
+"{\"foo\"\n: bar}\n"
+0..13 "{\"foo\"\n: bar}" Hash(1)
+ entry 1..12
+  1..6 "\"foo\"" String("foo") content=2..5
+  9..12 "bar" String("bar") content=9..12
+
+==== 4MUZ-02.yaml
+"{foo\n: bar}\n"
+0..11 "{foo\n: bar}" Hash(1)
+ entry 1..10
+  1..4 "foo" String("foo") content=1..4
+  7..10 "bar" String("bar") content=7..10
+
+==== 4Q9F.yaml
+"--- >\n ab\n cd\n \n ef\n\n\n gh\n"
+7..25 "ab\n cd\n \n ef\n\n\n gh" String("ab cd\nef\n\ngh\n") content=[7..9,9..11=>1,11..13,13..17=>1,17..19,19..23=>2,23..26]
+
+==== 4QFQ.yaml
+"- |\n detected\n- >\n \n  \n  # detected\n- |1\n  explicit\n- >\n detected\n"
+0..66 "- |\n detected\n- >\n \n  \n  # detected\n- |1\n  explicit\n- >\n detected\n" Array(4)
+  5..13 "detected" String("detected\n") content=5..14
+  25..35 "# detected" String("\n\n# detected\n") content=NONE
+  42..51 " explicit" String(" explicit\n") content=42..52
+  57..65 "detected" String("detected\n") content=57..66
+
+==== 4RWC.yaml
+"  [1, 2, 3]  \n  "
+2..11 "[1, 2, 3]" Array(3)
+  3..4 "1" Integer(1) content=3..4
+  6..7 "2" Integer(2) content=6..7
+  9..10 "3" Integer(3) content=9..10
+
+==== 4UYU.yaml
+"\"foo: bar\\\": baz\"\n"
+0..17 "\"foo: bar\\\": baz\"" String("foo: bar\": baz") content=[1..9,9..11=>1,11..16]
+
+==== 4V8U.yaml
+"---\nplain\\value\\with\\backslashes\n"
+4..32 "plain\\value\\with\\backslashes" String("plain\\value\\with\\backslashes") content=4..32
+
+==== 4WA9.yaml
+"- aaa: |2\n    xxx\n  bbb: |\n    xxx\n"
+0..35 "- aaa: |2\n    xxx\n  bbb: |\n    xxx\n" Array(1)
+  2..35 "aaa: |2\n    xxx\n  bbb: |\n    xxx\n" Hash(2)
+   entry 2..17
+    2..5 "aaa" String("aaa") content=2..5
+    14..17 "xxx" String("xxx\n") content=[14..17,17..20=>1]
+   entry 20..34
+    20..23 "bbb" String("bbb") content=20..23
+    31..34 "xxx" String("xxx\n") content=31..35
+
+==== 4ZYM.yaml
+"plain: text\n  lines\nquoted: \"text\n  \tlines\"\nblock: |\n  text\n   \tlines\n"
+0..70 "plain: text\n  lines\nquoted: \"text\n  \tlines\"\nblock: |\n  text\n   \tlines\n" Hash(3)
+ entry 0..19
+  0..5 "plain" String("plain") content=0..5
+  7..19 "text\n  lines" String("text lines") content=[7..11,11..14=>1,14..19]
+ entry 20..43
+  20..26 "quoted" String("quoted") content=20..26
+  28..43 "\"text\n  \tlines\"" String("text lines") content=[29..33,33..37=>1,37..42]
+ entry 44..69
+  44..49 "block" String("block") content=44..49
+  55..69 "text\n   \tlines" String("text\n \tlines\n") content=[55..59,59..62=>1,62..70]
+
+==== 52DL.yaml
+"---\n! a\n"
+6..7 "a" String("a") content=6..7 tag=!@4..5
+
+==== 54T7.yaml
+"{foo: you, bar: far}\n"
+0..20 "{foo: you, bar: far}" Hash(2)
+ entry 1..9
+  1..4 "foo" String("foo") content=1..4
+  6..9 "you" String("you") content=6..9
+ entry 11..19
+  11..14 "bar" String("bar") content=11..14
+  16..19 "far" String("far") content=16..19
+
+==== 55WF.fail.yaml
+"---\n\"\\.\"\n"
+ERROR "while parsing a quoted scalar, found unknown escape character" @ 4..5
+
+==== 565N.yaml
+"canonical: !!binary \"\\\n R0lGODlhDAAMAIQAAP//9/X17unp5WZmZgAAAOfn515eXvPz7Y6OjuDg4J+fn5\\\n OTk6enp56enmlpaWNjY6Ojo4SEhP/++f/++f/++f/++f/++f/++f/++f/++f/+\\\n +f/++f/++f/++f/++f/++SH+Dk1hZGUgd2l0aCBHSU1QACwAAAAADAAMAAAFLC\\\n AgjoEwnuNAFOhpEMTRiggcz4BNJHrv/zCFcLiwMWYNG84BwwEeECcgggoBADs=\"\ngeneric: !!binary |\n R0lGODlhDAAMAIQAAP//9/X17unp5WZmZgAAAOfn515eXvPz7Y6OjuDg4J+fn5\n OTk6enp56enmlpaWNjY6Ojo4SEhP/++f/++f/++f/++f/++f/++f/++f/++f/+\n +f/++f/++f/++f/++f/++SH+Dk1hZGUgd2l0aCBHSU1QACwAAAAADAAMAAAFLC\n AgjoEwnuNAFOhpEMTRiggcz4BNJHrv/zCFcLiwMWYNG84BwwEeECcgggoBADs=\ndescription:\n The binary value above is a tiny arrow encoded as a gif image.\n"
+0..636 "canonical: !!binary \"\\\n R0lGODlhDAAMAIQAAP//9/X17unp5WZmZgAAAOfn515eXvPz7Y6OjuDg4J+fn5\\\n OTk6enp56enmlpaWNjY6Ojo4SEhP/++f/++f/++f/++f/++f/++f/++f/++f/+\\\n +f/++f/++f/++f/++f/++SH+Dk1hZGUgd2l0aCBHSU1QACwAAAAADAAMAAAFLC\\\n AgjoEwnuNAFOhpEMTRiggcz4BNJHrv/zCFcLiwMWYNG84BwwEeECcgggoBADs=\"\ngeneric: !!binary |\n R0lGODlhDAAMAIQAAP//9/X17unp5WZmZgAAAOfn515eXvPz7Y6OjuDg4J+fn5\n OTk6enp56enmlpaWNjY6Ojo4SEhP/++f/++f/++f/++f/++f/++f/++f/++f/+\n +f/++f/++f/++f/++f/++SH+Dk1hZGUgd2l0aCBHSU1QACwAAAAADAAMAAAFLC\n AgjoEwnuNAFOhpEMTRiggcz4BNJHrv/zCFcLiwMWYNG84BwwEeECcgggoBADs=\ndescription:\n The binary value above is a tiny arrow encoded as a gif image.\n" Hash(3)
+ entry 0..282
+  0..9 "canonical" String("canonical") content=0..9
+  20..282 "\"\\\n R0lGODlhDAAMAIQAAP//9/X17unp5WZmZgAAAOfn515eXvPz7Y6OjuDg4J+fn5\\\n OTk6enp56enmlpaWNjY6Ojo4SEhP/++f/++f/++f/++f/++f/++f/++f/++f/+\\\n +f/++f/++f/++f/++f/++SH+Dk1hZGUgd2l0aCBHSU1QACwAAAAADAAMAAAFLC\\\n AgjoEwnuNAFOhpEMTRiggcz4BNJHrv/zCFcLiwMWYNG84BwwEeECcgggoBADs=\"" String("R0lGODlhDAAMAIQAAP//9/X17unp5WZmZgAAAOfn515eXvPz7Y6OjuDg4J+fn5OTk6enp56enmlpaWNjY6Ojo4SEhP/++f/++f/++f/++f/++f/++f/++f/++f/++f/++f/++f/++f/++f/++SH+Dk1hZGUgd2l0aCBHSU1QACwAAAAADAAMAAAFLCAgjoEwnuNAFOhpEMTRiggcz4BNJHrv/zCFcLiwMWYNG84BwwEeECcgggoBADs=") content=[21..24=>0,24..86,86..89=>0,89..151,151..154=>0,154..216,216..219=>0,219..281] tag=binary@11..19
+ entry 283..558
+  283..290 "generic" String("generic") content=283..290
+  304..558 "R0lGODlhDAAMAIQAAP//9/X17unp5WZmZgAAAOfn515eXvPz7Y6OjuDg4J+fn5\n OTk6enp56enmlpaWNjY6Ojo4SEhP/++f/++f/++f/++f/++f/++f/++f/++f/+\n +f/++f/++f/++f/++f/++SH+Dk1hZGUgd2l0aCBHSU1QACwAAAAADAAMAAAFLC\n AgjoEwnuNAFOhpEMTRiggcz4BNJHrv/zCFcLiwMWYNG84BwwEeECcgggoBADs=" String("R0lGODlhDAAMAIQAAP//9/X17unp5WZmZgAAAOfn515eXvPz7Y6OjuDg4J+fn5\nOTk6enp56enmlpaWNjY6Ojo4SEhP/++f/++f/++f/++f/++f/++f/++f/++f/+\n+f/++f/++f/++f/++f/++SH+Dk1hZGUgd2l0aCBHSU1QACwAAAAADAAMAAAFLC\nAgjoEwnuNAFOhpEMTRiggcz4BNJHrv/zCFcLiwMWYNG84BwwEeECcgggoBADs=\n") content=[304..366,366..368=>1,368..430,430..432=>1,432..494,494..496=>1,496..559] tag=binary@304..311
+ entry 559..635
+  559..570 "description" String("description") content=559..570
+  573..635 "The binary value above is a tiny arrow encoded as a gif image." String("The binary value above is a tiny arrow encoded as a gif image.") content=573..635
+
+==== 57H4.yaml
+"sequence: !!seq\n- entry\n- !!seq\n - nested\nmapping: !!map\n foo: bar\n"
+0..67 "sequence: !!seq\n- entry\n- !!seq\n - nested\nmapping: !!map\n foo: bar\n" Hash(2)
+ entry 0..42
+  0..8 "sequence" String("sequence") content=0..8
+  18..42 "entry\n- !!seq\n - nested\n" Array(2) tag=seq@18..22
+    18..23 "entry" String("entry") content=18..23
+    33..42 "- nested\n" Array(1) tag=seq@26..31
+      35..41 "nested" String("nested") content=35..41
+ entry 42..67
+  42..49 "mapping" String("mapping") content=42..49
+  58..67 "foo: bar\n" Hash(1) tag=map@51..56
+   entry 58..66
+    58..61 "foo" String("foo") content=58..61
+    63..66 "bar" String("bar") content=63..66
+
+==== 58MP.yaml
+"{x: :x}\n"
+0..7 "{x: :x}" Hash(1)
+ entry 1..6
+  1..2 "x" String("x") content=1..2
+  4..6 ":x" String(":x") content=4..6
+
+==== 5BVJ.yaml
+"literal: |\n  some\n  text\nfolded: >\n  some\n  text\n"
+0..49 "literal: |\n  some\n  text\nfolded: >\n  some\n  text\n" Hash(2)
+ entry 0..24
+  0..7 "literal" String("literal") content=0..7
+  13..24 "some\n  text" String("some\ntext\n") content=[13..17,17..20=>1,20..25]
+ entry 25..48
+  25..31 "folded" String("folded") content=25..31
+  37..48 "some\n  text" String("some text\n") content=[37..41,41..44=>1,44..49]
+
+==== 5C5M.yaml
+"- { one : two , three: four , }\n- {five: six,seven : eight}\n"
+0..60 "- { one : two , three: four , }\n- {five: six,seven : eight}\n" Array(2)
+  2..28 "{ one : two , three: four " Hash(2)
+   entry 4..13
+    4..7 "one" String("one") content=4..7
+    10..13 "two" String("two") content=10..13
+   entry 16..27
+    16..21 "three" String("three") content=16..21
+    23..27 "four" String("four") content=23..27
+  34..59 "{five: six,seven : eight}" Hash(2)
+   entry 35..44
+    35..39 "five" String("five") content=35..39
+    41..44 "six" String("six") content=41..44
+   entry 45..58
+    45..50 "seven" String("seven") content=45..50
+    53..58 "eight" String("eight") content=53..58
+
+==== 5GBF.yaml
+"Folding:\n  \"Empty line\n   \t\n  as a line feed\"\nChomping: |\n  Clipped empty lines\n \n\n"
+0..83 "Folding:\n  \"Empty line\n   \t\n  as a line feed\"\nChomping: |\n  Clipped empty lines\n \n\n" Hash(2)
+ entry 0..45
+  0..7 "Folding" String("Folding") content=0..7
+  11..45 "\"Empty line\n   \t\n  as a line feed\"" String("Empty line\nas a line feed") content=[12..22,22..30=>1,30..44]
+ entry 46..79
+  46..54 "Chomping" String("Chomping") content=46..54
+  60..79 "Clipped empty lines" String("Clipped empty lines\n") content=[60..79,79..83=>1]
+
+==== 5KJE.yaml
+"- [ one, two, ]\n- [three ,four]\n"
+0..32 "- [ one, two, ]\n- [three ,four]\n" Array(2)
+  2..15 "[ one, two, ]" Array(2)
+    4..7 "one" String("one") content=4..7
+    9..12 "two" String("two") content=9..12
+  18..31 "[three ,four]" Array(2)
+    19..24 "three" String("three") content=19..24
+    26..30 "four" String("four") content=26..30
+
+==== 5LLU.fail.yaml
+"block scalar: >\n \n  \n   \n invalid\n"
+ERROR "wrongly indented line in block scalar" @ 26..27
+
+==== 5MUD.yaml
+"---\n{ \"foo\"\n  :bar }\n"
+4..20 "{ \"foo\"\n  :bar }" Hash(1)
+ entry 6..18
+  6..11 "\"foo\"" String("foo") content=7..10
+  15..18 "bar" String("bar") content=15..18
+
+==== 5NYZ.yaml
+"key:    # Comment\n  value\n"
+0..26 "key:    # Comment\n  value\n" Hash(1)
+ entry 0..25
+  0..3 "key" String("key") content=0..3
+  20..25 "value" String("value") content=20..25
+
+==== 5T43.yaml
+"- { \"key\":value }\n- { \"key\"::value }\n"
+0..37 "- { \"key\":value }\n- { \"key\"::value }\n" Array(2)
+  2..17 "{ \"key\":value }" Hash(1)
+   entry 4..15
+    4..9 "\"key\"" String("key") content=5..8
+    10..15 "value" String("value") content=10..15
+  20..36 "{ \"key\"::value }" Hash(1)
+   entry 22..34
+    22..27 "\"key\"" String("key") content=23..26
+    28..34 ":value" String(":value") content=28..34
+
+==== 5TRB.fail.yaml
+"---\n\"\n---\n\"\n"
+ERROR "while scanning a quoted scalar, found unexpected document indicator" @ 4..5
+
+==== 5TYM.yaml
+"%TAG !m! !my-\n--- # Bulb here\n!m!light fluorescent\n...\n%TAG !m! !my-\n--- # Color here\n!m!light green\n"
+39..50 "fluorescent" String("fluorescent") content=39..50 tag=light@30..38
+
+==== 5U3A.fail.yaml
+"key: - a\n     - b\n"
+ERROR "block sequence entries are not allowed in this context" @ 5..6
+
+==== 5WE3.yaml
+"? explicit key # Empty value\n? |\n  block key\n: - one # Explicit compact\n  - two # block value\n"
+2..94 "explicit key # Empty value\n? |\n  block key\n: - one # Explicit compact\n  - two # block value\n" Hash(2)
+ entry 2..29
+  2..14 "explicit key" String("explicit key") content=2..14
+  29..29 "" Null content=29..29
+ entry 35..94
+  35..44 "block key" String("block key\n") content=35..45
+  47..94 "- one # Explicit compact\n  - two # block value\n" Array(2)
+    49..52 "one" String("one") content=49..52
+    76..79 "two" String("two") content=76..79
+
+==== 62EZ.fail.yaml
+"---\nx: { y: z }in: valid\n"
+ERROR "while parsing a block mapping, did not find expected key" @ 15..16
+
+==== 652Z.yaml
+"{ ?foo: bar,\nbar: 42\n}\n"
+0..22 "{ ?foo: bar,\nbar: 42\n}" Hash(2)
+ entry 2..11
+  2..6 "?foo" String("?foo") content=2..6
+  8..11 "bar" String("bar") content=8..11
+ entry 13..20
+  13..16 "bar" String("bar") content=13..16
+  18..20 "42" Integer(42) content=18..20
+
+==== 65WH.yaml
+"- foo\n"
+0..6 "- foo\n" Array(1)
+  2..5 "foo" String("foo") content=2..5
+
+==== 6BCT.yaml
+"- foo:\t bar\n- - baz\n  -\tbaz\n"
+0..28 "- foo:\t bar\n- - baz\n  -\tbaz\n" Array(2)
+  2..12 "foo:\t bar\n" Hash(1)
+   entry 2..11
+    2..5 "foo" String("foo") content=2..5
+    8..11 "bar" String("bar") content=8..11
+  14..28 "- baz\n  -\tbaz\n" Array(2)
+    16..19 "baz" String("baz") content=16..19
+    24..27 "baz" String("baz") content=24..27
+
+==== 6BFJ.yaml
+"---\n&mapping\n&key [ &item a, b, c ]: value\n"
+18..43 "[ &item a, b, c ]: value\n" Hash(1)
+ entry 18..42
+  18..35 "[ &item a, b, c ]" Array(3)
+    26..27 "a" String("a") content=26..27
+    29..30 "b" String("b") content=29..30
+    32..33 "c" String("c") content=32..33
+  37..42 "value" String("value") content=37..42
+
+==== 6CA3.yaml
+"\t[\n\t]\n"
+1..5 "[\n\t]" Array(0)
+
+==== 6CK3.yaml
+"%TAG !e! tag:example.com,2000:app/\n---\n- !local foo\n- !!str bar\n- !e!tag%21 baz\n"
+39..80 "- !local foo\n- !!str bar\n- !e!tag%21 baz\n" Array(3)
+  48..51 "foo" String("foo") content=48..51 tag=local@41..47
+  60..63 "bar" String("bar") content=60..63 tag=str@54..59
+  76..79 "baz" String("baz") content=76..79 tag=tag!@66..75
+
+==== 6FWR.yaml
+"--- |+\n ab\n \n  \n...\n"
+8..10 "ab" String("ab\n\n \n") content=NONE
+
+==== 6H3V.yaml
+"'foo: bar\\': baz'\n"
+0..18 "'foo: bar\\': baz'\n" Hash(1)
+ entry 0..17
+  0..11 "'foo: bar\\'" String("foo: bar\\") content=1..10
+  13..17 "baz'" String("baz'") content=13..17
+
+==== 6HB6.yaml
+"  # Leading comment line spaces are\n   # neither content nor indentation.\n    \nNot indented:\n By one space: |\n    By four\n      spaces\n Flow style: [    # Leading spaces\n   By two,        # in flow style\n  Also by two,    # are neither\n  \tStill by two   # content nor\n    ]             # indentation.\n"
+79..301 "Not indented:\n By one space: |\n    By four\n      spaces\n Flow style: [    # Leading spaces\n   By two,        # in flow style\n  Also by two,    # are neither\n  \tStill by two   # content nor\n    ]             # indentation.\n" Hash(1)
+ entry 79..301
+  79..91 "Not indented" String("Not indented") content=79..91
+  94..301 "By one space: |\n    By four\n      spaces\n Flow style: [    # Leading spaces\n   By two,        # in flow style\n  Also by two,    # are neither\n  \tStill by two   # content nor\n    ]             # indentation.\n" Hash(2)
+   entry 94..134
+    94..106 "By one space" String("By one space") content=94..106
+    114..134 "By four\n      spaces" String("By four\n  spaces\n") content=[114..121,121..126=>1,126..134,134..136=>1]
+   entry 136..273
+    136..146 "Flow style" String("Flow style") content=136..146
+    148..273 "[    # Leading spaces\n   By two,        # in flow style\n  Also by two,    # are neither\n  \tStill by two   # content nor\n    ]" Array(3)
+      173..179 "By two" String("By two") content=173..179
+      206..217 "Also by two" String("Also by two") content=206..217
+      239..251 "Still by two" String("Still by two") content=239..251
+
+==== 6JQW.yaml
+"# ASCII Art\n--- |\n  \\//||\\/||\n  // ||  ||__\n"
+20..43 "\\//||\\/||\n  // ||  ||__" String("\\//||\\/||\n// ||  ||__\n") content=[20..29,29..32=>1,32..44]
+
+==== 6JTT.fail.yaml
+"---\n[ [ a, b, c ]\n"
+ERROR "while parsing a flow sequence, expected ',' or ']'" @ 18..18
+
+==== 6JWB.yaml
+"foo: !!seq\n  - !!str a\n  - !!map\n    key: !!str value\n"
+0..54 "foo: !!seq\n  - !!str a\n  - !!map\n    key: !!str value\n" Hash(1)
+ entry 0..54
+  0..3 "foo" String("foo") content=0..3
+  13..54 "- !!str a\n  - !!map\n    key: !!str value\n" Array(2) tag=seq@5..10
+    21..22 "a" String("a") content=21..22 tag=str@15..20
+    37..54 "key: !!str value\n" Hash(1) tag=map@27..32
+     entry 37..53
+      37..40 "key" String("key") content=37..40
+      48..53 "value" String("value") content=48..53 tag=str@42..47
+
+==== 6KGN.yaml
+"---\na: &anchor\nb: *anchor\n"
+4..26 "a: &anchor\nb: *anchor\n" Hash(2)
+ entry 4..15
+  4..5 "a" String("a") content=4..5
+  15..15 "" Null content=15..15
+ entry 15..18
+  15..16 "b" String("b") content=15..16
+  18..18 "" Null content=NONE
+
+==== 6LVF.yaml
+"%FOO  bar baz # Should be ignored\n              # with a warning.\n--- \"foo\"\n"
+70..75 "\"foo\"" String("foo") content=71..74
+
+==== 6M2F.yaml
+"? &a a\n: &b b\n: *a\n"
+5..19 "a\n: &b b\n: *a\n" Hash(2)
+ entry 5..13
+  5..6 "a" String("a") content=5..6
+  12..13 "b" String("b") content=12..13
+ entry 14..16
+  14..14 "" Null content=14..14
+  16..16 "" Null content=NONE
+
+==== 6PBE.yaml
+"---\n?\n- a\n- b\n:\n- c\n- d\n"
+8..24 "a\n- b\n:\n- c\n- d\n" Hash(1)
+ entry 8..24
+  8..14 "a\n- b\n" Array(2)
+    8..9 "a" String("a") content=8..9
+    12..13 "b" String("b") content=12..13
+  18..24 "c\n- d\n" Array(2)
+    18..19 "c" String("c") content=18..19
+    22..23 "d" String("d") content=22..23
+
+==== 6S55.fail.yaml
+"key:\n - bar\n - baz\n invalid\n"
+ERROR "simple key expect ':'" @ 28..28
+
+==== 6SLA.yaml
+"\"foo\\nbar:baz\\tx \\\\$%^&*()x\": 23\n'x\\ny:z\\tx $%^&*()x': 24\n"
+0..58 "\"foo\\nbar:baz\\tx \\\\$%^&*()x\": 23\n'x\\ny:z\\tx $%^&*()x': 24\n" Hash(2)
+ entry 0..32
+  0..28 "\"foo\\nbar:baz\\tx \\\\$%^&*()x\"" String("foo\nbar:baz\tx \\$%^&*()x") content=[1..4,4..6=>1,6..13,13..15=>1,15..17,17..19=>1,19..27]
+  30..32 "23" Integer(23) content=30..32
+ entry 33..57
+  33..53 "'x\\ny:z\\tx $%^&*()x'" String("x\\ny:z\\tx $%^&*()x") content=34..52
+  55..57 "24" Integer(24) content=55..57
+
+==== 6VJK.yaml
+">\n Sammy Sosa completed another\n fine season with great stats.\n\n   63 Home Runs\n   0.288 Batting Average\n\n What a year!\n"
+3..119 "Sammy Sosa completed another\n fine season with great stats.\n\n   63 Home Runs\n   0.288 Batting Average\n\n What a year!" String("Sammy Sosa completed another fine season with great stats.\n\n  63 Home Runs\n  0.288 Batting Average\n\nWhat a year!\n") content=[3..31,31..33=>1,33..62,62..65=>2,65..79,79..81=>1,81..104,104..107=>2,107..120]
+
+==== 6WLZ.yaml
+"# Private\n---\n!foo \"bar\"\n...\n# Global\n%TAG ! tag:example.com,2000:app/\n---\n!foo \"bar\"\n"
+19..24 "\"bar\"" String("bar") content=20..23 tag=foo@14..18
+
+==== 6WPF.yaml
+"---\n\"\n  foo \n \n    bar\n\n  baz\n\"\n"
+4..31 "\"\n  foo \n \n    bar\n\n  baz\n\"" String(" foo\nbar\nbaz ") content=[5..8=>1,8..11,11..19=>1,19..22,22..26=>1,26..29,29..30]
+
+==== 6XDY.yaml
+"---\n---\n"
+4..4 "" Null content=4..4
+
+==== 6ZKB.yaml
+"Document\n---\n# Empty\n...\n%YAML 1.2\n---\nmatches %: 20\n"
+0..8 "Document" String("Document") content=0..8
+
+==== 735Y.yaml
+"-\n  \"flow in block\"\n- >\n Block scalar\n- !!map # Block collection\n  foo : bar\n"
+0..77 "-\n  \"flow in block\"\n- >\n Block scalar\n- !!map # Block collection\n  foo : bar\n" Array(3)
+  4..19 "\"flow in block\"" String("flow in block") content=5..18
+  25..37 "Block scalar" String("Block scalar\n") content=25..38
+  67..77 "foo : bar\n" Hash(1) tag=map@67..71
+   entry 67..76
+    67..70 "foo" String("foo") content=67..70
+    73..76 "bar" String("bar") content=73..76
+
+==== 74H7.yaml
+"!!str a: b\nc: !!int 42\ne: !!str f\ng: h\n!!str 23: !!bool false\n"
+6..62 "a: b\nc: !!int 42\ne: !!str f\ng: h\n!!str 23: !!bool false\n" Hash(5)
+ entry 6..10
+  6..7 "a" String("a") content=6..7 tag=str@0..5
+  9..10 "b" String("b") content=9..10
+ entry 11..22
+  11..12 "c" String("c") content=11..12
+  20..22 "42" Integer(42) content=20..22 tag=int@14..19
+ entry 23..33
+  23..24 "e" String("e") content=23..24
+  32..33 "f" String("f") content=32..33 tag=str@26..31
+ entry 34..38
+  34..35 "g" String("g") content=34..35
+  37..38 "h" String("h") content=37..38
+ entry 45..61
+  45..47 "23" String("23") content=45..47 tag=str@39..44
+  56..61 "false" Boolean(false) content=56..61 tag=bool@49..55
+
+==== 753E.yaml
+"--- |-\n ab\n \n \n...\n"
+8..10 "ab" String("ab") content=8..10
+
+==== 7A4E.yaml
+"\" 1st non-empty\n\n 2nd non-empty \n\t3rd non-empty \"\n"
+0..49 "\" 1st non-empty\n\n 2nd non-empty \n\t3rd non-empty \"" String(" 1st non-empty\n2nd non-empty 3rd non-empty ") content=[1..15,15..18=>1,18..31,31..34=>1,34..48]
+
+==== 7BMT.yaml
+"---\ntop1: &node1\n  &k1 key1: one\ntop2: &node2 # comment\n  key2: two\ntop3:\n  &k3 key3: three\ntop4: &node4\n  &k4 key4: four\ntop5: &node5\n  key5: five\ntop6: &val6\n  six\ntop7:\n  &val7 seven\n"
+4..186 "top1: &node1\n  &k1 key1: one\ntop2: &node2 # comment\n  key2: two\ntop3:\n  &k3 key3: three\ntop4: &node4\n  &k4 key4: four\ntop5: &node5\n  key5: five\ntop6: &val6\n  six\ntop7:\n  &val7 seven\n" Hash(7)
+ entry 4..33
+  4..8 "top1" String("top1") content=4..8
+  23..33 "key1: one\n" Hash(1)
+   entry 23..32
+    23..27 "key1" String("key1") content=23..27
+    29..32 "one" String("one") content=29..32
+ entry 33..68
+  33..37 "top2" String("top2") content=33..37
+  58..68 "key2: two\n" Hash(1)
+   entry 58..67
+    58..62 "key2" String("key2") content=58..62
+    64..67 "two" String("two") content=64..67
+ entry 68..92
+  68..72 "top3" String("top3") content=68..72
+  80..92 "key3: three\n" Hash(1)
+   entry 80..91
+    80..84 "key3" String("key3") content=80..84
+    86..91 "three" String("three") content=86..91
+ entry 92..122
+  92..96 "top4" String("top4") content=92..96
+  111..122 "key4: four\n" Hash(1)
+   entry 111..121
+    111..115 "key4" String("key4") content=111..115
+    117..121 "four" String("four") content=117..121
+ entry 122..148
+  122..126 "top5" String("top5") content=122..126
+  137..148 "key5: five\n" Hash(1)
+   entry 137..147
+    137..141 "key5" String("key5") content=137..141
+    143..147 "five" String("five") content=143..147
+ entry 148..165
+  148..152 "top6" String("top6") content=148..152
+  162..165 "six" String("six") content=162..165
+ entry 166..185
+  166..170 "top7" String("top7") content=166..170
+  180..185 "seven" String("seven") content=180..185
+
+==== 7BUB.yaml
+"---\nhr:\n  - Mark McGwire\n  # Following node labeled SS\n  - &SS Sammy Sosa\nrbi:\n  - *SS # Subsequent occurrence\n  - Ken Griffey\n"
+4..127 "hr:\n  - Mark McGwire\n  # Following node labeled SS\n  - &SS Sammy Sosa\nrbi:\n  - *SS # Subsequent occurrence\n  - Ken Griffey\n" Hash(2)
+ entry 4..74
+  4..6 "hr" String("hr") content=4..6
+  10..74 "- Mark McGwire\n  # Following node labeled SS\n  - &SS Sammy Sosa\n" Array(2)
+    12..24 "Mark McGwire" String("Mark McGwire") content=12..24
+    63..73 "Sammy Sosa" String("Sammy Sosa") content=63..73
+ entry 74..127
+  74..77 "rbi" String("rbi") content=74..77
+  81..127 "- *SS # Subsequent occurrence\n  - Ken Griffey\n" Array(2)
+    83..83 "" Null content=NONE
+    115..126 "Ken Griffey" String("Ken Griffey") content=115..126
+
+==== 7FWL.yaml
+"!<tag:yaml.org,2002:str> foo :\n  !<!bar> baz\n"
+25..45 "foo :\n  !<!bar> baz\n" Hash(1)
+ entry 25..44
+  25..28 "foo" String("foo") content=25..28 tag=tag:yaml.org,2002:str@0..24
+  41..44 "baz" String("baz") content=41..44 tag=!bar@33..40
+
+==== 7LBH.fail.yaml
+"\"a\\nb\": 1\n\"c\n d\": 1\n"
+ERROR "invalid trailing content after double-quoted scalar" @ 16..17
+
+==== 7MNF.fail.yaml
+"top1:\n  key1: val1\ntop2\n"
+ERROR "simple key expect ':'" @ 24..24
+
+==== 7T8X.yaml
+">\n\n folded\n line\n\n next\n line\n   * bullet\n\n   * list\n   * lines\n\n last\n line\n\n# Comment\n"
+4..76 "folded\n line\n\n next\n line\n   * bullet\n\n   * list\n   * lines\n\n last\n line" String("\nfolded line\nnext line\n  * bullet\n\n  * list\n  * lines\n\nlast line\n") content=NONE
+
+==== 7TMG.yaml
+"---\n[ word1\n# comment\n, word2]\n"
+4..30 "[ word1\n# comment\n, word2]" Array(2)
+  6..11 "word1" String("word1") content=6..11
+  24..29 "word2" String("word2") content=24..29
+
+==== 7W2P.yaml
+"? a\n? b\nc:\n"
+2..11 "a\n? b\nc:\n" Hash(3)
+ entry 2..4
+  2..3 "a" String("a") content=2..3
+  4..4 "" Null content=4..4
+ entry 6..8
+  6..7 "b" String("b") content=6..7
+  8..8 "" Null content=8..8
+ entry 8..10
+  8..9 "c" String("c") content=8..9
+  10..10 "" Null content=10..10
+
+==== 7Z25.yaml
+"---\nscalar1\n...\nkey: value\n"
+4..11 "scalar1" String("scalar1") content=4..11
+
+==== 7ZZ5.yaml
+"---\nnested sequences:\n- - - []\n- - - {}\nkey1: []\nkey2: {}\n"
+4..58 "nested sequences:\n- - - []\n- - - {}\nkey1: []\nkey2: {}\n" Hash(3)
+ entry 4..40
+  4..20 "nested sequences" String("nested sequences") content=4..20
+  24..40 "- - []\n- - - {}\n" Array(2)
+    24..31 "- - []\n" Array(1)
+      26..31 "- []\n" Array(1)
+        28..30 "[]" Array(0)
+    33..40 "- - {}\n" Array(1)
+      35..40 "- {}\n" Array(1)
+        37..39 "{}" Hash(0)
+ entry 40..48
+  40..44 "key1" String("key1") content=40..44
+  46..48 "[]" Array(0)
+ entry 49..57
+  49..53 "key2" String("key2") content=49..53
+  55..57 "{}" Hash(0)
+
+==== 82AN.yaml
+"---word1\nword2\n"
+0..14 "---word1\nword2" String("---word1 word2") content=[0..8,8..9,9..14]
+
+==== 87E4.yaml
+"'implicit block key' : [\n  'implicit flow key' : value,\n ]\n"
+0..59 "'implicit block key' : [\n  'implicit flow key' : value,\n ]\n" Hash(1)
+ entry 0..58
+  0..20 "'implicit block key'" String("implicit block key") content=1..19
+  23..58 "[\n  'implicit flow key' : value,\n ]" Array(1)
+    27..54 "'implicit flow key' : value" Hash(1)
+     entry 27..54
+      27..46 "'implicit flow key'" String("implicit flow key") content=28..45
+      49..54 "value" String("value") content=49..54
+
+==== 8CWC.yaml
+"---\nkey ends with two colons::: value\n"
+4..38 "key ends with two colons::: value\n" Hash(1)
+ entry 4..37
+  4..30 "key ends with two colons::" String("key ends with two colons::") content=4..30
+  32..37 "value" String("value") content=32..37
+
+==== 8G76.yaml
+"  # Comment\n   \n\n\n"
+ERROR "No YAML document found" @ 0..0
+
+==== 8KB6.yaml
+"---\n- { single line, a: b}\n- { multi\n  line, a: b}\n"
+4..51 "- { single line, a: b}\n- { multi\n  line, a: b}\n" Array(2)
+  6..26 "{ single line, a: b}" Hash(2)
+   entry 8..19
+    8..19 "single line" String("single line") content=8..19
+    19..19 "" Null content=19..19
+   entry 21..25
+    21..22 "a" String("a") content=21..22
+    24..25 "b" String("b") content=24..25
+  29..50 "{ multi\n  line, a: b}" Hash(2)
+   entry 31..43
+    31..43 "multi\n  line" String("multi line") content=[31..36,36..39=>1,39..43]
+    43..43 "" Null content=43..43
+   entry 45..49
+    45..46 "a" String("a") content=45..46
+    48..49 "b" String("b") content=48..49
+
+==== 8MK2.yaml
+"! a\n"
+2..3 "a" String("a") content=2..3 tag=!@0..1
+
+==== 8QBE.yaml
+"key:\n - item1\n - item2\n"
+0..23 "key:\n - item1\n - item2\n" Hash(1)
+ entry 0..23
+  0..3 "key" String("key") content=0..3
+  6..23 "- item1\n - item2\n" Array(2)
+    8..13 "item1" String("item1") content=8..13
+    17..22 "item2" String("item2") content=17..22
+
+==== 8UDB.yaml
+"[\n\"double\n quoted\", 'single\n           quoted',\nplain\n text, [ nested ],\nsingle: pair,\n]\n"
+0..88 "[\n\"double\n quoted\", 'single\n           quoted',\nplain\n text, [ nested ],\nsingle: pair,\n]" Array(5)
+  2..18 "\"double\n quoted\"" String("double quoted") content=[3..9,9..11=>1,11..17]
+  20..46 "'single\n           quoted'" String("single quoted") content=[21..27,27..39=>1,39..45]
+  48..59 "plain\n text" String("plain text") content=[48..53,53..55=>1,55..59]
+  61..71 "[ nested ]" Array(1)
+    63..69 "nested" String("nested") content=63..69
+  73..85 "single: pair" Hash(1)
+   entry 73..85
+    73..79 "single" String("single") content=73..79
+    81..85 "pair" String("pair") content=81..85
+
+==== 8XDJ.fail.yaml
+"key: word1\n#  xxx\n  word2\n"
+ERROR "while parsing a block mapping, did not find expected key" @ 20..21
+
+==== 8XYN.yaml
+"---\n- &😁 unicode anchor\n"
+4..27 "- &😁 unicode anchor\n" Array(1)
+  12..26 "unicode anchor" String("unicode anchor") content=12..26
+
+==== 93JH.yaml
+" - key: value\n   key2: value2\n -\n   key3: value3\n"
+1..49 "- key: value\n   key2: value2\n -\n   key3: value3\n" Array(2)
+  3..31 "key: value\n   key2: value2\n " Hash(2)
+   entry 3..13
+    3..6 "key" String("key") content=3..6
+    8..13 "value" String("value") content=8..13
+   entry 17..29
+    17..21 "key2" String("key2") content=17..21
+    23..29 "value2" String("value2") content=23..29
+  36..49 "key3: value3\n" Hash(1)
+   entry 36..48
+    36..40 "key3" String("key3") content=36..40
+    42..48 "value3" String("value3") content=42..48
+
+==== 93WF.yaml
+"--- >-\n  trimmed\n  \n \n\n  as\n  space\n"
+9..35 "trimmed\n  \n \n\n  as\n  space" String("trimmed\n\n\nas space") content=[9..16,16..25=>3,25..27,27..30=>1,30..35]
+
+==== 96L6.yaml
+"--- >\n  Mark McGwire's\n  year was crippled\n  by a knee injury.\n"
+8..62 "Mark McGwire's\n  year was crippled\n  by a knee injury." String("Mark McGwire's year was crippled by a knee injury.\n") content=[8..22,22..25=>1,25..42,42..45=>1,45..63]
+
+==== 96NN-00.yaml
+"foo: |-\n \tbar\n"
+0..14 "foo: |-\n \tbar\n" Hash(1)
+ entry 0..13
+  0..3 "foo" String("foo") content=0..3
+  9..13 "\tbar" String("\tbar") content=9..13
+
+==== 96NN-01.yaml
+"foo: |-\n \tbar"
+0..13 "foo: |-\n \tbar" Hash(1)
+ entry 0..13
+  0..3 "foo" String("foo") content=0..3
+  9..13 "\tbar" String("\tbar") content=9..13
+
+==== 98YD.yaml
+"# Comment only.\n"
+ERROR "No YAML document found" @ 0..0
+
+==== 9BXH.yaml
+"---\n- { \"single line\", a: b}\n- { \"multi\n  line\", a: b}\n"
+4..55 "- { \"single line\", a: b}\n- { \"multi\n  line\", a: b}\n" Array(2)
+  6..28 "{ \"single line\", a: b}" Hash(2)
+   entry 8..21
+    8..21 "\"single line\"" String("single line") content=9..20
+    21..21 "" Null content=21..21
+   entry 23..27
+    23..24 "a" String("a") content=23..24
+    26..27 "b" String("b") content=26..27
+  31..54 "{ \"multi\n  line\", a: b}" Hash(2)
+   entry 33..47
+    33..47 "\"multi\n  line\"" String("multi line") content=[34..39,39..42=>1,42..46]
+    47..47 "" Null content=47..47
+   entry 49..53
+    49..50 "a" String("a") content=49..50
+    52..53 "b" String("b") content=52..53
+
+==== 9C9N.fail.yaml
+"---\nflow: [a,\nb,\nc]\n"
+ERROR "invalid indentation in flow construct" @ 14..15
+
+==== 9CWY.fail.yaml
+"key:\n - item1\n - item2\ninvalid\n"
+ERROR "simple key expect ':'" @ 31..31
+
+==== 9DXL.yaml
+"Mapping: Document\n---\n# Empty\n...\n%YAML 1.2\n---\nmatches %: 20\n"
+0..18 "Mapping: Document\n" Hash(1)
+ entry 0..17
+  0..7 "Mapping" String("Mapping") content=0..7
+  9..17 "Document" String("Document") content=9..17
+
+==== 9FMG.yaml
+"a:\n  b:\n    c: d\n  e:\n    f: g\nh: i\n"
+0..36 "a:\n  b:\n    c: d\n  e:\n    f: g\nh: i\n" Hash(2)
+ entry 0..31
+  0..1 "a" String("a") content=0..1
+  5..31 "b:\n    c: d\n  e:\n    f: g\n" Hash(2)
+   entry 5..19
+    5..6 "b" String("b") content=5..6
+    12..19 "c: d\n  " Hash(1)
+     entry 12..16
+      12..13 "c" String("c") content=12..13
+      15..16 "d" String("d") content=15..16
+   entry 19..31
+    19..20 "e" String("e") content=19..20
+    26..31 "f: g\n" Hash(1)
+     entry 26..30
+      26..27 "f" String("f") content=26..27
+      29..30 "g" String("g") content=29..30
+ entry 31..35
+  31..32 "h" String("h") content=31..32
+  34..35 "i" String("i") content=34..35
+
+==== 9HCY.fail.yaml
+"!foo \"bar\"\n%TAG ! tag:example.com,2000:app/\n---\n!foo \"bar\"\n"
+ERROR "missing explicit document end marker before directive" @ 11..12
+
+==== 9J7A.yaml
+"foo:\n  bar: baz\n"
+0..16 "foo:\n  bar: baz\n" Hash(1)
+ entry 0..16
+  0..3 "foo" String("foo") content=0..3
+  7..16 "bar: baz\n" Hash(1)
+   entry 7..15
+    7..10 "bar" String("bar") content=7..10
+    12..15 "baz" String("baz") content=12..15
+
+==== 9JBA.fail.yaml
+"---\n[ a, b, c, ]#invalid\n"
+ERROR "comments must be separated from other tokens by whitespace" @ 16..17
+
+==== 9KAX.yaml
+"---\n&a1\n!!str\nscalar1\n---\n!!str\n&a2\nscalar2\n---\n&a3\n!!str scalar3\n---\n&a4 !!map\n&a5 !!str key5: value4\n---\na6: 1\n&anchor6 b6: 2\n---\n!!map\n&a8 !!str key8: value7\n---\n!!map\n!!str &a10 key10: value9\n---\n!!str &a11\nvalue11\n"
+14..21 "scalar1" String("scalar1") content=14..21 tag=str@8..13
+
+==== 9KBC.fail.yaml
+"--- key1: value1\n    key2: value2\n"
+ERROR "mapping values are not allowed in this context" @ 8..9
+
+==== 9MAG.fail.yaml
+"---\n[ , a, b, c ]\n"
+ERROR "while parsing a node, did not find expected node content" @ 6..7
+
+==== 9MMA.fail.yaml
+"%YAML 1.2\n"
+ERROR "did not find expected <document start>" @ 10..10
+
+==== 9MMW.yaml
+"- [ YAML : separate ]\n- [ \"JSON like\":adjacent ]\n- [ {JSON: like}:adjacent ]\n"
+0..77 "- [ YAML : separate ]\n- [ \"JSON like\":adjacent ]\n- [ {JSON: like}:adjacent ]\n" Array(3)
+  2..21 "[ YAML : separate ]" Array(1)
+    4..20 "YAML : separate " Hash(1)
+     entry 4..19
+      4..8 "YAML" String("YAML") content=4..8
+      11..19 "separate" String("separate") content=11..19
+  24..48 "[ \"JSON like\":adjacent ]" Array(1)
+    26..47 "\"JSON like\":adjacent " Hash(1)
+     entry 26..46
+      26..37 "\"JSON like\"" String("JSON like") content=27..36
+      38..46 "adjacent" String("adjacent") content=38..46
+  51..76 "[ {JSON: like}:adjacent ]" Array(1)
+    53..74 "{JSON: like}:adjacent" Hash(1)
+     entry 53..74
+      53..65 "{JSON: like}" Hash(1)
+       entry 54..64
+        54..58 "JSON" String("JSON") content=54..58
+        60..64 "like" String("like") content=60..64
+      66..74 "adjacent" String("adjacent") content=66..74
+
+==== 9MQT-00.yaml
+"--- \"a\n...x\nb\"\n"
+4..14 "\"a\n...x\nb\"" String("a ...x b") content=[5..6,6..7,7..11,11..12,12..13]
+
+==== 9MQT-01.fail.yaml
+"--- \"a\n... x\nb\"\n"
+ERROR "while scanning a quoted scalar, found unexpected document indicator" @ 4..5
+
+==== 9SA2.yaml
+"---\n- { \"single line\": value}\n- { \"multi\n  line\": value}\n"
+4..57 "- { \"single line\": value}\n- { \"multi\n  line\": value}\n" Array(2)
+  6..29 "{ \"single line\": value}" Hash(1)
+   entry 8..28
+    8..21 "\"single line\"" String("single line") content=9..20
+    23..28 "value" String("value") content=23..28
+  32..56 "{ \"multi\n  line\": value}" Hash(1)
+   entry 34..55
+    34..48 "\"multi\n  line\"" String("multi line") content=[35..40,40..43=>1,43..47]
+    50..55 "value" String("value") content=50..55
+
+==== 9SHH.yaml
+"single: 'text'\ndouble: \"text\"\n"
+0..30 "single: 'text'\ndouble: \"text\"\n" Hash(2)
+ entry 0..14
+  0..6 "single" String("single") content=0..6
+  8..14 "'text'" String("text") content=9..13
+ entry 15..29
+  15..21 "double" String("double") content=15..21
+  23..29 "\"text\"" String("text") content=24..28
+
+==== 9TFX.yaml
+"---\n\" 1st non-empty\n\n 2nd non-empty \n 3rd non-empty \"\n"
+4..53 "\" 1st non-empty\n\n 2nd non-empty \n 3rd non-empty \"" String(" 1st non-empty\n2nd non-empty 3rd non-empty ") content=[5..19,19..22=>1,22..35,35..38=>1,38..52]
+
+==== 9U5K.yaml
+"---\n# Products purchased\n- item    : Super Hoop\n  quantity: 1\n- item    : Basketball\n  quantity: 4\n- item    : Big Shoes\n  quantity: 1\n"
+25..135 "- item    : Super Hoop\n  quantity: 1\n- item    : Basketball\n  quantity: 4\n- item    : Big Shoes\n  quantity: 1\n" Array(3)
+  27..62 "item    : Super Hoop\n  quantity: 1\n" Hash(2)
+   entry 27..47
+    27..31 "item" String("item") content=27..31
+    37..47 "Super Hoop" String("Super Hoop") content=37..47
+   entry 50..61
+    50..58 "quantity" String("quantity") content=50..58
+    60..61 "1" Integer(1) content=60..61
+  64..99 "item    : Basketball\n  quantity: 4\n" Hash(2)
+   entry 64..84
+    64..68 "item" String("item") content=64..68
+    74..84 "Basketball" String("Basketball") content=74..84
+   entry 87..98
+    87..95 "quantity" String("quantity") content=87..95
+    97..98 "4" Integer(4) content=97..98
+  101..135 "item    : Big Shoes\n  quantity: 1\n" Hash(2)
+   entry 101..120
+    101..105 "item" String("item") content=101..105
+    111..120 "Big Shoes" String("Big Shoes") content=111..120
+   entry 123..134
+    123..131 "quantity" String("quantity") content=123..131
+    133..134 "1" Integer(1) content=133..134
+
+==== 9WXW.yaml
+"# Private\n!foo \"bar\"\n...\n# Global\n%TAG ! tag:example.com,2000:app/\n---\n!foo \"bar\"\n"
+15..20 "\"bar\"" String("bar") content=16..19 tag=foo@10..14
+
+==== 9YRD.yaml
+"a\nb  \n  c\nd\n\ne\n"
+0..14 "a\nb  \n  c\nd\n\ne" String("a b c d\ne") content=[0..1,1..2,2..3,3..8=>1,8..9,9..10,10..11,11..13=>1,13..14]
+
+==== A2M4.yaml
+"? a\n: -\tb\n  -  -\tc\n     - d\n"
+2..28 "a\n: -\tb\n  -  -\tc\n     - d\n" Hash(1)
+ entry 2..28
+  2..3 "a" String("a") content=2..3
+  6..28 "-\tb\n  -  -\tc\n     - d\n" Array(2)
+    8..9 "b" String("b") content=8..9
+    15..28 "-\tc\n     - d\n" Array(2)
+      17..18 "c" String("c") content=17..18
+      26..27 "d" String("d") content=26..27
+
+==== A6F9.yaml
+"strip: |-\n  text\nclip: |\n  text\nkeep: |+\n  text\n"
+0..48 "strip: |-\n  text\nclip: |\n  text\nkeep: |+\n  text\n" Hash(3)
+ entry 0..16
+  0..5 "strip" String("strip") content=0..5
+  12..16 "text" String("text") content=12..16
+ entry 17..31
+  17..21 "clip" String("clip") content=17..21
+  27..31 "text" String("text\n") content=27..32
+ entry 32..47
+  32..36 "keep" String("keep") content=32..36
+  43..47 "text" String("text\n") content=43..48
+
+==== A984.yaml
+"a: b\n c\nd:\n e\n  f\n"
+0..18 "a: b\n c\nd:\n e\n  f\n" Hash(2)
+ entry 0..7
+  0..1 "a" String("a") content=0..1
+  3..7 "b\n c" String("b c") content=[3..4,4..6=>1,6..7]
+ entry 8..17
+  8..9 "d" String("d") content=8..9
+  12..17 "e\n  f" String("e f") content=[12..13,13..16=>1,16..17]
+
+==== AB8U.yaml
+"- single multiline\n - sequence entry\n"
+0..37 "- single multiline\n - sequence entry\n" Array(1)
+  2..36 "single multiline\n - sequence entry" String("single multiline - sequence entry") content=[2..18,18..20=>1,20..36]
+
+==== AVM7.yaml
+""
+ERROR "No YAML document found" @ 0..0
+
+==== AZ63.yaml
+"one:\n- 2\n- 3\nfour: 5\n"
+0..21 "one:\n- 2\n- 3\nfour: 5\n" Hash(2)
+ entry 0..13
+  0..3 "one" String("one") content=0..3
+  7..13 "2\n- 3\n" Array(2)
+    7..8 "2" Integer(2) content=7..8
+    11..12 "3" Integer(3) content=11..12
+ entry 13..20
+  13..17 "four" String("four") content=13..17
+  19..20 "5" Integer(5) content=19..20
+
+==== AZW3.yaml
+"- bla\"keks: foo\n- bla]keks: foo\n"
+0..32 "- bla\"keks: foo\n- bla]keks: foo\n" Array(2)
+  2..16 "bla\"keks: foo\n" Hash(1)
+   entry 2..15
+    2..10 "bla\"keks" String("bla\"keks") content=2..10
+    12..15 "foo" String("foo") content=12..15
+  18..32 "bla]keks: foo\n" Hash(1)
+   entry 18..31
+    18..26 "bla]keks" String("bla]keks") content=18..26
+    28..31 "foo" String("foo") content=28..31
+
+==== B3HG.yaml
+"--- >\n folded\n text\n\n\n"
+7..19 "folded\n text" String("folded text\n") content=[7..13,13..15=>1,15..19,19..22=>1]
+
+==== B63P.fail.yaml
+"%YAML 1.2\n...\n"
+ERROR "did not find expected <document start>" @ 10..11
+
+==== BD7L.fail.yaml
+"- item1\n- item2\ninvalid: x\n"
+ERROR "while parsing a block collection, did not find expected '-' indicator" @ 16..17
+
+==== BEC7.yaml
+"%YAML 1.3 # Attempt parsing\n          # with a warning\n---\n\"foo\"\n"
+59..64 "\"foo\"" String("foo") content=60..63
+
+==== BF9H.fail.yaml
+"---\nplain: a\n       b # end of scalar\n       c\n"
+ERROR "comment intercepting the multiline text" @ 22..23
+
+==== BS4K.fail.yaml
+"word1  # comment\nword2\n"
+ERROR "comment intercepting the multiline text" @ 7..8
+
+==== BU8L.yaml
+"key: &anchor\n !!map\n  a: b\n"
+0..27 "key: &anchor\n !!map\n  a: b\n" Hash(1)
+ entry 0..27
+  0..3 "key" String("key") content=0..3
+  22..27 "a: b\n" Hash(1) tag=map@14..19
+   entry 22..26
+    22..23 "a" String("a") content=22..23
+    25..26 "b" String("b") content=25..26
+
+==== C2DT.yaml
+"{\n\"adjacent\":value,\n\"readable\": value,\n\"empty\":\n}\n"
+0..49 "{\n\"adjacent\":value,\n\"readable\": value,\n\"empty\":\n}" Hash(3)
+ entry 2..18
+  2..12 "\"adjacent\"" String("adjacent") content=3..11
+  13..18 "value" String("value") content=13..18
+ entry 20..37
+  20..30 "\"readable\"" String("readable") content=21..29
+  32..37 "value" String("value") content=32..37
+ entry 39..47
+  39..46 "\"empty\"" String("empty") content=40..45
+  47..47 "" Null content=47..47
+
+==== C2SP.fail.yaml
+"[23\n]: 42\n"
+ERROR "mapping values are not allowed in this context" @ 5..6
+
+==== C4HZ.yaml
+"%TAG ! tag:clarkevans.com,2002:\n--- !shape\n  # Use the ! handle for presenting\n  # tag:clarkevans.com,2002:circle\n- !circle\n  center: &ORIGIN {x: 73, y: 129}\n  radius: 7\n- !line\n  start: *ORIGIN\n  finish: { x: 89, y: 102 }\n- !label\n  start: *ORIGIN\n  color: 0xFFEEBB\n  text: Pretty vector drawing.\n"
+114..298 "- !circle\n  center: &ORIGIN {x: 73, y: 129}\n  radius: 7\n- !line\n  start: *ORIGIN\n  finish: { x: 89, y: 102 }\n- !label\n  start: *ORIGIN\n  color: 0xFFEEBB\n  text: Pretty vector drawing.\n" Array(3) tag=shape@114..120
+  126..170 "center: &ORIGIN {x: 73, y: 129}\n  radius: 7\n" Hash(2) tag=circle@116..123
+   entry 126..157
+    126..132 "center" String("center") content=126..132
+    142..157 "{x: 73, y: 129}" Hash(2)
+     entry 143..148
+      143..144 "x" String("x") content=143..144
+      146..148 "73" Integer(73) content=146..148
+     entry 150..156
+      150..151 "y" String("y") content=150..151
+      153..156 "129" Integer(129) content=153..156
+   entry 160..169
+    160..166 "radius" String("radius") content=160..166
+    168..169 "7" Integer(7) content=168..169
+  180..223 "start: *ORIGIN\n  finish: { x: 89, y: 102 }\n" Hash(2) tag=line@172..177
+   entry 180..187
+    180..185 "start" String("start") content=180..185
+    187..187 "" Null content=NONE
+   entry 197..222
+    197..203 "finish" String("finish") content=197..203
+    205..222 "{ x: 89, y: 102 }" Hash(2)
+     entry 207..212
+      207..208 "x" String("x") content=207..208
+      210..212 "89" Integer(89) content=210..212
+     entry 214..220
+      214..215 "y" String("y") content=214..215
+      217..220 "102" Integer(102) content=217..220
+  234..298 "start: *ORIGIN\n  color: 0xFFEEBB\n  text: Pretty vector drawing.\n" Hash(3) tag=label@225..231
+   entry 234..241
+    234..239 "start" String("start") content=234..239
+    241..241 "" Null content=NONE
+   entry 251..266
+    251..256 "color" String("color") content=251..256
+    258..266 "0xFFEEBB" Integer(16772795) content=258..266
+   entry 269..297
+    269..273 "text" String("text") content=269..273
+    275..297 "Pretty vector drawing." String("Pretty vector drawing.") content=275..297
+
+==== CC74.yaml
+"%TAG !e! tag:example.com,2000:app/\n---\n!e!foo \"bar\"\n"
+46..51 "\"bar\"" String("bar") content=47..50 tag=foo@39..45
+
+==== CFD4.yaml
+"- [ : empty key ]\n- [: another empty key]\n"
+0..42 "- [ : empty key ]\n- [: another empty key]\n" Array(2)
+  2..17 "[ : empty key ]" Array(1)
+    4..16 ": empty key " Hash(1)
+     entry 4..15
+      4..4 "" Null content=4..4
+      6..15 "empty key" String("empty key") content=6..15
+  20..41 "[: another empty key]" Array(1)
+    21..40 ": another empty key" Hash(1)
+     entry 21..40
+      21..21 "" Null content=21..21
+      23..40 "another empty key" String("another empty key") content=23..40
+
+==== CML9.fail.yaml
+"key: [ word1\n#  xxx\n  word2 ]\n"
+ERROR "while parsing a flow sequence, expected ',' or ']'" @ 22..23
+
+==== CN3R.yaml
+"&flowseq [\n a: b,\n &c c: d,\n { &e e: f },\n &g { g: h }\n]\n"
+9..56 "[\n a: b,\n &c c: d,\n { &e e: f },\n &g { g: h }\n]" Array(4)
+  12..16 "a: b" Hash(1)
+   entry 12..16
+    12..13 "a" String("a") content=12..13
+    15..16 "b" String("b") content=15..16
+  22..26 "c: d" Hash(1)
+   entry 22..26
+    22..23 "c" String("c") content=22..23
+    25..26 "d" String("d") content=25..26
+  29..40 "{ &e e: f }" Hash(1)
+   entry 34..38
+    34..35 "e" String("e") content=34..35
+    37..38 "f" String("f") content=37..38
+  46..54 "{ g: h }" Hash(1)
+   entry 48..52
+    48..49 "g" String("g") content=48..49
+    51..52 "h" String("h") content=51..52
+
+==== CPZ3.yaml
+"---\ntab: \"\\tstring\"\n"
+4..20 "tab: \"\\tstring\"\n" Hash(1)
+ entry 4..19
+  4..7 "tab" String("tab") content=4..7
+  9..19 "\"\\tstring\"" String("\tstring") content=[10..12=>1,12..18]
+
+==== CQ3W.fail.yaml
+"---\nkey: \"missing closing quote\n"
+ERROR "while scanning a quoted scalar, found unexpected end of stream" @ 9..10
+
+==== CT4Q.yaml
+"[\n? foo\n bar : baz\n]\n"
+0..20 "[\n? foo\n bar : baz\n]" Array(1)
+  4..18 "foo\n bar : baz" Hash(1)
+   entry 4..18
+    4..12 "foo\n bar" String("foo bar") content=[4..7,7..9=>1,9..12]
+    15..18 "baz" String("baz") content=15..18
+
+==== CTN5.fail.yaml
+"---\n[ a, b, c, , ]\n"
+ERROR "while parsing a node, did not find expected node content" @ 15..16
+
+==== CUP7.yaml
+"anchored: !local &anchor value\nalias: *anchor\n"
+0..46 "anchored: !local &anchor value\nalias: *anchor\n" Hash(2)
+ entry 0..30
+  0..8 "anchored" String("anchored") content=0..8
+  25..30 "value" String("value") content=25..30 tag=local@10..16
+ entry 31..38
+  31..36 "alias" String("alias") content=31..36
+  38..38 "" Null content=NONE
+
+==== CVW2.fail.yaml
+"---\n[ a, b, c,#invalid\n]\n"
+ERROR "comments must be separated from other tokens by whitespace" @ 14..15
+
+==== CXX2.fail.yaml
+"--- &anchor a: b\n"
+ERROR "mapping values are not allowed in this context" @ 13..14
+
+==== D49Q.fail.yaml
+"'a\\nb': 1\n'c\n d': 1\n"
+ERROR "invalid trailing content after double-quoted scalar" @ 16..17
+
+==== D83L.yaml
+"- |2-\n  explicit indent and chomp\n- |-2\n  chomp and explicit indent\n"
+0..68 "- |2-\n  explicit indent and chomp\n- |-2\n  chomp and explicit indent\n" Array(2)
+  8..33 "explicit indent and chomp" String("explicit indent and chomp") content=8..33
+  42..67 "chomp and explicit indent" String("chomp and explicit indent") content=42..67
+
+==== D88J.yaml
+"a: [b, c]\n"
+0..10 "a: [b, c]\n" Hash(1)
+ entry 0..9
+  0..1 "a" String("a") content=0..1
+  3..9 "[b, c]" Array(2)
+    4..5 "b" String("b") content=4..5
+    7..8 "c" String("c") content=7..8
+
+==== D9TU.yaml
+"foo: bar\n"
+0..9 "foo: bar\n" Hash(1)
+ entry 0..8
+  0..3 "foo" String("foo") content=0..3
+  5..8 "bar" String("bar") content=5..8
+
+==== DBG4.yaml
+"# Outside flow collection:\n- ::vector\n- \": - ()\"\n- Up, up, and away!\n- -123\n- http://example.com/foo#bar\n# Inside flow collection:\n- [ ::vector,\n  \": - ()\",\n  \"Up, up and away!\",\n  -123,\n  http://example.com/foo#bar ]\n"
+27..218 "- ::vector\n- \": - ()\"\n- Up, up, and away!\n- -123\n- http://example.com/foo#bar\n# Inside flow collection:\n- [ ::vector,\n  \": - ()\",\n  \"Up, up and away!\",\n  -123,\n  http://example.com/foo#bar ]\n" Array(6)
+  29..37 "::vector" String("::vector") content=29..37
+  40..48 "\": - ()\"" String(": - ()") content=41..47
+  51..68 "Up, up, and away!" String("Up, up, and away!") content=51..68
+  71..75 "-123" Integer(-123) content=71..75
+  78..104 "http://example.com/foo#bar" String("http://example.com/foo#bar") content=78..104
+  133..217 "[ ::vector,\n  \": - ()\",\n  \"Up, up and away!\",\n  -123,\n  http://example.com/foo#bar ]" Array(5)
+    135..143 "::vector" String("::vector") content=135..143
+    147..155 "\": - ()\"" String(": - ()") content=148..154
+    159..177 "\"Up, up and away!\"" String("Up, up and away!") content=160..176
+    181..185 "-123" Integer(-123) content=181..185
+    189..215 "http://example.com/foo#bar" String("http://example.com/foo#bar") content=189..215
+
+==== DC7X.yaml
+"a: b\t\nseq:\t\n - a\t\nc: d\t#X\n"
+0..26 "a: b\t\nseq:\t\n - a\t\nc: d\t#X\n" Hash(3)
+ entry 0..4
+  0..1 "a" String("a") content=0..1
+  3..4 "b" String("b") content=3..4
+ entry 6..18
+  6..9 "seq" String("seq") content=6..9
+  13..18 "- a\t\n" Array(1)
+    15..16 "a" String("a") content=15..16
+ entry 18..22
+  18..19 "c" String("c") content=18..19
+  21..22 "d" String("d") content=21..22
+
+==== DE56-00.yaml
+"\"1 trailing\\t\n    tab\"\n"
+0..22 "\"1 trailing\\t\n    tab\"" String("1 trailing\t tab") content=[1..11,11..13=>1,13..18=>1,18..21]
+
+==== DE56-01.yaml
+"\"2 trailing\\t  \n    tab\"\n"
+0..24 "\"2 trailing\\t  \n    tab\"" String("2 trailing\t tab") content=[1..11,11..13=>1,13..20=>1,20..23]
+
+==== DE56-02.yaml
+"\"3 trailing\\\t\n    tab\"\n"
+0..22 "\"3 trailing\\\t\n    tab\"" String("3 trailing\t tab") content=NONE
+
+==== DE56-03.yaml
+"\"4 trailing\\\t  \n    tab\"\n"
+0..24 "\"4 trailing\\\t  \n    tab\"" String("4 trailing\t tab") content=NONE
+
+==== DE56-04.yaml
+"\"5 trailing\t\n    tab\"\n"
+0..21 "\"5 trailing\t\n    tab\"" String("5 trailing tab") content=[1..11,11..17=>1,17..20]
+
+==== DE56-05.yaml
+"\"6 trailing\t  \n    tab\"\n"
+0..23 "\"6 trailing\t  \n    tab\"" String("6 trailing tab") content=[1..11,11..19=>1,19..22]
+
+==== DFF7.yaml
+"{\n? explicit: entry,\nimplicit: entry,\n?\n}\n"
+0..41 "{\n? explicit: entry,\nimplicit: entry,\n?\n}" Hash(3)
+ entry 4..19
+  4..12 "explicit" String("explicit") content=4..12
+  14..19 "entry" String("entry") content=14..19
+ entry 21..36
+  21..29 "implicit" String("implicit") content=21..29
+  31..36 "entry" String("entry") content=31..36
+ entry 40..40
+  40..40 "" Null content=40..40
+  40..40 "" Null content=40..40
+
+==== DHP8.yaml
+"[foo, bar, 42]\n"
+0..14 "[foo, bar, 42]" Array(3)
+  1..4 "foo" String("foo") content=1..4
+  6..9 "bar" String("bar") content=6..9
+  11..13 "42" Integer(42) content=11..13
+
+==== DK3J.yaml
+"--- >\nline1\n# no comment\nline3\n"
+6..30 "line1\n# no comment\nline3" String("line1 # no comment line3\n") content=[6..11,11..12,12..24,24..25,25..31]
+
+==== DK4H.fail.yaml
+"---\n[ key\n  : value ]\n"
+ERROR "illegal placement of ':' indicator" @ 12..13
+
+==== DK95-00.yaml
+"foo:\n \tbar\n"
+0..11 "foo:\n \tbar\n" Hash(1)
+ entry 0..10
+  0..3 "foo" String("foo") content=0..3
+  7..10 "bar" String("bar") content=7..10
+
+==== DK95-01.fail.yaml
+"foo: \"bar\n\tbaz\"\n"
+ERROR "tab cannot be used as indentation" @ 10..11
+
+==== DK95-02.yaml
+"foo: \"bar\n  \tbaz\"\n"
+0..18 "foo: \"bar\n  \tbaz\"\n" Hash(1)
+ entry 0..17
+  0..3 "foo" String("foo") content=0..3
+  5..17 "\"bar\n  \tbaz\"" String("bar baz") content=[6..9,9..13=>1,13..16]
+
+==== DK95-03.yaml
+" \t\nfoo: 1\n"
+3..10 "foo: 1\n" Hash(1)
+ entry 3..9
+  3..6 "foo" String("foo") content=3..6
+  8..9 "1" Integer(1) content=8..9
+
+==== DK95-04.yaml
+"foo: 1\n\t\nbar: 2\n"
+0..16 "foo: 1\n\t\nbar: 2\n" Hash(2)
+ entry 0..6
+  0..3 "foo" String("foo") content=0..3
+  5..6 "1" Integer(1) content=5..6
+ entry 9..15
+  9..12 "bar" String("bar") content=9..12
+  14..15 "2" Integer(2) content=14..15
+
+==== DK95-05.yaml
+"foo: 1\n \t\nbar: 2\n"
+0..17 "foo: 1\n \t\nbar: 2\n" Hash(2)
+ entry 0..6
+  0..3 "foo" String("foo") content=0..3
+  5..6 "1" Integer(1) content=5..6
+ entry 10..16
+  10..13 "bar" String("bar") content=10..13
+  15..16 "2" Integer(2) content=15..16
+
+==== DK95-06.fail.yaml
+"foo:\n  a: 1\n  \tb: 2\n"
+ERROR "while scanning a plain scalar, found a tab" @ 10..11
+
+==== DK95-07.yaml
+"%YAML 1.2\n\t\n---\n"
+16..16 "" Null content=16..16
+
+==== DK95-08.yaml
+"foo: \"bar\n \t \t baz \t \t \"\n"
+0..25 "foo: \"bar\n \t \t baz \t \t \"\n" Hash(1)
+ entry 0..24
+  0..3 "foo" String("foo") content=0..3
+  5..24 "\"bar\n \t \t baz \t \t \"" String("bar baz \t \t ") content=[6..9,9..15=>1,15..23]
+
+==== DMG6.fail.yaml
+"key:\n  ok: 1\n wrong: 2\n"
+ERROR "while parsing a block mapping, did not find expected key" @ 14..15
+
+==== DWX9.yaml
+"|\n \n  \n  literal\n   \n  \n  text\n\n # Comment\n"
+9..30 "literal\n   \n  \n  text" String("\n\nliteral\n \n\ntext\n") content=NONE
+
+==== E76Z.yaml
+"&a a: &b b\n*b : *a\n"
+3..19 "a: &b b\n*b : *a\n" Hash(2)
+ entry 3..10
+  3..4 "a" String("a") content=3..4
+  9..10 "b" String("b") content=9..10
+ entry 11..16
+  11..11 "" Null content=NONE
+  16..16 "" Null content=NONE
+
+==== EB22.fail.yaml
+"---\nscalar1 # comment\n%YAML 1.2\n---\nscalar2\n"
+ERROR "comment intercepting the multiline text" @ 12..13
+
+==== EHF6.yaml
+"!!map {\n  k: !!seq\n  [ a, !!str b]\n}\n"
+6..36 "{\n  k: !!seq\n  [ a, !!str b]\n}" Hash(1) tag=map@0..5
+ entry 10..34
+  10..11 "k" String("k") content=10..11
+  21..34 "[ a, !!str b]" Array(2) tag=seq@13..18
+    23..24 "a" String("a") content=23..24
+    32..33 "b" String("b") content=32..33 tag=str@26..31
+
+==== EW3V.fail.yaml
+"k1: v1\n k2: v2\n"
+ERROR "mapping values are not allowed in this context" @ 10..11
+
+==== EX5H.yaml
+"---\na\nb  \n  c\nd\n\ne\n"
+4..18 "a\nb  \n  c\nd\n\ne" String("a b c d\ne") content=[4..5,5..6,6..7,7..12=>1,12..13,13..14,14..15,15..17=>1,17..18]
+
+==== EXG3.yaml
+"---\n---word1\nword2\n"
+4..18 "---word1\nword2" String("---word1 word2") content=[4..12,12..13,13..18]
+
+==== F2C7.yaml
+" - &a !!str a\n - !!int 2\n - !!int &c 4\n - &d d\n"
+1..47 "- &a !!str a\n - !!int 2\n - !!int &c 4\n - &d d\n" Array(4)
+  12..13 "a" String("a") content=12..13 tag=str@6..11
+  23..24 "2" Integer(2) content=23..24 tag=int@17..22
+  37..38 "4" Integer(4) content=37..38 tag=int@28..33
+  45..46 "d" String("d") content=45..46
+
+==== F3CP.yaml
+"---\n{ a: [b, c, { d: [e, f] } ] }\n"
+4..33 "{ a: [b, c, { d: [e, f] } ] }" Hash(1)
+ entry 6..31
+  6..7 "a" String("a") content=6..7
+  9..31 "[b, c, { d: [e, f] } ]" Array(3)
+    10..11 "b" String("b") content=10..11
+    13..14 "c" String("c") content=13..14
+    16..29 "{ d: [e, f] }" Hash(1)
+     entry 18..27
+      18..19 "d" String("d") content=18..19
+      21..27 "[e, f]" Array(2)
+        22..23 "e" String("e") content=22..23
+        25..26 "f" String("f") content=25..26
+
+==== F6MC.yaml
+"---\na: >2\n   more indented\n  regular\nb: >2\n\n\n   more indented\n  regular\n"
+4..72 "a: >2\n   more indented\n  regular\nb: >2\n\n\n   more indented\n  regular\n" Hash(2)
+ entry 4..36
+  4..5 "a" String("a") content=4..5
+  12..36 " more indented\n  regular" String(" more indented\nregular\n") content=[12..26,26..29=>1,29..37]
+ entry 37..71
+  37..38 "b" String("b") content=37..38
+  47..71 " more indented\n  regular" String("\n\n more indented\nregular\n") content=NONE
+
+==== F8F9.yaml
+" # Strip\n  # Comments:\nstrip: |-\n  # text\n  \n # Clip\n  # comments:\n\nclip: |\n  # text\n \n # Keep\n  # comments:\n\nkeep: |+\n  # text\n\n # Trail\n  # comments.\n"
+23..152 "strip: |-\n  # text\n  \n # Clip\n  # comments:\n\nclip: |\n  # text\n \n # Keep\n  # comments:\n\nkeep: |+\n  # text\n\n # Trail\n  # comments.\n" Hash(3)
+ entry 23..41
+  23..28 "strip" String("strip") content=23..28
+  35..41 "# text" String("# text") content=35..41
+ entry 68..84
+  68..72 "clip" String("clip") content=68..72
+  78..84 "# text" String("# text\n") content=[78..84,84..88=>1]
+ entry 110..127
+  110..114 "keep" String("keep") content=110..114
+  121..127 "# text" String("# text\n\n") content=[121..127,127..130=>2]
+
+==== FBC9.yaml
+"safe: a!\"#$%&'()*+,-./09:;<=>?@AZ[\\]^_`az{|}~\n     !\"#$%&'()*+,-./09:;<=>?@AZ[\\]^_`az{|}~\nsafe question mark: ?foo\nsafe colon: :foo\nsafe dash: -foo\n"
+0..148 "safe: a!\"#$%&'()*+,-./09:;<=>?@AZ[\\]^_`az{|}~\n     !\"#$%&'()*+,-./09:;<=>?@AZ[\\]^_`az{|}~\nsafe question mark: ?foo\nsafe colon: :foo\nsafe dash: -foo\n" Hash(4)
+ entry 0..89
+  0..4 "safe" String("safe") content=0..4
+  6..89 "a!\"#$%&'()*+,-./09:;<=>?@AZ[\\]^_`az{|}~\n     !\"#$%&'()*+,-./09:;<=>?@AZ[\\]^_`az{|}~" String("a!\"#$%&'()*+,-./09:;<=>?@AZ[\\]^_`az{|}~ !\"#$%&'()*+,-./09:;<=>?@AZ[\\]^_`az{|}~") content=[6..45,45..51=>1,51..89]
+ entry 90..114
+  90..108 "safe question mark" String("safe question mark") content=90..108
+  110..114 "?foo" String("?foo") content=110..114
+ entry 115..131
+  115..125 "safe colon" String("safe colon") content=115..125
+  127..131 ":foo" String(":foo") content=127..131
+ entry 132..147
+  132..141 "safe dash" String("safe dash") content=132..141
+  143..147 "-foo" String("-foo") content=143..147
+
+==== FH7J.yaml
+"- !!str\n-\n  !!null : a\n  b: !!str\n- !!str : !!null\n"
+0..51 "- !!str\n-\n  !!null : a\n  b: !!str\n- !!str : !!null\n" Array(3)
+  9..9 "" String("") content=9..9 tag=str@9..13
+  19..34 ": a\n  b: !!str\n" Hash(2)
+   entry 19..22
+    19..19 "" Null content=19..19 tag=null@12..18
+    21..22 "a" String("a") content=21..22
+   entry 25..34
+    25..26 "b" String("b") content=25..26
+    34..34 "" String("") content=34..34 tag=str@28..33
+  42..51 ": !!null\n" Hash(1)
+   entry 42..51
+    42..42 "" String("") content=42..42 tag=str@36..41
+    51..51 "" Null content=51..51 tag=null@44..50
+
+==== FP8R.yaml
+"--- >\nline1\nline2\nline3\n"
+6..23 "line1\nline2\nline3" String("line1 line2 line3\n") content=[6..11,11..12,12..17,17..18,18..24]
+
+==== FQ7F.yaml
+"- Mark McGwire\n- Sammy Sosa\n- Ken Griffey\n"
+0..42 "- Mark McGwire\n- Sammy Sosa\n- Ken Griffey\n" Array(3)
+  2..14 "Mark McGwire" String("Mark McGwire") content=2..14
+  17..27 "Sammy Sosa" String("Sammy Sosa") content=17..27
+  30..41 "Ken Griffey" String("Ken Griffey") content=30..41
+
+==== FRK4.yaml
+"{\n  ? foo :,\n  : bar,\n}\n"
+0..20 "{\n  ? foo :,\n  : bar" Hash(2)
+ entry 6..11
+  6..9 "foo" String("foo") content=6..9
+  11..11 "" Null content=11..11
+ entry 15..20
+  15..15 "" Null content=15..15
+  17..20 "bar" String("bar") content=17..20
+
+==== FTA2.yaml
+"--- &sequence\n- a\n"
+14..18 "- a\n" Array(1)
+  16..17 "a" String("a") content=16..17
+
+==== FUP4.yaml
+"[a, [b, c]]\n"
+0..11 "[a, [b, c]]" Array(2)
+  1..2 "a" String("a") content=1..2
+  4..10 "[b, c]" Array(2)
+    5..6 "b" String("b") content=5..6
+    8..9 "c" String("c") content=8..9
+
+==== G4RS.yaml
+"unicode: \"Sosa did fine.\\u263A\"\ncontrol: \"\\b1998\\t1999\\t2000\\n\"\nhex esc: \"\\x0d\\x0a is \\r\\n\"\n\nsingle: '\"Howdy!\" he cried.'\nquoted: ' # Not a ''comment''.'\ntie-fighter: '|\\-*-/|'\n"
+0..177 "unicode: \"Sosa did fine.\\u263A\"\ncontrol: \"\\b1998\\t1999\\t2000\\n\"\nhex esc: \"\\x0d\\x0a is \\r\\n\"\n\nsingle: '\"Howdy!\" he cried.'\nquoted: ' # Not a ''comment''.'\ntie-fighter: '|\\-*-/|'\n" Hash(6)
+ entry 0..31
+  0..7 "unicode" String("unicode") content=0..7
+  9..31 "\"Sosa did fine.\\u263A\"" String("Sosa did fine.☺") content=[10..24,24..30=>3]
+ entry 32..63
+  32..39 "control" String("control") content=32..39
+  41..63 "\"\\b1998\\t1999\\t2000\\n\"" String("\u{8}1998\t1999\t2000\n") content=[42..44=>1,44..48,48..50=>1,50..54,54..56=>1,56..60,60..62=>1]
+ entry 64..91
+  64..71 "hex esc" String("hex esc") content=64..71
+  73..91 "\"\\x0d\\x0a is \\r\\n\"" String("\r\n is \r\n") content=[74..78=>1,78..82=>1,82..86,86..88=>1,88..90=>1]
+ entry 93..121
+  93..99 "single" String("single") content=93..99
+  101..121 "'\"Howdy!\" he cried.'" String("\"Howdy!\" he cried.") content=102..120
+ entry 122..153
+  122..128 "quoted" String("quoted") content=122..128
+  130..153 "' # Not a ''comment''.'" String(" # Not a 'comment'.") content=[131..140,140..142=>1,142..149,149..151=>1,151..152]
+ entry 154..176
+  154..165 "tie-fighter" String("tie-fighter") content=154..165
+  167..176 "'|\\-*-/|'" String("|\\-*-/|") content=168..175
+
+==== G5U8.fail.yaml
+"---\n- [-, -]\n"
+ERROR "plain scalar cannot start with '-' followed by ,[]{}" @ 7..8
+
+==== G7JE.fail.yaml
+"a\\nb: 1\nc\n d: 1\n"
+ERROR "simple key expect ':'" @ 12..13
+
+==== G992.yaml
+">\n folded\n text\n\n\n"
+3..15 "folded\n text" String("folded text\n") content=[3..9,9..11=>1,11..15,15..18=>1]
+
+==== G9HC.fail.yaml
+"---\nseq:\n&anchor\n- a\n- b\n"
+ERROR "simple key expect ':'" @ 17..18
+
+==== GDY7.fail.yaml
+"key: value\nthis is #not a: key\n"
+ERROR "simple key expect ':'" @ 31..31
+
+==== GH63.yaml
+"? a\n: 1.3\nfifteen: d\n"
+2..21 "a\n: 1.3\nfifteen: d\n" Hash(2)
+ entry 2..9
+  2..3 "a" String("a") content=2..3
+  6..9 "1.3" Real("1.3") content=6..9
+ entry 10..20
+  10..17 "fifteen" String("fifteen") content=10..17
+  19..20 "d" String("d") content=19..20
+
+==== GT5M.fail.yaml
+"- item1\n&node\n- item2\n"
+ERROR "simple key expect ':'" @ 14..15
+
+==== H2RW.yaml
+"foo: 1\n\nbar: 2\n    \ntext: |\n  a\n    \n  b\n\n  c\n \n  d\n"
+0..52 "foo: 1\n\nbar: 2\n    \ntext: |\n  a\n    \n  b\n\n  c\n \n  d\n" Hash(3)
+ entry 0..6
+  0..3 "foo" String("foo") content=0..3
+  5..6 "1" Integer(1) content=5..6
+ entry 8..14
+  8..11 "bar" String("bar") content=8..11
+  13..14 "2" Integer(2) content=13..14
+ entry 20..51
+  20..24 "text" String("text") content=20..24
+  30..51 "a\n    \n  b\n\n  c\n \n  d" String("a\n  \nb\n\nc\n\nd\n") content=NONE
+
+==== H3Z8.yaml
+"---\nwanted: love ♥ and peace ☮\n"
+4..35 "wanted: love ♥ and peace ☮\n" Hash(1)
+ entry 4..34
+  4..10 "wanted" String("wanted") content=4..10
+  12..34 "love ♥ and peace ☮" String("love ♥ and peace ☮") content=12..34
+
+==== H7J7.fail.yaml
+"key: &x\n!!map\n  a: b\n"
+ERROR "simple key expect ':'" @ 16..17
+
+==== H7TQ.fail.yaml
+"%YAML 1.2 foo\n---\n"
+ERROR "while scanning a directive, did not find expected comment or line break" @ 0..1
+
+==== HM87-00.yaml
+"[:x]\n"
+0..4 "[:x]" Array(1)
+  1..3 ":x" String(":x") content=1..3
+
+==== HM87-01.yaml
+"[?x]\n"
+0..4 "[?x]" Array(1)
+  1..3 "?x" String("?x") content=1..3
+
+==== HMK4.yaml
+"name: Mark McGwire\naccomplishment: >\n  Mark set a major league\n  home run record in 1998.\nstats: |\n  65 Home Runs\n  0.278 Batting Average\n"
+0..138 "name: Mark McGwire\naccomplishment: >\n  Mark set a major league\n  home run record in 1998.\nstats: |\n  65 Home Runs\n  0.278 Batting Average\n" Hash(3)
+ entry 0..18
+  0..4 "name" String("name") content=0..4
+  6..18 "Mark McGwire" String("Mark McGwire") content=6..18
+ entry 19..89
+  19..33 "accomplishment" String("accomplishment") content=19..33
+  39..89 "Mark set a major league\n  home run record in 1998." String("Mark set a major league home run record in 1998.\n") content=[39..62,62..65=>1,65..90]
+ entry 90..137
+  90..95 "stats" String("stats") content=90..95
+  101..137 "65 Home Runs\n  0.278 Batting Average" String("65 Home Runs\n0.278 Batting Average\n") content=[101..113,113..116=>1,116..138]
+
+==== HMQ5.yaml
+"!!str &a1 \"foo\":\n  !!str bar\n&a2 baz : *a1\n"
+10..43 "\"foo\":\n  !!str bar\n&a2 baz : *a1\n" Hash(2)
+ entry 10..28
+  10..15 "\"foo\"" String("foo") content=11..14 tag=str@0..5
+  25..28 "bar" String("bar") content=25..28 tag=str@19..24
+ entry 33..39
+  33..36 "baz" String("baz") content=33..36
+  39..39 "" Null content=NONE
+
+==== HRE5.fail.yaml
+"---\ndouble: \"quoted \\' scalar\"\n"
+ERROR "while parsing a quoted scalar, found unknown escape character" @ 12..13
+
+==== HS5T.yaml
+"1st non-empty\n\n 2nd non-empty \n\t3rd non-empty\n"
+0..45 "1st non-empty\n\n 2nd non-empty \n\t3rd non-empty" String("1st non-empty\n2nd non-empty 3rd non-empty") content=[0..13,13..16=>1,16..29,29..32=>1,32..45]
+
+==== HU3P.fail.yaml
+"key:\n  word1 word2\n  no: key\n"
+ERROR "mapping values are not allowed in this context" @ 23..24
+
+==== HWV9.yaml
+"...\n"
+ERROR "No YAML document found" @ 0..0
+
+==== J3BT.yaml
+"# Tabs and spaces\nquoted: \"Quoted \t\"\nblock:\t|\n  void main() {\n  \tprintf(\"Hello, world!\\n\");\n  }\n"
+18..96 "quoted: \"Quoted \t\"\nblock:\t|\n  void main() {\n  \tprintf(\"Hello, world!\\n\");\n  }\n" Hash(2)
+ entry 18..36
+  18..24 "quoted" String("quoted") content=18..24
+  26..36 "\"Quoted \t\"" String("Quoted \t") content=27..35
+ entry 37..95
+  37..42 "block" String("block") content=37..42
+  48..95 "void main() {\n  \tprintf(\"Hello, world!\\n\");\n  }" String("void main() {\n\tprintf(\"Hello, world!\\n\");\n}\n") content=[48..61,61..64=>1,64..91,91..94=>1,94..96]
+
+==== J5UC.yaml
+"foo: blue\nbar: arrr\nbaz: jazz\n"
+0..30 "foo: blue\nbar: arrr\nbaz: jazz\n" Hash(3)
+ entry 0..9
+  0..3 "foo" String("foo") content=0..3
+  5..9 "blue" String("blue") content=5..9
+ entry 10..19
+  10..13 "bar" String("bar") content=10..13
+  15..19 "arrr" String("arrr") content=15..19
+ entry 20..29
+  20..23 "baz" String("baz") content=20..23
+  25..29 "jazz" String("jazz") content=25..29
+
+==== J7PZ.yaml
+"# The !!omap tag is one of the optional types\n# introduced for YAML 1.1. In 1.2, it is not\n# part of the standard tags and should not be\n# enabled by default.\n# Ordered maps are represented as\n# A sequence of mappings, with\n# each mapping having one key\n--- !!omap\n- Mark McGwire: 65\n- Sammy Sosa: 63\n- Ken Griffy: 58\n"
+265..318 "- Mark McGwire: 65\n- Sammy Sosa: 63\n- Ken Griffy: 58\n" Array(3) tag=omap@258..264
+  267..284 "Mark McGwire: 65\n" Hash(1)
+   entry 267..283
+    267..279 "Mark McGwire" String("Mark McGwire") content=267..279
+    281..283 "65" Integer(65) content=281..283
+  286..301 "Sammy Sosa: 63\n" Hash(1)
+   entry 286..300
+    286..296 "Sammy Sosa" String("Sammy Sosa") content=286..296
+    298..300 "63" Integer(63) content=298..300
+  303..318 "Ken Griffy: 58\n" Hash(1)
+   entry 303..317
+    303..313 "Ken Griffy" String("Ken Griffy") content=303..313
+    315..317 "58" Integer(58) content=315..317
+
+==== J7VC.yaml
+"one: 2\n\n\nthree: 4\n"
+0..18 "one: 2\n\n\nthree: 4\n" Hash(2)
+ entry 0..6
+  0..3 "one" String("one") content=0..3
+  5..6 "2" Integer(2) content=5..6
+ entry 9..17
+  9..14 "three" String("three") content=9..14
+  16..17 "4" Integer(4) content=16..17
+
+==== J9HZ.yaml
+"---\nhr: # 1998 hr ranking\n  - Mark McGwire\n  - Sammy Sosa\nrbi:\n  # 1998 rbi ranking\n  - Sammy Sosa\n  - Ken Griffey\n"
+4..115 "hr: # 1998 hr ranking\n  - Mark McGwire\n  - Sammy Sosa\nrbi:\n  # 1998 rbi ranking\n  - Sammy Sosa\n  - Ken Griffey\n" Hash(2)
+ entry 4..58
+  4..6 "hr" String("hr") content=4..6
+  28..58 "- Mark McGwire\n  - Sammy Sosa\n" Array(2)
+    30..42 "Mark McGwire" String("Mark McGwire") content=30..42
+    47..57 "Sammy Sosa" String("Sammy Sosa") content=47..57
+ entry 58..115
+  58..61 "rbi" String("rbi") content=58..61
+  86..115 "- Sammy Sosa\n  - Ken Griffey\n" Array(2)
+    88..98 "Sammy Sosa" String("Sammy Sosa") content=88..98
+    103..114 "Ken Griffey" String("Ken Griffey") content=103..114
+
+==== JEF9-00.yaml
+"- |+\n\n\n"
+0..7 "- |+\n\n\n" Array(1)
+  2..4 "|+" String("\n\n") content=[4..7=>2]
+
+==== JEF9-01.yaml
+"- |+\n   \n"
+0..9 "- |+\n   \n" Array(1)
+  2..4 "|+" String("\n") content=[4..9=>1]
+
+==== JEF9-02.yaml
+"- |+\n   "
+0..8 "- |+\n   " Array(1)
+  2..4 "|+" String("\n") content=[4..7=>1]
+
+==== JHB9.yaml
+"# Ranking of 1998 home runs\n---\n- Mark McGwire\n- Sammy Sosa\n- Ken Griffey\n\n# Team ranking\n---\n- Chicago Cubs\n- St Louis Cardinals\n"
+32..90 "- Mark McGwire\n- Sammy Sosa\n- Ken Griffey\n\n# Team ranking\n" Array(3)
+  34..46 "Mark McGwire" String("Mark McGwire") content=34..46
+  49..59 "Sammy Sosa" String("Sammy Sosa") content=49..59
+  62..73 "Ken Griffey" String("Ken Griffey") content=62..73
+
+==== JKF3.fail.yaml
+"- - \"bar\nbar\": x\n"
+ERROR "invalid indentation in quoted scalar" @ 4..5
+
+==== JQ4R.yaml
+"block sequence:\n  - one\n  - two : three\n"
+0..40 "block sequence:\n  - one\n  - two : three\n" Hash(1)
+ entry 0..40
+  0..14 "block sequence" String("block sequence") content=0..14
+  18..40 "- one\n  - two : three\n" Array(2)
+    20..23 "one" String("one") content=20..23
+    28..40 "two : three\n" Hash(1)
+     entry 28..39
+      28..31 "two" String("two") content=28..31
+      34..39 "three" String("three") content=34..39
+
+==== JR7V.yaml
+"- a?string\n- another ? string\n- key: value?\n- [a?string]\n- [another ? string]\n- {key: value? }\n- {key: value?}\n- {key?: value }\n"
+0..128 "- a?string\n- another ? string\n- key: value?\n- [a?string]\n- [another ? string]\n- {key: value? }\n- {key: value?}\n- {key?: value }\n" Array(8)
+  2..10 "a?string" String("a?string") content=2..10
+  13..29 "another ? string" String("another ? string") content=13..29
+  32..44 "key: value?\n" Hash(1)
+   entry 32..43
+    32..35 "key" String("key") content=32..35
+    37..43 "value?" String("value?") content=37..43
+  46..56 "[a?string]" Array(1)
+    47..55 "a?string" String("a?string") content=47..55
+  59..77 "[another ? string]" Array(1)
+    60..76 "another ? string" String("another ? string") content=60..76
+  80..94 "{key: value? }" Hash(1)
+   entry 81..92
+    81..84 "key" String("key") content=81..84
+    86..92 "value?" String("value?") content=86..92
+  97..110 "{key: value?}" Hash(1)
+   entry 98..109
+    98..101 "key" String("key") content=98..101
+    103..109 "value?" String("value?") content=103..109
+  113..127 "{key?: value }" Hash(1)
+   entry 114..125
+    114..118 "key?" String("key?") content=114..118
+    120..125 "value" String("value") content=120..125
+
+==== JS2J.yaml
+"First occurrence: &anchor Value\nSecond occurrence: *anchor\n"
+0..59 "First occurrence: &anchor Value\nSecond occurrence: *anchor\n" Hash(2)
+ entry 0..31
+  0..16 "First occurrence" String("First occurrence") content=0..16
+  26..31 "Value" String("Value") content=26..31
+ entry 32..51
+  32..49 "Second occurrence" String("Second occurrence") content=32..49
+  51..51 "" Null content=NONE
+
+==== JTV5.yaml
+"? a\n  true\n: null\n  d\n? e\n  42\n"
+2..31 "a\n  true\n: null\n  d\n? e\n  42\n" Hash(2)
+ entry 2..21
+  2..10 "a\n  true" String("a true") content=[2..3,3..6=>1,6..10]
+  13..21 "null\n  d" String("null d") content=[13..17,17..20=>1,20..21]
+ entry 24..31
+  24..30 "e\n  42" String("e 42") content=[24..25,25..28=>1,28..30]
+  31..31 "" Null content=31..31
+
+==== JY7Z.fail.yaml
+"key1: \"quoted1\"\nkey2: \"quoted2\" no key: nor value\nkey3: \"quoted3\"\n"
+ERROR "invalid trailing content after double-quoted scalar" @ 32..33
+
+==== K3WX.yaml
+"---\n{ \"foo\" # comment\n  :bar }\n"
+4..30 "{ \"foo\" # comment\n  :bar }" Hash(1)
+ entry 6..28
+  6..11 "\"foo\"" String("foo") content=7..10
+  25..28 "bar" String("bar") content=25..28
+
+==== K4SU.yaml
+"- foo\n- bar\n- 42\n"
+0..17 "- foo\n- bar\n- 42\n" Array(3)
+  2..5 "foo" String("foo") content=2..5
+  8..11 "bar" String("bar") content=8..11
+  14..16 "42" Integer(42) content=14..16
+
+==== K527.yaml
+">-\n  trimmed\n  \n \n\n  as\n  space\n"
+5..31 "trimmed\n  \n \n\n  as\n  space" String("trimmed\n\n\nas space") content=[5..12,12..21=>3,21..23,23..26=>1,26..31]
+
+==== K54U.yaml
+"---\tscalar\n"
+4..10 "scalar" String("scalar") content=4..10
+
+==== K858.yaml
+"strip: >-\n\nclip: >\n\nkeep: |+\n\n"
+0..30 "strip: >-\n\nclip: >\n\nkeep: |+\n\n" Hash(3)
+ entry 0..11
+  0..5 "strip" String("strip") content=0..5
+  11..11 "" String("") content=11..11
+ entry 11..20
+  11..15 "clip" String("clip") content=11..15
+  20..20 "" String("") content=20..20
+ entry 20..28
+  20..24 "keep" String("keep") content=20..24
+  26..28 "|+" String("\n") content=[28..30=>1]
+
+==== KH5V-00.yaml
+"\"1 inline\\ttab\"\n"
+0..15 "\"1 inline\\ttab\"" String("1 inline\ttab") content=[1..9,9..11=>1,11..14]
+
+==== KH5V-01.yaml
+"\"2 inline\\\ttab\"\n"
+0..15 "\"2 inline\\\ttab\"" String("2 inline\ttab") content=NONE
+
+==== KH5V-02.yaml
+"\"3 inline\ttab\"\n"
+0..14 "\"3 inline\ttab\"" String("3 inline\ttab") content=1..13
+
+==== KK5P.yaml
+"complex1:\n  ? - a\ncomplex2:\n  ? - a\n  : b\ncomplex3:\n  ? - a\n  : >\n    b\ncomplex4:\n  ? >\n    a\n  :\ncomplex5:\n  ? - a\n  : - b\n"
+0..124 "complex1:\n  ? - a\ncomplex2:\n  ? - a\n  : b\ncomplex3:\n  ? - a\n  : >\n    b\ncomplex4:\n  ? >\n    a\n  :\ncomplex5:\n  ? - a\n  : - b\n" Hash(5)
+ entry 0..18
+  0..8 "complex1" String("complex1") content=0..8
+  14..18 "- a\n" Hash(1)
+   entry 14..18
+    14..18 "- a\n" Array(1)
+      16..17 "a" String("a") content=16..17
+    18..18 "" Null content=18..18
+ entry 18..42
+  18..26 "complex2" String("complex2") content=18..26
+  32..42 "- a\n  : b\n" Hash(1)
+   entry 32..41
+    32..38 "- a\n  " Array(1)
+      34..35 "a" String("a") content=34..35
+    40..41 "b" String("b") content=40..41
+ entry 42..72
+  42..50 "complex3" String("complex3") content=42..50
+  56..72 "- a\n  : >\n    b\n" Hash(1)
+   entry 56..71
+    56..62 "- a\n  " Array(1)
+      58..59 "a" String("a") content=58..59
+    70..71 "b" String("b\n") content=70..72
+ entry 72..98
+  72..80 "complex4" String("complex4") content=72..80
+  92..98 "a\n  :\n" Hash(1)
+   entry 92..97
+    92..93 "a" String("a\n") content=[92..93,93..96=>1]
+    97..97 "" Null content=97..97
+ entry 98..124
+  98..106 "complex5" String("complex5") content=98..106
+  112..124 "- a\n  : - b\n" Hash(1)
+   entry 112..124
+    112..118 "- a\n  " Array(1)
+      114..115 "a" String("a") content=114..115
+    120..124 "- b\n" Array(1)
+      122..123 "b" String("b") content=122..123
+
+==== KMK3.yaml
+"foo:\n  bar: 1\nbaz: 2\n"
+0..21 "foo:\n  bar: 1\nbaz: 2\n" Hash(2)
+ entry 0..14
+  0..3 "foo" String("foo") content=0..3
+  7..14 "bar: 1\n" Hash(1)
+   entry 7..13
+    7..10 "bar" String("bar") content=7..10
+    12..13 "1" Integer(1) content=12..13
+ entry 14..20
+  14..17 "baz" String("baz") content=14..17
+  19..20 "2" Integer(2) content=19..20
+
+==== KS4U.fail.yaml
+"---\n[\nsequence item\n]\ninvalid item\n"
+4..21 "[\nsequence item\n]" Array(1)
+  6..19 "sequence item" String("sequence item") content=6..19
+
+==== KSS4.yaml
+"--- \"quoted\nstring\"\n--- &node foo\n"
+4..19 "\"quoted\nstring\"" String("quoted string") content=[5..11,11..12,12..18]
+
+==== L24T-00.yaml
+"foo: |\n  x\n   \n"
+0..15 "foo: |\n  x\n   \n" Hash(1)
+ entry 0..10
+  0..3 "foo" String("foo") content=0..3
+  9..10 "x" String("x\n \n") content=[9..10,10..15=>2,15..15=>1]
+
+==== L24T-01.yaml
+"foo: |\n  x\n   "
+0..14 "foo: |\n  x\n   " Hash(1)
+ entry 0..10
+  0..3 "foo" String("foo") content=0..3
+  9..10 "x" String("x\n \n") content=[9..10,10..13=>1,13..14,14..14=>1]
+
+==== L383.yaml
+"--- foo  # comment\n--- foo  # comment\n"
+4..7 "foo" String("foo") content=4..7
+
+==== L94M.yaml
+"? !!str a\n: !!int 47\n? c\n: !!str d\n"
+8..35 "a\n: !!int 47\n? c\n: !!str d\n" Hash(2)
+ entry 8..20
+  8..9 "a" String("a") content=8..9 tag=str@2..7
+  18..20 "47" Integer(47) content=18..20 tag=int@12..17
+ entry 23..34
+  23..24 "c" String("c") content=23..24
+  33..34 "d" String("d") content=33..34 tag=str@27..32
+
+==== L9U5.yaml
+"implicit block key : [\n  implicit flow key : value,\n ]\n"
+0..55 "implicit block key : [\n  implicit flow key : value,\n ]\n" Hash(1)
+ entry 0..54
+  0..18 "implicit block key" String("implicit block key") content=0..18
+  21..54 "[\n  implicit flow key : value,\n ]" Array(1)
+    25..50 "implicit flow key : value" Hash(1)
+     entry 25..50
+      25..42 "implicit flow key" String("implicit flow key") content=25..42
+      45..50 "value" String("value") content=45..50
+
+==== LE5A.yaml
+"- !!str \"a\"\n- 'b'\n- &anchor \"c\"\n- *anchor\n- !!str\n"
+0..50 "- !!str \"a\"\n- 'b'\n- &anchor \"c\"\n- *anchor\n- !!str\n" Array(5)
+  8..11 "\"a\"" String("a") content=9..10 tag=str@2..7
+  14..17 "'b'" String("b") content=15..16
+  28..31 "\"c\"" String("c") content=29..30
+  34..34 "" Null content=NONE
+  50..50 "" String("") content=50..50 tag=str@44..49
+
+==== LHL4.fail.yaml
+"---\n!invalid{}tag scalar\n"
+ERROR "while scanning a tag, did not find expected whitespace or line break" @ 4..5
+
+==== LP6E.yaml
+"- [a, b , c ]\n- { \"a\"  : b\n   , c : 'd' ,\n   e   : \"f\"\n  }\n- [      ]\n"
+0..70 "- [a, b , c ]\n- { \"a\"  : b\n   , c : 'd' ,\n   e   : \"f\"\n  }\n- [      ]\n" Array(3)
+  2..13 "[a, b , c ]" Array(3)
+    3..4 "a" String("a") content=3..4
+    6..7 "b" String("b") content=6..7
+    10..11 "c" String("c") content=10..11
+  16..58 "{ \"a\"  : b\n   , c : 'd' ,\n   e   : \"f\"\n  }" Hash(3)
+   entry 18..26
+    18..21 "\"a\"" String("a") content=19..20
+    25..26 "b" String("b") content=25..26
+   entry 32..39
+    32..33 "c" String("c") content=32..33
+    36..39 "'d'" String("d") content=37..38
+   entry 45..54
+    45..46 "e" String("e") content=45..46
+    51..54 "\"f\"" String("f") content=52..53
+  61..69 "[      ]" Array(0)
+
+==== LQZ7.yaml
+"\"implicit block key\" : [\n  \"implicit flow key\" : value,\n ]\n"
+0..59 "\"implicit block key\" : [\n  \"implicit flow key\" : value,\n ]\n" Hash(1)
+ entry 0..58
+  0..20 "\"implicit block key\"" String("implicit block key") content=1..19
+  23..58 "[\n  \"implicit flow key\" : value,\n ]" Array(1)
+    27..54 "\"implicit flow key\" : value" Hash(1)
+     entry 27..54
+      27..46 "\"implicit flow key\"" String("implicit flow key") content=28..45
+      49..54 "value" String("value") content=49..54
+
+==== LX3P.yaml
+"[flow]: block\n"
+0..14 "[flow]: block\n" Hash(1)
+ entry 0..13
+  0..6 "[flow]" Array(1)
+    1..5 "flow" String("flow") content=1..5
+  8..13 "block" String("block") content=8..13
+
+==== M29M.yaml
+"a: |\n ab\n \n cd\n ef\n \n\n...\n"
+0..22 "a: |\n ab\n \n cd\n ef\n \n\n" Hash(1)
+ entry 0..18
+  0..1 "a" String("a") content=0..1
+  6..18 "ab\n \n cd\n ef" String("ab\n\ncd\nef\n") content=[6..8,8..12=>2,12..14,14..16=>1,16..18,18..22=>1]
+
+==== M2N8-00.yaml
+"- ? : x\n"
+0..8 "- ? : x\n" Array(1)
+  4..8 ": x\n" Hash(1)
+   entry 4..8
+    4..8 ": x\n" Hash(1)
+     entry 4..7
+      4..4 "" Null content=4..4
+      6..7 "x" String("x") content=6..7
+    8..8 "" Null content=8..8
+
+==== M2N8-01.yaml
+"? []: x\n"
+2..8 "[]: x\n" Hash(1)
+ entry 2..8
+  2..8 "[]: x\n" Hash(1)
+   entry 2..7
+    2..4 "[]" Array(0)
+    6..7 "x" String("x") content=6..7
+  8..8 "" Null content=8..8
+
+==== M5C3.yaml
+"literal: |2\n  value\nfolded:\n   !foo\n  >1\n value\n"
+0..48 "literal: |2\n  value\nfolded:\n   !foo\n  >1\n value\n" Hash(2)
+ entry 0..19
+  0..7 "literal" String("literal") content=0..7
+  14..19 "value" String("value\n") content=14..20
+ entry 20..47
+  20..26 "folded" String("folded") content=20..26
+  42..47 "value" String("value\n") content=42..48 tag=foo@42..46
+
+==== M5DY.yaml
+"? - Detroit Tigers\n  - Chicago cubs\n:\n  - 2001-07-23\n\n? [ New York Yankees,\n    Atlanta Braves ]\n: [ 2001-07-02, 2001-08-12,\n    2001-08-14 ]\n"
+2..142 "- Detroit Tigers\n  - Chicago cubs\n:\n  - 2001-07-23\n\n? [ New York Yankees,\n    Atlanta Braves ]\n: [ 2001-07-02, 2001-08-12,\n    2001-08-14 ]\n" Hash(2)
+ entry 2..54
+  2..36 "- Detroit Tigers\n  - Chicago cubs\n" Array(2)
+    4..18 "Detroit Tigers" String("Detroit Tigers") content=4..18
+    23..35 "Chicago cubs" String("Chicago cubs") content=23..35
+  40..54 "- 2001-07-23\n\n" Array(1)
+    42..52 "2001-07-23" String("2001-07-23") content=42..52
+ entry 56..141
+  56..96 "[ New York Yankees,\n    Atlanta Braves ]" Array(2)
+    58..74 "New York Yankees" String("New York Yankees") content=58..74
+    80..94 "Atlanta Braves" String("Atlanta Braves") content=80..94
+  99..141 "[ 2001-07-02, 2001-08-12,\n    2001-08-14 ]" Array(3)
+    101..111 "2001-07-02" String("2001-07-02") content=101..111
+    113..123 "2001-08-12" String("2001-08-12") content=113..123
+    129..139 "2001-08-14" String("2001-08-14") content=129..139
+
+==== M6YH.yaml
+"- |\n x\n-\n foo: bar\n-\n - 42\n"
+0..27 "- |\n x\n-\n foo: bar\n-\n - 42\n" Array(3)
+  5..6 "x" String("x\n") content=5..7
+  10..19 "foo: bar\n" Hash(1)
+   entry 10..18
+    10..13 "foo" String("foo") content=10..13
+    15..18 "bar" String("bar") content=15..18
+  22..27 "- 42\n" Array(1)
+    24..26 "42" Integer(42) content=24..26
+
+==== M7A3.yaml
+"Bare\ndocument\n...\n# No document\n...\n|\n%!PS-Adobe-2.0 # Not the first line\n"
+0..13 "Bare\ndocument" String("Bare document") content=[0..4,4..5,5..13]
+
+==== M7NX.yaml
+"---\n{\n a: [\n  b, c, {\n   d: [e, f]\n  }\n ]\n}\n"
+4..43 "{\n a: [\n  b, c, {\n   d: [e, f]\n  }\n ]\n}" Hash(1)
+ entry 7..41
+  7..8 "a" String("a") content=7..8
+  10..41 "[\n  b, c, {\n   d: [e, f]\n  }\n ]" Array(3)
+    14..15 "b" String("b") content=14..15
+    17..18 "c" String("c") content=17..18
+    20..38 "{\n   d: [e, f]\n  }" Hash(1)
+     entry 25..34
+      25..26 "d" String("d") content=25..26
+      28..34 "[e, f]" Array(2)
+        29..30 "e" String("e") content=29..30
+        32..33 "f" String("f") content=32..33
+
+==== M9B4.yaml
+"|\n literal\n \ttext\n\n\n"
+3..17 "literal\n \ttext" String("literal\n\ttext\n") content=[3..10,10..12=>1,12..17,17..20=>1]
+
+==== MJS9.yaml
+">\n  foo \n \n  \t bar\n\n  baz\n"
+4..25 "foo \n \n  \t bar\n\n  baz" String("foo \n\n\t bar\n\nbaz\n") content=[4..8,8..13=>2,13..18,18..22=>2,22..26]
+
+==== MUS6-00.fail.yaml
+"%YAML 1.1#...\n---\n"
+ERROR "comments must be separated from other tokens by whitespace" @ 9..10
+
+==== MUS6-01.fail.yaml
+"%YAML 1.2\n---\n%YAML 1.2\n---\n"
+ERROR "missing explicit document end marker before directive" @ 14..15
+
+==== MUS6-02.yaml
+"%YAML  1.1\n---\n"
+15..15 "" Null content=15..15
+
+==== MUS6-03.yaml
+"%YAML \t 1.1\n---\n"
+16..16 "" Null content=16..16
+
+==== MUS6-04.yaml
+"%YAML 1.1  # comment\n---\n"
+25..25 "" Null content=25..25
+
+==== MUS6-05.yaml
+"%YAM 1.1\n---\n"
+13..13 "" Null content=13..13
+
+==== MUS6-06.yaml
+"%YAMLL 1.1\n---\n"
+15..15 "" Null content=15..15
+
+==== MXS3.yaml
+"- {a: b}\n"
+0..9 "- {a: b}\n" Array(1)
+  2..8 "{a: b}" Hash(1)
+   entry 3..7
+    3..4 "a" String("a") content=3..4
+    6..7 "b" String("b") content=6..7
+
+==== MYW6.yaml
+"|-\n ab\n \n \n...\n"
+4..6 "ab" String("ab") content=4..6
+
+==== MZX3.yaml
+"- plain\n- \"double quoted\"\n- 'single quoted'\n- >\n  block\n- plain again\n"
+0..70 "- plain\n- \"double quoted\"\n- 'single quoted'\n- >\n  block\n- plain again\n" Array(5)
+  2..7 "plain" String("plain") content=2..7
+  10..25 "\"double quoted\"" String("double quoted") content=11..24
+  28..43 "'single quoted'" String("single quoted") content=29..42
+  50..55 "block" String("block\n") content=50..56
+  58..69 "plain again" String("plain again") content=58..69
+
+==== N4JP.fail.yaml
+"map:\n  key1: \"quoted1\"\n key2: \"bad indentation\"\n"
+ERROR "while parsing a block mapping, did not find expected key" @ 24..25
+
+==== N782.fail.yaml
+"[\n--- ,\n...\n]\n"
+ERROR "while parsing a node, did not find expected node content" @ 2..3
+
+==== NAT4.yaml
+"---\na: '\n  '\nb: '  \n  '\nc: \"\n  \"\nd: \"  \n  \"\ne: '\n\n  '\nf: \"\n\n  \"\ng: '\n\n\n  '\nh: \"\n\n\n  \"\n"
+4..86 "a: '\n  '\nb: '  \n  '\nc: \"\n  \"\nd: \"  \n  \"\ne: '\n\n  '\nf: \"\n\n  \"\ng: '\n\n\n  '\nh: \"\n\n\n  \"\n" Hash(8)
+ entry 4..12
+  4..5 "a" String("a") content=4..5
+  7..12 "'\n  '" String(" ") content=[8..11=>1]
+ entry 13..23
+  13..14 "b" String("b") content=13..14
+  16..23 "'  \n  '" String(" ") content=[17..22=>1]
+ entry 24..32
+  24..25 "c" String("c") content=24..25
+  27..32 "\"\n  \"" String(" ") content=[28..31=>1]
+ entry 33..43
+  33..34 "d" String("d") content=33..34
+  36..43 "\"  \n  \"" String(" ") content=[37..42=>1]
+ entry 44..53
+  44..45 "e" String("e") content=44..45
+  47..53 "'\n\n  '" String("\n") content=[48..52=>1]
+ entry 54..63
+  54..55 "f" String("f") content=54..55
+  57..63 "\"\n\n  \"" String("\n") content=[58..62=>1]
+ entry 64..74
+  64..65 "g" String("g") content=64..65
+  67..74 "'\n\n\n  '" String("\n\n") content=[68..73=>2]
+ entry 75..85
+  75..76 "h" String("h") content=75..76
+  78..85 "\"\n\n\n  \"" String("\n\n") content=[79..84=>2]
+
+==== NB6Z.yaml
+"key:\n  value\n  with\n  \t\n  tabs\n"
+0..31 "key:\n  value\n  with\n  \t\n  tabs\n" Hash(1)
+ entry 0..30
+  0..3 "key" String("key") content=0..3
+  7..30 "value\n  with\n  \t\n  tabs" String("value with\ntabs") content=[7..12,12..15=>1,15..19,19..26=>1,26..30]
+
+==== NHX8.yaml
+":\n\n\n"
+0..4 ":\n\n\n" Hash(1)
+ entry 0..1
+  0..0 "" Null content=0..0
+  1..1 "" Null content=1..1
+
+==== NJ66.yaml
+"---\n- { single line: value}\n- { multi\n  line: value}\n"
+4..53 "- { single line: value}\n- { multi\n  line: value}\n" Array(2)
+  6..27 "{ single line: value}" Hash(1)
+   entry 8..26
+    8..19 "single line" String("single line") content=8..19
+    21..26 "value" String("value") content=21..26
+  30..52 "{ multi\n  line: value}" Hash(1)
+   entry 32..51
+    32..44 "multi\n  line" String("multi line") content=[32..37,37..40=>1,40..44]
+    46..51 "value" String("value") content=46..51
+
+==== NKF9.yaml
+"---\nkey: value\n: empty key\n---\n{\n key: value, : empty key\n}\n---\n# empty key and value\n:\n---\n# empty key and value\n{ : }\n"
+4..27 "key: value\n: empty key\n" Hash(2)
+ entry 4..14
+  4..7 "key" String("key") content=4..7
+  9..14 "value" String("value") content=9..14
+ entry 15..26
+  15..15 "" Null content=15..15
+  17..26 "empty key" String("empty key") content=17..26
+
+==== NP9H.yaml
+"\"folded \nto a space,\t\n \nto a line feed, or \t\\\n \\ \tnon-content\"\n"
+0..62 "\"folded \nto a space,\t\n \nto a line feed, or \t\\\n \\ \tnon-content\"" String("folded to a space,\nto a line feed, or \t \tnon-content") content=NONE
+
+==== P2AD.yaml
+"- | # Empty header↓\n literal\n- >1 # Indentation indicator↓\n  folded\n- |+ # Chomping indicator↓\n keep\n\n- >1- # Both indicators↓\n  strip\n"
+0..143 "- | # Empty header↓\n literal\n- >1 # Indentation indicator↓\n  folded\n- |+ # Chomping indicator↓\n keep\n\n- >1- # Both indicators↓\n  strip\n" Array(4)
+  23..30 "literal" String("literal\n") content=23..31
+  64..71 " folded" String(" folded\n") content=64..72
+  102..106 "keep" String("keep\n\n") content=102..108
+  136..142 " strip" String(" strip") content=136..142
+
+==== P2EQ.fail.yaml
+"---\n- { y: z }- invalid\n"
+ERROR "block sequence entries are not allowed in this context" @ 14..15
+
+==== P76L.yaml
+"%TAG !! tag:example.com,2000:app/\n---\n!!int 1 - 3 # Interval, not integer\n"
+44..49 "1 - 3" String("1 - 3") content=44..49 tag=int@38..43
+
+==== P94K.yaml
+"key:    # Comment\n        # lines\n  value\n\n\n"
+0..44 "key:    # Comment\n        # lines\n  value\n\n\n" Hash(1)
+ entry 0..41
+  0..3 "key" String("key") content=0..3
+  36..41 "value" String("value") content=36..41
+
+==== PBJ2.yaml
+"american:\n  - Boston Red Sox\n  - Detroit Tigers\n  - New York Yankees\nnational:\n  - New York Mets\n  - Chicago Cubs\n  - Atlanta Braves\n"
+0..133 "american:\n  - Boston Red Sox\n  - Detroit Tigers\n  - New York Yankees\nnational:\n  - New York Mets\n  - Chicago Cubs\n  - Atlanta Braves\n" Hash(2)
+ entry 0..69
+  0..8 "american" String("american") content=0..8
+  12..69 "- Boston Red Sox\n  - Detroit Tigers\n  - New York Yankees\n" Array(3)
+    14..28 "Boston Red Sox" String("Boston Red Sox") content=14..28
+    33..47 "Detroit Tigers" String("Detroit Tigers") content=33..47
+    52..68 "New York Yankees" String("New York Yankees") content=52..68
+ entry 69..133
+  69..77 "national" String("national") content=69..77
+  81..133 "- New York Mets\n  - Chicago Cubs\n  - Atlanta Braves\n" Array(3)
+    83..96 "New York Mets" String("New York Mets") content=83..96
+    101..113 "Chicago Cubs" String("Chicago Cubs") content=101..113
+    118..132 "Atlanta Braves" String("Atlanta Braves") content=118..132
+
+==== PRH3.yaml
+"' 1st non-empty\n\n 2nd non-empty \n\t3rd non-empty '\n"
+0..49 "' 1st non-empty\n\n 2nd non-empty \n\t3rd non-empty '" String(" 1st non-empty\n2nd non-empty 3rd non-empty ") content=[1..15,15..18=>1,18..31,31..34=>1,34..48]
+
+==== PUW8.yaml
+"---\na: b\n---\n"
+4..9 "a: b\n" Hash(1)
+ entry 4..8
+  4..5 "a" String("a") content=4..5
+  7..8 "b" String("b") content=7..8
+
+==== PW8X.yaml
+"- &a\n- a\n-\n  &a : a\n  b: &b\n-\n  &c : &a\n-\n  ? &d\n-\n  ? &e\n  : &a\n"
+0..65 "- &a\n- a\n-\n  &a : a\n  b: &b\n-\n  &c : &a\n-\n  ? &d\n-\n  ? &e\n  : &a\n" Array(6)
+  7..7 "" Null content=7..7
+  7..8 "a" String("a") content=7..8
+  16..28 ": a\n  b: &b\n" Hash(2)
+   entry 16..19
+    16..16 "" Null content=16..16
+    18..19 "a" String("a") content=18..19
+   entry 22..28
+    22..23 "b" String("b") content=22..23
+    28..28 "" Null content=28..28
+  35..40 ": &a\n" Hash(1)
+   entry 35..40
+    35..35 "" Null content=35..35
+    40..40 "" Null content=40..40
+  49..49 "" Hash(1)
+   entry 49..49
+    49..49 "" Null content=49..49
+    49..49 "" Null content=49..49
+  60..65 ": &a\n" Hash(1)
+   entry 60..65
+    60..60 "" Null content=60..60
+    65..65 "" Null content=65..65
+
+==== Q4CL.fail.yaml
+"key1: \"quoted1\"\nkey2: \"quoted2\" trailing content\nkey3: \"quoted3\"\n"
+ERROR "invalid trailing content after double-quoted scalar" @ 32..33
+
+==== Q5MG.yaml
+"\t{}\n"
+1..3 "{}" Hash(0)
+
+==== Q88A.yaml
+"- [ a, b ]\n- { a: b }\n- \"a\"\n- 'b'\n- c\n"
+0..38 "- [ a, b ]\n- { a: b }\n- \"a\"\n- 'b'\n- c\n" Array(5)
+  2..10 "[ a, b ]" Array(2)
+    4..5 "a" String("a") content=4..5
+    7..8 "b" String("b") content=7..8
+  13..21 "{ a: b }" Hash(1)
+   entry 15..19
+    15..16 "a" String("a") content=15..16
+    18..19 "b" String("b") content=18..19
+  24..27 "\"a\"" String("a") content=25..26
+  30..33 "'b'" String("b") content=31..32
+  36..37 "c" String("c") content=36..37
+
+==== Q8AD.yaml
+"---\n\"folded \nto a space,\n \nto a line feed, or \t\\\n \\ \tnon-content\"\n"
+4..65 "\"folded \nto a space,\n \nto a line feed, or \t\\\n \\ \tnon-content\"" String("folded to a space,\nto a line feed, or \t \tnon-content") content=NONE
+
+==== Q9WF.yaml
+"{ first: Sammy, last: Sosa }:\n# Statistics:\n  hr:  # Home runs\n     65\n  avg: # Average\n   0.278\n"
+0..97 "{ first: Sammy, last: Sosa }:\n# Statistics:\n  hr:  # Home runs\n     65\n  avg: # Average\n   0.278\n" Hash(1)
+ entry 0..97
+  0..28 "{ first: Sammy, last: Sosa }" Hash(2)
+   entry 2..14
+    2..7 "first" String("first") content=2..7
+    9..14 "Sammy" String("Sammy") content=9..14
+   entry 16..26
+    16..20 "last" String("last") content=16..20
+    22..26 "Sosa" String("Sosa") content=22..26
+  46..97 "hr:  # Home runs\n     65\n  avg: # Average\n   0.278\n" Hash(2)
+   entry 46..70
+    46..48 "hr" String("hr") content=46..48
+    68..70 "65" Integer(65) content=68..70
+   entry 73..96
+    73..76 "avg" String("avg") content=73..76
+    91..96 "0.278" Real("0.278") content=91..96
+
+==== QB6E.fail.yaml
+"---\nquoted: \"a\nb\nc\"\n"
+ERROR "invalid indentation in quoted scalar" @ 12..13
+
+==== QF4Y.yaml
+"[\nfoo: bar\n]\n"
+0..12 "[\nfoo: bar\n]" Array(1)
+  2..11 "foo: bar\n" Hash(1)
+   entry 2..10
+    2..5 "foo" String("foo") content=2..5
+    7..10 "bar" String("bar") content=7..10
+
+==== QLJ7.fail.yaml
+"%TAG !prefix! tag:example.com,2011:\n--- !prefix!A\na: b\n--- !prefix!B\nc: d\n--- !prefix!C\ne: f\n"
+50..55 "a: b\n" Hash(1) tag=A@40..49
+ entry 50..54
+  50..51 "a" String("a") content=50..51
+  53..54 "b" String("b") content=53..54
+
+==== QT73.yaml
+"# comment\n...\n"
+ERROR "No YAML document found" @ 0..0
+
+==== R4YG.yaml
+"- |\n detected\n- >\n \n  \n  # detected\n- |1\n  explicit\n- >\n \t\n detected\n"
+0..69 "- |\n detected\n- >\n \n  \n  # detected\n- |1\n  explicit\n- >\n \t\n detected\n" Array(4)
+  5..13 "detected" String("detected\n") content=5..14
+  25..35 "# detected" String("\n\n# detected\n") content=NONE
+  42..51 " explicit" String(" explicit\n") content=42..52
+  57..68 "\t\n detected" String("\t\ndetected\n") content=[57..58,58..60=>1,60..69]
+
+==== R52L.yaml
+"---\n{ top1: [item1, {key2: value2}, item3], top2: value2 }\n"
+4..58 "{ top1: [item1, {key2: value2}, item3], top2: value2 }" Hash(2)
+ entry 6..42
+  6..10 "top1" String("top1") content=6..10
+  12..42 "[item1, {key2: value2}, item3]" Array(3)
+    13..18 "item1" String("item1") content=13..18
+    20..34 "{key2: value2}" Hash(1)
+     entry 21..33
+      21..25 "key2" String("key2") content=21..25
+      27..33 "value2" String("value2") content=27..33
+    36..41 "item3" String("item3") content=36..41
+ entry 44..56
+  44..48 "top2" String("top2") content=44..48
+  50..56 "value2" String("value2") content=50..56
+
+==== RHX7.fail.yaml
+"---\nkey: value\n%YAML 1.2\n---\n"
+ERROR "missing explicit document end marker before directive" @ 15..16
+
+==== RLU9.yaml
+"foo:\n- 42\nbar:\n  - 44\n"
+0..22 "foo:\n- 42\nbar:\n  - 44\n" Hash(2)
+ entry 0..10
+  0..3 "foo" String("foo") content=0..3
+  7..10 "42\n" Array(1)
+    7..9 "42" Integer(42) content=7..9
+ entry 10..22
+  10..13 "bar" String("bar") content=10..13
+  17..22 "- 44\n" Array(1)
+    19..21 "44" Integer(44) content=19..21
+
+==== RR7F.yaml
+"a: 4.2\n? d\n: 23\n"
+0..16 "a: 4.2\n? d\n: 23\n" Hash(2)
+ entry 0..6
+  0..1 "a" String("a") content=0..1
+  3..6 "4.2" Real("4.2") content=3..6
+ entry 9..15
+  9..10 "d" String("d") content=9..10
+  13..15 "23" Integer(23) content=13..15
+
+==== RTP8.yaml
+"%YAML 1.2\n---\nDocument\n... # Suffix\n"
+14..22 "Document" String("Document") content=14..22
+
+==== RXY3.fail.yaml
+"---\n'\n...\n'\n"
+ERROR "while scanning a quoted scalar, found unexpected document indicator" @ 4..5
+
+==== RZP5.yaml
+"a: \"double\n  quotes\" # lala\nb: plain\n value  # lala\nc  : #lala\n  d\n? # lala\n - seq1\n: # lala\n - #lala\n  seq2\ne: &node # lala\n - x: y\nblock: > # lala\n  abcde\n"
+0..157 "a: \"double\n  quotes\" # lala\nb: plain\n value  # lala\nc  : #lala\n  d\n? # lala\n - seq1\n: # lala\n - #lala\n  seq2\ne: &node # lala\n - x: y\nblock: > # lala\n  abcde\n" Hash(6)
+ entry 0..20
+  0..1 "a" String("a") content=0..1
+  3..20 "\"double\n  quotes\"" String("double quotes") content=[4..10,10..13=>1,13..19]
+ entry 28..43
+  28..29 "b" String("b") content=28..29
+  31..43 "plain\n value" String("plain value") content=[31..36,36..38=>1,38..43]
+ entry 52..66
+  52..53 "c" String("c") content=52..53
+  65..66 "d" String("d") content=65..66
+ entry 77..109
+  77..84 "- seq1\n" Array(1)
+    79..83 "seq1" String("seq1") content=79..83
+  94..109 "- #lala\n  seq2\n" Array(1)
+    104..108 "seq2" String("seq2") content=104..108
+ entry 109..133
+  109..110 "e" String("e") content=109..110
+  126..133 "- x: y\n" Array(1)
+    128..133 "x: y\n" Hash(1)
+     entry 128..132
+      128..129 "x" String("x") content=128..129
+      131..132 "y" String("y") content=131..132
+ entry 133..156
+  133..138 "block" String("block") content=133..138
+  151..156 "abcde" String("abcde\n") content=151..157
+
+==== RZT7.yaml
+"---\nTime: 2001-11-23 15:01:42 -5\nUser: ed\nWarning:\n  This is an error message\n  for the log file\n---\nTime: 2001-11-23 15:02:31 -5\nUser: ed\nWarning:\n  A slightly different error\n  message.\n---\nDate: 2001-11-23 15:03:17 -5\nUser: ed\nFatal:\n  Unknown variable \"bar\"\nStack:\n  - file: TopClass.py\n    line: 23\n    code: |\n      x = MoreObject(\"345\\n\")\n  - file: MoreClass.py\n    line: 58\n    code: |-\n      foo = bar\n"
+4..97 "Time: 2001-11-23 15:01:42 -5\nUser: ed\nWarning:\n  This is an error message\n  for the log file\n" Hash(3)
+ entry 4..32
+  4..8 "Time" String("Time") content=4..8
+  10..32 "2001-11-23 15:01:42 -5" String("2001-11-23 15:01:42 -5") content=10..32
+ entry 33..41
+  33..37 "User" String("User") content=33..37
+  39..41 "ed" String("ed") content=39..41
+ entry 42..96
+  42..49 "Warning" String("Warning") content=42..49
+  53..96 "This is an error message\n  for the log file" String("This is an error message for the log file") content=[53..77,77..80=>1,80..96]
+
+==== S3PD.yaml
+"plain key: in-line value\n: # Both empty\n\"quoted key\":\n- entry\n"
+0..62 "plain key: in-line value\n: # Both empty\n\"quoted key\":\n- entry\n" Hash(3)
+ entry 0..24
+  0..9 "plain key" String("plain key") content=0..9
+  11..24 "in-line value" String("in-line value") content=11..24
+ entry 25..26
+  25..25 "" Null content=25..25
+  26..26 "" Null content=26..26
+ entry 40..62
+  40..52 "\"quoted key\"" String("quoted key") content=41..51
+  56..62 "entry\n" Array(1)
+    56..61 "entry" String("entry") content=56..61
+
+==== S4GJ.fail.yaml
+"---\nfolded: > first line\n  second line\n"
+ERROR "while scanning a block scalar, did not find expected comment or line break" @ 12..13
+
+==== S4JQ.yaml
+"# Assuming conventional resolution:\n- \"12\"\n- 12\n- ! 12\n"
+36..55 "- \"12\"\n- 12\n- ! 12\n" Array(3)
+  38..42 "\"12\"" String("12") content=39..41
+  45..47 "12" Integer(12) content=45..47
+  52..54 "12" Integer(12) content=52..54 tag=!@50..51
+
+==== S4T7.yaml
+"aaa: bbb\n...\n"
+0..9 "aaa: bbb\n" Hash(1)
+ entry 0..8
+  0..3 "aaa" String("aaa") content=0..3
+  5..8 "bbb" String("bbb") content=5..8
+
+==== S7BG.yaml
+"---\n- :,\n"
+4..9 "- :,\n" Array(1)
+  6..8 ":," String(":,") content=6..8
+
+==== S98Z.fail.yaml
+"empty block scalar: >\n \n  \n   \n # comment\n"
+ERROR "wrongly indented line in block scalar" @ 32..33
+
+==== S9E8.yaml
+"sequence:\n- one\n- two\nmapping:\n  ? sky\n  : blue\n  sea : green\n"
+0..62 "sequence:\n- one\n- two\nmapping:\n  ? sky\n  : blue\n  sea : green\n" Hash(2)
+ entry 0..22
+  0..8 "sequence" String("sequence") content=0..8
+  12..22 "one\n- two\n" Array(2)
+    12..15 "one" String("one") content=12..15
+    18..21 "two" String("two") content=18..21
+ entry 22..62
+  22..29 "mapping" String("mapping") content=22..29
+  35..62 "sky\n  : blue\n  sea : green\n" Hash(2)
+   entry 35..47
+    35..38 "sky" String("sky") content=35..38
+    43..47 "blue" String("blue") content=43..47
+   entry 50..61
+    50..53 "sea" String("sea") content=50..53
+    56..61 "green" String("green") content=56..61
+
+==== SBG9.yaml
+"{a: [b, c], [d, e]: f}\n"
+0..22 "{a: [b, c], [d, e]: f}" Hash(2)
+ entry 1..10
+  1..2 "a" String("a") content=1..2
+  4..10 "[b, c]" Array(2)
+    5..6 "b" String("b") content=5..6
+    8..9 "c" String("c") content=8..9
+ entry 12..21
+  12..18 "[d, e]" Array(2)
+    13..14 "d" String("d") content=13..14
+    16..17 "e" String("e") content=16..17
+  20..21 "f" String("f") content=20..21
+
+==== SF5V.fail.yaml
+"%YAML 1.2\n%YAML 1.2\n---\n"
+ERROR "duplicate version directive" @ 10..11
+
+==== SKE5.yaml
+"---\nseq:\n &anchor\n- a\n- b\n"
+4..26 "seq:\n &anchor\n- a\n- b\n" Hash(1)
+ entry 4..26
+  4..7 "seq" String("seq") content=4..7
+  20..26 "a\n- b\n" Array(2)
+    20..21 "a" String("a") content=20..21
+    24..25 "b" String("b") content=24..25
+
+==== SM9W-00.yaml
+"-"
+0..1 "-" Array(1)
+  1..1 "" Null content=1..1
+
+==== SM9W-01.yaml
+":"
+0..1 ":" Hash(1)
+ entry 0..1
+  0..0 "" Null content=0..0
+  1..1 "" Null content=1..1
+
+==== SR86.fail.yaml
+"key1: &a value\nkey2: &b *a\n"
+ERROR "while parsing a block mapping, did not find expected key" @ 24..25
+
+==== SSW6.yaml
+"---\n'here''s to \"quotes\"'\n"
+4..25 "'here''s to \"quotes\"'" String("here's to \"quotes\"") content=[5..9,9..11=>1,11..24]
+
+==== SU5Z.fail.yaml
+"key: \"value\"# invalid comment\n"
+ERROR "comments must be separated from other tokens by whitespace" @ 12..13
+
+==== SU74.fail.yaml
+"key1: &alias value1\n&b *alias : value2\n"
+ERROR "while parsing a block mapping, did not find expected key" @ 23..24
+
+==== SY6V.fail.yaml
+"&anchor - sequence entry\n"
+ERROR "block sequence entries are not allowed in this context" @ 8..9
+
+==== SYW4.yaml
+"hr:  65    # Home runs\navg: 0.278 # Batting average\nrbi: 147   # Runs Batted In\n"
+0..80 "hr:  65    # Home runs\navg: 0.278 # Batting average\nrbi: 147   # Runs Batted In\n" Hash(3)
+ entry 0..7
+  0..2 "hr" String("hr") content=0..2
+  5..7 "65" Integer(65) content=5..7
+ entry 23..33
+  23..26 "avg" String("avg") content=23..26
+  28..33 "0.278" Real("0.278") content=28..33
+ entry 52..60
+  52..55 "rbi" String("rbi") content=52..55
+  57..60 "147" Integer(147) content=57..60
+
+==== T26H.yaml
+"--- |\n \n  \n  literal\n   \n  \n  text\n\n # Comment\n"
+13..34 "literal\n   \n  \n  text" String("\n\nliteral\n \n\ntext\n") content=NONE
+
+==== T4YY.yaml
+"---\n' 1st non-empty\n\n 2nd non-empty \n 3rd non-empty '\n"
+4..53 "' 1st non-empty\n\n 2nd non-empty \n 3rd non-empty '" String(" 1st non-empty\n2nd non-empty 3rd non-empty ") content=[5..19,19..22=>1,22..35,35..38=>1,38..52]
+
+==== T5N4.yaml
+"--- |\n literal\n \ttext\n\n\n"
+7..21 "literal\n \ttext" String("literal\n\ttext\n") content=[7..14,14..16=>1,16..21,21..24=>1]
+
+==== T833.fail.yaml
+"---\n{\n foo: 1\n bar: 2 }\n"
+ERROR "while parsing a flow mapping, did not find expected ',' or '}'" @ 18..19
+
+==== TD5N.fail.yaml
+"- item1\n- item2\ninvalid\n"
+ERROR "simple key expect ':'" @ 24..24
+
+==== TE2A.yaml
+"block mapping:\n key: value\n"
+0..27 "block mapping:\n key: value\n" Hash(1)
+ entry 0..27
+  0..13 "block mapping" String("block mapping") content=0..13
+  16..27 "key: value\n" Hash(1)
+   entry 16..26
+    16..19 "key" String("key") content=16..19
+    21..26 "value" String("value") content=21..26
+
+==== TL85.yaml
+"\"\n  foo \n \n  \t bar\n\n  baz\n\"\n"
+0..27 "\"\n  foo \n \n  \t bar\n\n  baz\n\"" String(" foo\nbar\nbaz ") content=[1..4=>1,4..7,7..15=>1,15..18,18..22=>1,22..25,25..26]
+
+==== TS54.yaml
+">\n ab\n cd\n \n ef\n\n\n gh\n"
+3..21 "ab\n cd\n \n ef\n\n\n gh" String("ab cd\nef\n\ngh\n") content=[3..5,5..7=>1,7..9,9..13=>1,13..15,15..19=>2,19..22]
+
+==== U3C3.yaml
+"%TAG !yaml! tag:yaml.org,2002:\n---\n!yaml!str \"foo\"\n"
+45..50 "\"foo\"" String("foo") content=46..49 tag=str@35..44
+
+==== U3XV.yaml
+"---\ntop1: &node1\n  &k1 key1: one\ntop2: &node2 # comment\n  key2: two\ntop3:\n  &k3 key3: three\ntop4:\n  &node4\n  &k4 key4: four\ntop5:\n  &node5\n  key5: five\ntop6: &val6\n  six\ntop7:\n  &val7 seven\n"
+4..190 "top1: &node1\n  &k1 key1: one\ntop2: &node2 # comment\n  key2: two\ntop3:\n  &k3 key3: three\ntop4:\n  &node4\n  &k4 key4: four\ntop5:\n  &node5\n  key5: five\ntop6: &val6\n  six\ntop7:\n  &val7 seven\n" Hash(7)
+ entry 4..33
+  4..8 "top1" String("top1") content=4..8
+  23..33 "key1: one\n" Hash(1)
+   entry 23..32
+    23..27 "key1" String("key1") content=23..27
+    29..32 "one" String("one") content=29..32
+ entry 33..68
+  33..37 "top2" String("top2") content=33..37
+  58..68 "key2: two\n" Hash(1)
+   entry 58..67
+    58..62 "key2" String("key2") content=58..62
+    64..67 "two" String("two") content=64..67
+ entry 68..92
+  68..72 "top3" String("top3") content=68..72
+  80..92 "key3: three\n" Hash(1)
+   entry 80..91
+    80..84 "key3" String("key3") content=80..84
+    86..91 "three" String("three") content=86..91
+ entry 92..124
+  92..96 "top4" String("top4") content=92..96
+  113..124 "key4: four\n" Hash(1)
+   entry 113..123
+    113..117 "key4" String("key4") content=113..117
+    119..123 "four" String("four") content=119..123
+ entry 124..152
+  124..128 "top5" String("top5") content=124..128
+  141..152 "key5: five\n" Hash(1)
+   entry 141..151
+    141..145 "key5" String("key5") content=141..145
+    147..151 "five" String("five") content=147..151
+ entry 152..169
+  152..156 "top6" String("top6") content=152..156
+  166..169 "six" String("six") content=166..169
+ entry 170..189
+  170..174 "top7" String("top7") content=170..174
+  184..189 "seven" String("seven") content=184..189
+
+==== U44R.fail.yaml
+"map:\n  key1: \"quoted1\"\n   key2: \"bad indentation\"\n"
+ERROR "while parsing a block mapping, did not find expected key" @ 26..27
+
+==== U99R.fail.yaml
+"- !!str, xxx\n"
+ERROR "while scanning a tag, did not find expected whitespace or line break" @ 2..3
+
+==== U9NS.yaml
+"---\ntime: 20:03:20\nplayer: Sammy Sosa\naction: strike (miss)\n...\n---\ntime: 20:03:47\nplayer: Sammy Sosa\naction: grand slam\n...\n"
+4..60 "time: 20:03:20\nplayer: Sammy Sosa\naction: strike (miss)\n" Hash(3)
+ entry 4..18
+  4..8 "time" String("time") content=4..8
+  10..18 "20:03:20" String("20:03:20") content=10..18
+ entry 19..37
+  19..25 "player" String("player") content=19..25
+  27..37 "Sammy Sosa" String("Sammy Sosa") content=27..37
+ entry 38..59
+  38..44 "action" String("action") content=38..44
+  46..59 "strike (miss)" String("strike (miss)") content=46..59
+
+==== UDM2.yaml
+"- { url: http://example.org }\n"
+0..30 "- { url: http://example.org }\n" Array(1)
+  2..29 "{ url: http://example.org }" Hash(1)
+   entry 4..27
+    4..7 "url" String("url") content=4..7
+    9..27 "http://example.org" String("http://example.org") content=9..27
+
+==== UDR7.yaml
+"sequence: [ one, two, ]\nmapping: { sky: blue, sea: green }\n"
+0..59 "sequence: [ one, two, ]\nmapping: { sky: blue, sea: green }\n" Hash(2)
+ entry 0..23
+  0..8 "sequence" String("sequence") content=0..8
+  10..23 "[ one, two, ]" Array(2)
+    12..15 "one" String("one") content=12..15
+    17..20 "two" String("two") content=17..20
+ entry 24..58
+  24..31 "mapping" String("mapping") content=24..31
+  33..58 "{ sky: blue, sea: green }" Hash(2)
+   entry 35..44
+    35..38 "sky" String("sky") content=35..38
+    40..44 "blue" String("blue") content=40..44
+   entry 46..56
+    46..49 "sea" String("sea") content=46..49
+    51..56 "green" String("green") content=51..56
+
+==== UGM3.yaml
+"--- !<tag:clarkevans.com,2002:invoice>\ninvoice: 34843\ndate   : 2001-01-23\nbill-to: &id001\n    given  : Chris\n    family : Dumars\n    address:\n        lines: |\n            458 Walkman Dr.\n            Suite #292\n        city    : Royal Oak\n        state   : MI\n        postal  : 48046\nship-to: *id001\nproduct:\n    - sku         : BL394D\n      quantity    : 4\n      description : Basketball\n      price       : 450.00\n    - sku         : BL4438H\n      quantity    : 1\n      description : Super Hoop\n      price       : 2392.00\ntax  : 251.42\ntotal: 4443.52\ncomments:\n    Late afternoon is best.\n    Backup contact is Nancy\n    Billsmer @ 338-4338.\n"
+39..644 "invoice: 34843\ndate   : 2001-01-23\nbill-to: &id001\n    given  : Chris\n    family : Dumars\n    address:\n        lines: |\n            458 Walkman Dr.\n            Suite #292\n        city    : Royal Oak\n        state   : MI\n        postal  : 48046\nship-to: *id001\nproduct:\n    - sku         : BL394D\n      quantity    : 4\n      description : Basketball\n      price       : 450.00\n    - sku         : BL4438H\n      quantity    : 1\n      description : Super Hoop\n      price       : 2392.00\ntax  : 251.42\ntotal: 4443.52\ncomments:\n    Late afternoon is best.\n    Backup contact is Nancy\n    Billsmer @ 338-4338.\n" Hash(8) tag=tag:clarkevans.com,2002:invoice@4..38
+ entry 39..53
+  39..46 "invoice" String("invoice") content=39..46
+  48..53 "34843" Integer(34843) content=48..53
+ entry 54..73
+  54..58 "date" String("date") content=54..58
+  63..73 "2001-01-23" String("2001-01-23") content=63..73
+ entry 74..283
+  74..81 "bill-to" String("bill-to") content=74..81
+  94..283 "given  : Chris\n    family : Dumars\n    address:\n        lines: |\n            458 Walkman Dr.\n            Suite #292\n        city    : Royal Oak\n        state   : MI\n        postal  : 48046\n" Hash(3)
+   entry 94..108
+    94..99 "given" String("given") content=94..99
+    103..108 "Chris" String("Chris") content=103..108
+   entry 113..128
+    113..119 "family" String("family") content=113..119
+    122..128 "Dumars" String("Dumars") content=122..128
+   entry 133..283
+    133..140 "address" String("address") content=133..140
+    150..283 "lines: |\n            458 Walkman Dr.\n            Suite #292\n        city    : Royal Oak\n        state   : MI\n        postal  : 48046\n" Hash(4)
+     entry 150..209
+      150..155 "lines" String("lines") content=150..155
+      171..209 "458 Walkman Dr.\n            Suite #292" String("458 Walkman Dr.\nSuite #292\n") content=[171..186,186..199=>1,199..209,209..218=>1]
+     entry 218..237
+      218..222 "city" String("city") content=218..222
+      228..237 "Royal Oak" String("Royal Oak") content=228..237
+     entry 246..258
+      246..251 "state" String("state") content=246..251
+      256..258 "MI" String("MI") content=256..258
+     entry 267..282
+      267..273 "postal" String("postal") content=267..273
+      277..282 "48046" Integer(48046) content=277..282
+ entry 283..292
+  283..290 "ship-to" String("ship-to") content=283..290
+  292..292 "" Null content=NONE
+ entry 299..524
+  299..306 "product" String("product") content=299..306
+  312..524 "- sku         : BL394D\n      quantity    : 4\n      description : Basketball\n      price       : 450.00\n    - sku         : BL4438H\n      quantity    : 1\n      description : Super Hoop\n      price       : 2392.00\n" Array(2)
+    314..419 "sku         : BL394D\n      quantity    : 4\n      description : Basketball\n      price       : 450.00\n    " Hash(4)
+     entry 314..334
+      314..317 "sku" String("sku") content=314..317
+      328..334 "BL394D" String("BL394D") content=328..334
+     entry 341..356
+      341..349 "quantity" String("quantity") content=341..349
+      355..356 "4" Integer(4) content=355..356
+     entry 363..387
+      363..374 "description" String("description") content=363..374
+      377..387 "Basketball" String("Basketball") content=377..387
+     entry 394..414
+      394..399 "price" String("price") content=394..399
+      408..414 "450.00" Real("450.00") content=408..414
+    421..524 "sku         : BL4438H\n      quantity    : 1\n      description : Super Hoop\n      price       : 2392.00\n" Hash(4)
+     entry 421..442
+      421..424 "sku" String("sku") content=421..424
+      435..442 "BL4438H" String("BL4438H") content=435..442
+     entry 449..464
+      449..457 "quantity" String("quantity") content=449..457
+      463..464 "1" Integer(1) content=463..464
+     entry 471..495
+      471..482 "description" String("description") content=471..482
+      485..495 "Super Hoop" String("Super Hoop") content=485..495
+     entry 502..523
+      502..507 "price" String("price") content=502..507
+      516..523 "2392.00" Real("2392.00") content=516..523
+ entry 524..537
+  524..527 "tax" String("tax") content=524..527
+  531..537 "251.42" Real("251.42") content=531..537
+ entry 538..552
+  538..543 "total" String("total") content=538..543
+  545..552 "4443.52" Real("4443.52") content=545..552
+ entry 553..643
+  553..561 "comments" String("comments") content=553..561
+  567..643 "Late afternoon is best.\n    Backup contact is Nancy\n    Billsmer @ 338-4338." String("Late afternoon is best. Backup contact is Nancy Billsmer @ 338-4338.") content=[567..590,590..595=>1,595..618,618..623=>1,623..643]
+
+==== UKK6-00.yaml
+"- :\n"
+0..4 "- :\n" Array(1)
+  2..4 ":\n" Hash(1)
+   entry 2..3
+    2..2 "" Null content=2..2
+    3..3 "" Null content=3..3
+
+==== UKK6-01.yaml
+"::\n"
+0..3 "::\n" Hash(1)
+ entry 0..2
+  0..1 ":" String(":") content=0..1
+  2..2 "" Null content=2..2
+
+==== UKK6-02.yaml
+"!\n"
+2..2 "" Null content=2..2 tag=!@0..1
+
+==== UT92.yaml
+"---\n{ matches\n% : 20 }\n...\n---\n# Empty\n...\n"
+4..22 "{ matches\n% : 20 }" Hash(1)
+ entry 6..20
+  6..15 "matches\n%" String("matches %") content=[6..13,13..14,14..15]
+  18..20 "20" Integer(20) content=18..20
+
+==== UV7Q.yaml
+"x:\n - x\n  \tx\n"
+0..13 "x:\n - x\n  \tx\n" Hash(1)
+ entry 0..13
+  0..1 "x" String("x") content=0..1
+  4..13 "- x\n  \tx\n" Array(1)
+    6..12 "x\n  \tx" String("x x") content=[6..7,7..11=>1,11..12]
+
+==== V55R.yaml
+"- &a a\n- &b b\n- *a\n- *b\n"
+0..24 "- &a a\n- &b b\n- *a\n- *b\n" Array(4)
+  5..6 "a" String("a") content=5..6
+  12..13 "b" String("b") content=12..13
+  16..16 "" Null content=NONE
+  21..21 "" Null content=NONE
+
+==== V9D5.yaml
+"- sun: yellow\n- ? earth: blue\n  : moon: white\n"
+0..46 "- sun: yellow\n- ? earth: blue\n  : moon: white\n" Array(2)
+  2..14 "sun: yellow\n" Hash(1)
+   entry 2..13
+    2..5 "sun" String("sun") content=2..5
+    7..13 "yellow" String("yellow") content=7..13
+  18..46 "earth: blue\n  : moon: white\n" Hash(1)
+   entry 18..46
+    18..32 "earth: blue\n  " Hash(1)
+     entry 18..29
+      18..23 "earth" String("earth") content=18..23
+      25..29 "blue" String("blue") content=25..29
+    34..46 "moon: white\n" Hash(1)
+     entry 34..45
+      34..38 "moon" String("moon") content=34..38
+      40..45 "white" String("white") content=40..45
+
+==== VJP3-00.fail.yaml
+"k: {\nk\n:\nv\n}\n"
+ERROR "invalid indentation" @ 5..6
+
+==== VJP3-01.yaml
+"k: {\n k\n :\n v\n }\n"
+0..17 "k: {\n k\n :\n v\n }\n" Hash(1)
+ entry 0..16
+  0..1 "k" String("k") content=0..1
+  3..16 "{\n k\n :\n v\n }" Hash(1)
+   entry 6..13
+    6..7 "k" String("k") content=6..7
+    12..13 "v" String("v") content=12..13
+
+==== W42U.yaml
+"- # Empty\n- |\n block node\n- - one # Compact\n  - two # sequence\n- one: two # Compact mapping\n"
+0..92 "- # Empty\n- |\n block node\n- - one # Compact\n  - two # sequence\n- one: two # Compact mapping\n" Array(4)
+  9..9 "" Null content=9..9
+  15..25 "block node" String("block node\n") content=15..26
+  28..63 "- one # Compact\n  - two # sequence\n" Array(2)
+    30..33 "one" String("one") content=30..33
+    48..51 "two" String("two") content=48..51
+  65..92 "one: two # Compact mapping\n" Hash(1)
+   entry 65..73
+    65..68 "one" String("one") content=65..68
+    70..73 "two" String("two") content=70..73
+
+==== W4TN.yaml
+"%YAML 1.2\n--- |\n%!PS-Adobe-2.0\n...\n%YAML 1.2\n---\n# Empty\n...\n"
+16..60 "%!PS-Adobe-2.0\n...\n%YAML 1.2\n---\n# Empty\n..." String("%!PS-Adobe-2.0\n") content=16..31
+
+==== W5VH.yaml
+"a: &:@*!$\"<foo>: scalar a\nb: *:@*!$\"<foo>:\n"
+0..43 "a: &:@*!$\"<foo>: scalar a\nb: *:@*!$\"<foo>:\n" Hash(2)
+ entry 0..25
+  0..1 "a" String("a") content=0..1
+  17..25 "scalar a" String("scalar a") content=17..25
+ entry 26..29
+  26..27 "b" String("b") content=26..27
+  29..29 "" Null content=NONE
+
+==== W9L4.fail.yaml
+"---\nblock scalar: |\n     \n  more spaces at the beginning\n  are invalid\n"
+ERROR "wrongly indented line in block scalar" @ 28..29
+
+==== WZ62.yaml
+"{\n  foo : !!str,\n  !!str : bar,\n}\n"
+0..30 "{\n  foo : !!str,\n  !!str : bar" Hash(2)
+ entry 4..15
+  4..7 "foo" String("foo") content=4..7
+  15..15 "" String("") content=15..15 tag=str@10..15
+ entry 25..30
+  25..25 "" String("") content=25..25 tag=str@19..24
+  27..30 "bar" String("bar") content=27..30
+
+==== X38W.yaml
+"{ &a [a, &b b]: *b, *a : [c, *b, d]}\n"
+0..36 "{ &a [a, &b b]: *b, *a : [c, *b, d]}" Hash(2)
+ entry 5..16
+  5..14 "[a, &b b]" Array(2)
+    6..7 "a" String("a") content=6..7
+    12..13 "b" String("b") content=12..13
+  16..16 "" Null content=NONE
+ entry 20..35
+  20..20 "" Null content=NONE
+  25..35 "[c, *b, d]" Array(3)
+    26..27 "c" String("c") content=26..27
+    29..29 "" Null content=NONE
+    33..34 "d" String("d") content=33..34
+
+==== X4QW.fail.yaml
+"block: ># comment\n  scalar\n"
+ERROR "comments must be separated from other tokens by whitespace" @ 8..9
+
+==== X8DW.yaml
+"---\n? key\n# comment\n: value\n"
+6..28 "key\n# comment\n: value\n" Hash(1)
+ entry 6..27
+  6..9 "key" String("key") content=6..9
+  22..27 "value" String("value") content=22..27
+
+==== XLQ9.yaml
+"---\nscalar\n%YAML 1.2\n"
+4..20 "scalar\n%YAML 1.2" String("scalar %YAML 1.2") content=[4..10,10..11,11..20]
+
+==== XV9V.yaml
+"Folding:\n  \"Empty line\n\n  as a line feed\"\nChomping: |\n  Clipped empty lines\n \n\n"
+0..79 "Folding:\n  \"Empty line\n\n  as a line feed\"\nChomping: |\n  Clipped empty lines\n \n\n" Hash(2)
+ entry 0..41
+  0..7 "Folding" String("Folding") content=0..7
+  11..41 "\"Empty line\n\n  as a line feed\"" String("Empty line\nas a line feed") content=[12..22,22..26=>1,26..40]
+ entry 42..75
+  42..50 "Chomping" String("Chomping") content=42..50
+  56..75 "Clipped empty lines" String("Clipped empty lines\n") content=[56..75,75..79=>1]
+
+==== XW4D.yaml
+"a: \"double\n  quotes\" # lala\nb: plain\n value  # lala\nc  : #lala\n  d\n? # lala\n - seq1\n: # lala\n - #lala\n  seq2\ne:\n &node # lala\n - x: y\nblock: > # lala\n  abcde\n"
+0..158 "a: \"double\n  quotes\" # lala\nb: plain\n value  # lala\nc  : #lala\n  d\n? # lala\n - seq1\n: # lala\n - #lala\n  seq2\ne:\n &node # lala\n - x: y\nblock: > # lala\n  abcde\n" Hash(6)
+ entry 0..20
+  0..1 "a" String("a") content=0..1
+  3..20 "\"double\n  quotes\"" String("double quotes") content=[4..10,10..13=>1,13..19]
+ entry 28..43
+  28..29 "b" String("b") content=28..29
+  31..43 "plain\n value" String("plain value") content=[31..36,36..38=>1,38..43]
+ entry 52..66
+  52..53 "c" String("c") content=52..53
+  65..66 "d" String("d") content=65..66
+ entry 77..109
+  77..84 "- seq1\n" Array(1)
+    79..83 "seq1" String("seq1") content=79..83
+  94..109 "- #lala\n  seq2\n" Array(1)
+    104..108 "seq2" String("seq2") content=104..108
+ entry 109..134
+  109..110 "e" String("e") content=109..110
+  127..134 "- x: y\n" Array(1)
+    129..134 "x: y\n" Hash(1)
+     entry 129..133
+      129..130 "x" String("x") content=129..130
+      132..133 "y" String("y") content=132..133
+ entry 134..157
+  134..139 "block" String("block") content=134..139
+  152..157 "abcde" String("abcde\n") content=152..158
+
+==== Y2GN.yaml
+"---\nkey: &an:chor value\n"
+4..24 "key: &an:chor value\n" Hash(1)
+ entry 4..23
+  4..7 "key" String("key") content=4..7
+  18..23 "value" String("value") content=18..23
+
+==== Y79Y-00.fail.yaml
+"foo: |\n\t\nbar: 1\n"
+ERROR "a block scalar content cannot start with a tab" @ 5..6
+
+==== Y79Y-01.yaml
+"foo: |\n \t\nbar: 1\n"
+0..17 "foo: |\n \t\nbar: 1\n" Hash(2)
+ entry 0..8
+  0..3 "foo" String("foo") content=0..3
+  8..8 "" String("\t\n") content=8..10
+ entry 10..16
+  10..13 "bar" String("bar") content=10..13
+  15..16 "1" Integer(1) content=15..16
+
+==== Y79Y-02.yaml
+"- [\n\t\n foo\n ]\n"
+0..14 "- [\n\t\n foo\n ]\n" Array(1)
+  2..13 "[\n\t\n foo\n ]" Array(1)
+    7..10 "foo" String("foo") content=7..10
+
+==== Y79Y-03.fail.yaml
+"- [\n\tfoo,\n foo\n ]\n"
+ERROR "tabs disallowed within this context (block indentation)" @ 5..6
+
+==== Y79Y-04.fail.yaml
+"-\t-\n"
+ERROR "'-' must be followed by a valid YAML whitespace" @ 2..3
+
+==== Y79Y-05.fail.yaml
+"- \t-\n"
+ERROR "'-' must be followed by a valid YAML whitespace" @ 3..4
+
+==== Y79Y-06.fail.yaml
+"?\t-\n"
+ERROR "expected whitespace" @ 1..2
+
+==== Y79Y-07.fail.yaml
+"? -\n:\t-\n"
+ERROR "':' must be followed by a valid YAML whitespace" @ 6..7
+
+==== Y79Y-08.fail.yaml
+"?\tkey:\n"
+ERROR "expected whitespace" @ 1..2
+
+==== Y79Y-09.fail.yaml
+"? key:\n:\tkey:\n"
+ERROR "':' must be followed by a valid YAML whitespace" @ 9..10
+
+==== Y79Y-10.yaml
+"-\t-1\n"
+0..5 "-\t-1\n" Array(1)
+  2..4 "-1" Integer(-1) content=2..4
+
+==== YD5X.yaml
+"- [name        , hr, avg  ]\n- [Mark McGwire, 65, 0.278]\n- [Sammy Sosa  , 63, 0.288]\n"
+0..84 "- [name        , hr, avg  ]\n- [Mark McGwire, 65, 0.278]\n- [Sammy Sosa  , 63, 0.288]\n" Array(3)
+  2..27 "[name        , hr, avg  ]" Array(3)
+    3..7 "name" String("name") content=3..7
+    17..19 "hr" String("hr") content=17..19
+    21..24 "avg" String("avg") content=21..24
+  30..55 "[Mark McGwire, 65, 0.278]" Array(3)
+    31..43 "Mark McGwire" String("Mark McGwire") content=31..43
+    45..47 "65" Integer(65) content=45..47
+    49..54 "0.278" Real("0.278") content=49..54
+  58..83 "[Sammy Sosa  , 63, 0.288]" Array(3)
+    59..69 "Sammy Sosa" String("Sammy Sosa") content=59..69
+    73..75 "63" Integer(63) content=73..75
+    77..82 "0.288" Real("0.288") content=77..82
+
+==== YJV2.fail.yaml
+"[-]\n"
+ERROR "plain scalar cannot start with '-' followed by ,[]{}" @ 1..2
+
+==== Z67P.yaml
+"literal: |2\n  value\nfolded: !foo >1\n value\n"
+0..43 "literal: |2\n  value\nfolded: !foo >1\n value\n" Hash(2)
+ entry 0..19
+  0..7 "literal" String("literal") content=0..7
+  14..19 "value" String("value\n") content=14..20
+ entry 20..42
+  20..26 "folded" String("folded") content=20..26
+  37..42 "value" String("value\n") content=37..43 tag=foo@37..41
+
+==== Z9M4.yaml
+"%TAG !e! tag:example.com,2000:app/\n---\n- !e!foo \"bar\"\n"
+39..54 "- !e!foo \"bar\"\n" Array(1)
+  48..53 "\"bar\"" String("bar") content=49..52 tag=foo@41..47
+
+==== ZCZ6.fail.yaml
+"a: b: c: d\n"
+ERROR "mapping values are not allowed in this context" @ 4..5
+
+==== ZF4X.yaml
+"Mark McGwire: {hr: 65, avg: 0.278}\nSammy Sosa: {\n    hr: 63,\n    avg: 0.288\n  }\n"
+0..80 "Mark McGwire: {hr: 65, avg: 0.278}\nSammy Sosa: {\n    hr: 63,\n    avg: 0.288\n  }\n" Hash(2)
+ entry 0..34
+  0..12 "Mark McGwire" String("Mark McGwire") content=0..12
+  14..34 "{hr: 65, avg: 0.278}" Hash(2)
+   entry 15..21
+    15..17 "hr" String("hr") content=15..17
+    19..21 "65" Integer(65) content=19..21
+   entry 23..33
+    23..26 "avg" String("avg") content=23..26
+    28..33 "0.278" Real("0.278") content=28..33
+ entry 35..79
+  35..45 "Sammy Sosa" String("Sammy Sosa") content=35..45
+  47..79 "{\n    hr: 63,\n    avg: 0.288\n  }" Hash(2)
+   entry 53..59
+    53..55 "hr" String("hr") content=53..55
+    57..59 "63" Integer(63) content=57..59
+   entry 65..75
+    65..68 "avg" String("avg") content=65..68
+    70..75 "0.288" Real("0.288") content=70..75
+
+==== ZH7C.yaml
+"&a a: b\nc: &d d\n"
+3..16 "a: b\nc: &d d\n" Hash(2)
+ entry 3..7
+  3..4 "a" String("a") content=3..4
+  6..7 "b" String("b") content=6..7
+ entry 8..15
+  8..9 "c" String("c") content=8..9
+  14..15 "d" String("d") content=14..15
+
+==== ZK9H.yaml
+"{ key: [[[\n  value\n ]]]\n}\n"
+0..25 "{ key: [[[\n  value\n ]]]\n}" Hash(1)
+ entry 2..23
+  2..5 "key" String("key") content=2..5
+  7..23 "[[[\n  value\n ]]]" Array(1)
+    8..22 "[[\n  value\n ]]" Array(1)
+      9..21 "[\n  value\n ]" Array(1)
+        13..18 "value" String("value") content=13..18
+
+==== ZL4Z.fail.yaml
+"---\na: 'b': c\n"
+ERROR "mapping values are not allowed in this context" @ 10..11
+
+==== ZVH3.fail.yaml
+"- key: value\n - item1\n"
+ERROR "while parsing a block collection, did not find expected '-' indicator" @ 14..15
+
+==== ZWK4.yaml
+"---\na: 1\n? b\n&anchor c: 3\n"
+4..26 "a: 1\n? b\n&anchor c: 3\n" Hash(3)
+ entry 4..8
+  4..5 "a" String("a") content=4..5
+  7..8 "1" Integer(1) content=7..8
+ entry 11..13
+  11..12 "b" String("b") content=11..12
+  13..13 "" Null content=13..13
+ entry 21..25
+  21..22 "c" String("c") content=21..22
+  24..25 "3" Integer(3) content=24..25
+
+==== ZXT5.fail.yaml
+"[ \"key\"\n  :value ]\n"
+ERROR "illegal placement of ':' indicator" @ 10..11

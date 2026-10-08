@@ -3,7 +3,7 @@ resolver = "3"
 members = ["crates/*"]
 
 [workspace.package]
-version = "0.4.0"
+version = "0.5.0"
 edition = "2024"
 authors = ["Posit Software, PBC"]
 license = "MIT"
@@ -20,14 +20,18 @@ large_enum_variant = "allow"
 
 [workspace.dependencies]
 # Intra-workspace
-quarto-yaml = { version = "0.4.0", path = "crates/quarto-yaml" }
+quarto-yaml = { version = "0.5.0", path = "crates/quarto-yaml" }
 
 # Published foundation crate
 quarto-source-map = "0.3.0"
 
 # Shared third-party deps (versions pinned to match the q2 monorepo at
 # extraction time, 2026-06-29)
-yaml-rust2 = "0.11"
+# Parser (events and markers). The value type stays yaml-rust2's `Yaml` for
+# now; see claude-notes/plans/2026-10-08-saphyr-migration.md.
+saphyr-parser = "0.1"
+# Only for the `Yaml` value type; its parser is no longer used.
+yaml-rust2 = { version = "0.11", default-features = false }
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.149"
 thiserror = "2.0"

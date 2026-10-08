@@ -47,7 +47,7 @@ impl<'de> Deserialize<'de> for Schema {
 impl Schema {
     pub fn from_yaml(yaml: &YamlWithSourceInfo) -> Result<Schema, Error> {
         // Manual parsing from YamlWithSourceInfo
-        // This uses yaml-rust2 (YAML 1.2) via quarto-yaml
+        // This uses saphyr-parser (YAML 1.2) via quarto-yaml
     }
 }
 ```
