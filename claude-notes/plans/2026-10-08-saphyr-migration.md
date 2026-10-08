@@ -313,7 +313,7 @@ Golden diff (yaml-rust2 baseline → saphyr), every change classified:
 - [x] Benches: unchanged (they use `yaml_rust2::YamlLoader` as the memory baseline, which still builds without the `encoding` feature)
 - [x] Docs: README, `lib.rs`, `YAML-1.2-REQUIREMENT.md`; release notes in the PR
 - [x] Version 0.5.0
-- [ ] q2 dependent-crate tests against the branch
+- [x] q2 dependent-crate tests against the branch (2026-10-08, `~/rooms/room-5/q2` at `8ae461f1b`, `[patch.crates-io]` to the branch): 19 test binaries, 11,717 passed / 145 failed with the branch vs 11,731 / 131 unpatched. The failure sets overlap almost entirely (pandoc "current working directory no longer exists", typst, julia, engine fixtures). The 16 tests failing only with the branch all pass when re-run against the branch single-threaded, so they are the same flakiness; the 2 failing only unpatched are too. No failure is attributable to the swap. Logs in the session scratchpad; not kept.
 - [ ] PR, merge; record the release in the strands; close `qy-block-scalar-utf8-drift-7dccrmto` and `qy-ky0yjkim`
 
 ### Phase 2: end markers (not planned; decision 3 keeps today's span rules)
