@@ -2,11 +2,18 @@
 
 A YAML 1.2 parser that preserves fine-grained source locations (byte ranges) for
 every node in the parsed tree, built on top of
-[`yaml-rust2`](https://crates.io/crates/yaml-rust2) and
+[`saphyr-parser`](https://crates.io/crates/saphyr-parser) and
 [`quarto-source-map`](https://crates.io/crates/quarto-source-map).
 
-It produces `YamlWithSourceInfo`, which wraps each `yaml-rust2::Yaml` value with a
-`SourceInfo` describing exactly where it came from in the input. This enables
+It produces `YamlWithSourceInfo`, which wraps each `Yaml` value (the value type
+of [`yaml-rust2`](https://crates.io/crates/yaml-rust2), re-exported as
+`quarto_yaml::Yaml`) with a `SourceInfo` describing exactly where it came from
+in the input.
+
+Name the value type through this crate (`quarto_yaml::Yaml`,
+`quarto_yaml::yaml::{Array, Hash}`) rather than through `yaml_rust2`: the
+`yaml-rust2` dependency now supplies only that type, and a future release will
+replace it with a type defined here, keeping the `quarto_yaml` paths. This enables
 precise, source-located error reporting and lets source provenance survive
 transformations such as config merging.
 

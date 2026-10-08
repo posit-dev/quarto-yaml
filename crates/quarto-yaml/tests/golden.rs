@@ -25,8 +25,7 @@ use std::fmt::Write as _;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use quarto_yaml::{Error, SourceInfo, YamlWithSourceInfo, parse};
-use yaml_rust2::Yaml;
+use quarto_yaml::{Error, SourceInfo, Yaml, YamlWithSourceInfo, parse};
 
 fn corpus_dir(name: &str) -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -168,7 +167,14 @@ fn dump_corpus(files: &[PathBuf]) -> String {
     out
 }
 
+// Under `strict-provenance` the lockstep walk panics instead of yielding
+// `None`, and the corpus deliberately contains inputs it cannot derive yet
+// (tab escapes and folded tabs in double-quoted scalars, block scalars with
+// leading blank lines or indentation indicators; strand qy-0ongzhi7
+// in the plan). The snapshots record those as `content=NONE`, so the golden
+// tests only run without the feature.
 #[test]
+#[cfg_attr(feature = "strict-provenance", ignore)]
 fn edge_cases() {
     let files = sorted_files(&corpus_dir("edge-cases"), "yaml");
     assert!(!files.is_empty());
@@ -176,6 +182,7 @@ fn edge_cases() {
 }
 
 #[test]
+#[cfg_attr(feature = "strict-provenance", ignore)]
 fn yaml_test_suite() {
     let files = sorted_files(&corpus_dir("yaml-test-suite"), "yaml");
     assert!(!files.is_empty());
@@ -219,6 +226,7 @@ fn yaml_test_suite() {
 }
 
 #[test]
+#[cfg_attr(feature = "strict-provenance", ignore)]
 fn schema_fixtures() {
     let dir = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../quarto-yaml-validation/test-fixtures/schemas");

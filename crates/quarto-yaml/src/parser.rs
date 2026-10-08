@@ -2,10 +2,12 @@
 
 use crate::{Error, Result, SourceInfo, YamlHashEntry, YamlWithSourceInfo};
 use quarto_source_map::ProvenanceBuilder;
+use saphyr_parser::{
+    Event, Marker, Parser, ScalarStyle, ScanError, Span, SpannedEventReceiver, Tag,
+};
+use std::borrow::Cow;
 use std::cell::Cell;
 use yaml_rust2::Yaml;
-use yaml_rust2::parser::{Event, MarkedEventReceiver, Parser, Tag};
-use yaml_rust2::scanner::{Marker, ScanError, TScalarStyle};
 
 /// The handle of the standard YAML tags, written `!!str`, `!!int`, … in source.
 const STANDARD_TAG_HANDLE: &str = "tag:yaml.org,2002:";
@@ -201,7 +203,7 @@ fn create_contiguous_span(start_info: &SourceInfo, end_info: &SourceInfo) -> Sou
     }
 }
 
-/// Builder that implements MarkedEventReceiver to construct YamlWithSourceInfo.
+/// Builder that implements `SpannedEventReceiver` to construct `YamlWithSourceInfo`.
 struct YamlBuilder<'a> {
     /// The source text being parsed
     source: &'a str,
@@ -298,6 +300,40 @@ impl<'a> YamlBuilder<'a> {
         offset
     }
 
+    /// Byte offset where a scalar's span starts.
+    ///
+    /// Normally the marker's position. A missing value in a block mapping
+    /// (`key:` with nothing after it) arrives as an empty plain scalar whose
+    /// marker sits on the `:` indicator; its span is placed just after the
+    /// colon, where the value would have been, so `entry_span` covers
+    /// `key:` and a diagnostic can point at the gap. (yaml-rust2 put that
+    /// marker on the *next* token instead, so the span landed on the next
+    /// key or at the end of the input.)
+    fn scalar_start(&self, marker: &Marker, value: &str, style: ScalarStyle) -> usize {
+        let start = self.byte_offset(marker);
+        if value.is_empty()
+            && style == ScalarStyle::Plain
+            && self.expecting_value()
+            && self.source.as_bytes().get(start) == Some(&b':')
+        {
+            start + 1
+        } else {
+            start
+        }
+    }
+
+    /// Whether the next completed node fills the value slot of the
+    /// innermost mapping (as opposed to being a key, or a sequence item).
+    /// An empty *key* (`: a`) also has its marker on the `:`, but it sits
+    /// before the colon, so only values are moved past it.
+    fn expecting_value(&self) -> bool {
+        matches!(
+            self.stack.last(),
+            Some(BuildNode::Mapping { entries, .. })
+                if entries.last().is_some_and(|(_, value)| value.is_none())
+        )
+    }
+
     fn collection_end(&self, end_marker: &Marker, close: u8) -> usize {
         let end = self.byte_offset(end_marker);
         if self.source.as_bytes().get(end) == Some(&close) {
@@ -315,7 +351,7 @@ impl<'a> YamlBuilder<'a> {
         })
     }
 
-    /// Convert a yaml-rust2 error into an [`Error`] located in the source.
+    /// Convert a parser error into an [`Error`] located in the source.
     ///
     /// The location spans the character at the marker, or is zero-width
     /// when the marker sits at the end of the source. The message omits
@@ -407,39 +443,45 @@ impl<'a> YamlBuilder<'a> {
     ///
     /// Content provenance is a second, independent derivation over the same
     /// marker: `quarto-yaml` does not re-implement YAML scalar decoding, so
-    /// it walks `value` (already decoded by yaml-rust2) lockstep against the
+    /// it walks `value` (already decoded by the parser) lockstep against the
     /// raw source, taking segmentation from the grammar and content lengths
     /// from `value`. See § How the pieces are derived in
     /// `claude-notes/plans/2026-08-20-provenance-1-foundations.md` (q2 repo)
     /// for the four rules and the header-skip rule this implements.
     fn compute_scalar_provenance(
         &self,
-        marker: &Marker,
+        start: usize,
+        col: usize,
+        empty_span: bool,
         value: &str,
-        style: TScalarStyle,
+        style: ScalarStyle,
     ) -> (usize, Option<SourceInfo>) {
-        let start = self.byte_offset(marker);
         let Some(rest) = self.source.get(start..) else {
             return (0, None);
         };
 
         let len = match style {
-            TScalarStyle::Plain => plain_scalar_len(rest, value),
-            TScalarStyle::SingleQuoted => quoted_scalar_len(rest, b'\'').unwrap_or(value.len()),
-            TScalarStyle::DoubleQuoted => quoted_scalar_len(rest, b'"').unwrap_or(value.len()),
+            ScalarStyle::Plain => plain_scalar_len(rest, value),
+            ScalarStyle::SingleQuoted => quoted_scalar_len(rest, b'\'').unwrap_or(value.len()),
+            ScalarStyle::DoubleQuoted => quoted_scalar_len(rest, b'"').unwrap_or(value.len()),
+            // A block scalar with no content lines (`a: |` followed by the
+            // next key) has its marker on that next token; the parser's
+            // span is empty there, and measuring from the marker would
+            // claim the next entry's text as this scalar's span.
+            ScalarStyle::Literal | ScalarStyle::Folded if empty_span => 0,
             // For block scalars the marker points at the first content
             // character, so the `|`/`>` header is not covered by the span.
-            TScalarStyle::Literal | TScalarStyle::Folded => block_scalar_len(rest, marker.col()),
+            ScalarStyle::Literal | ScalarStyle::Folded => block_scalar_len(rest, col),
         };
         let len = len.min(rest.len());
 
         // --- content provenance -------------------------------------------
 
         let (esc, block, quoted) = match style {
-            TScalarStyle::Plain => (None, false, false),
-            TScalarStyle::SingleQuoted => (Some(b'\''), false, true),
-            TScalarStyle::DoubleQuoted => (Some(b'\\'), false, true),
-            TScalarStyle::Literal | TScalarStyle::Folded => (None, true, false),
+            ScalarStyle::Plain => (None, false, false),
+            ScalarStyle::SingleQuoted => (Some(b'\''), false, true),
+            ScalarStyle::DoubleQuoted => (Some(b'\\'), false, true),
+            ScalarStyle::Literal | ScalarStyle::Folded => (None, true, false),
         };
 
         // Where the walk starts (`raw`'s first byte). Quoted scalars skip
@@ -466,7 +508,7 @@ impl<'a> YamlBuilder<'a> {
         // whitespace per continuation line; flow styles fold away all
         // line-leading whitespace, so they pass 0 (nothing to preserve, no
         // rewind to perform).
-        let indent = if block { marker.col() } else { 0 };
+        let indent = if block { col } else { 0 };
 
         // Rule 1's entry condition is style-conditional too, for the same
         // underlying reason as `indent`: flow scalars strip trailing
@@ -530,7 +572,7 @@ impl<'a> YamlBuilder<'a> {
     /// Find the source extent of the tag preceding a node that starts at
     /// `node_start`.
     ///
-    /// When yaml-rust2 emits a tagged event, its marker points to the start of
+    /// When the parser emits a tagged event, its marker points to the start of
     /// the NODE (a scalar's value, a flow collection's `[`/`{`, a block
     /// sequence's first `-`), not the tag, and the tag's source spelling is
     /// not recoverable from the parsed `Tag` (`!!str`, `!str` and
@@ -613,32 +655,44 @@ impl<'a> YamlBuilder<'a> {
     }
 }
 
-impl<'a> MarkedEventReceiver for YamlBuilder<'a> {
-    fn on_event(&mut self, ev: Event, marker: Marker) {
+impl<'a> SpannedEventReceiver<'a> for YamlBuilder<'a> {
+    fn on_event(&mut self, ev: Event<'a>, span: Span) {
+        // Spans are measured against the source text by style (see
+        // `compute_scalar_provenance`), so only the start marker is used,
+        // plus whether the span is empty. Using `span.end` as the length
+        // would change block-scalar spans (final newline, `|+` blank lines);
+        // see claude-notes/plans/2026-10-08-saphyr-migration.md, decision 3.
+        let marker = span.start;
         match ev {
             Event::Nothing => {}
 
             Event::StreamStart => {}
             Event::StreamEnd => {}
-            Event::DocumentStart => {}
+            Event::DocumentStart(_) => {}
             Event::DocumentEnd => {}
 
             Event::Scalar(value, style, _anchor_id, tag) => {
+                let value: &str = &value;
+                let tag = tag.as_deref();
+                let start = self.scalar_start(&marker, value, style);
+
                 // Capture tag information if present. The marker points to the
                 // start of the VALUE, not the tag; make_tag_info searches
                 // backward from there.
-                let tag_info = tag
-                    .as_ref()
-                    .map(|t| self.make_tag_info(t, self.byte_offset(&marker)));
+                let tag_info = tag.map(|t| self.make_tag_info(t, start));
 
                 // Compute source info for the value itself, and the
                 // provenance of its decoded content (the lockstep walk).
-                // The marker points to the start of the value.
-                let (len, content_provenance) =
-                    self.compute_scalar_provenance(&marker, &value, style);
-                let source_info = self.make_source_info(&marker, len);
+                let (len, content_provenance) = self.compute_scalar_provenance(
+                    start,
+                    marker.col(),
+                    span.is_empty(),
+                    value,
+                    style,
+                );
+                let source_info = self.make_source_info_at_offset(start, len);
 
-                // Content-provenance invariants. Both need yaml-rust2's
+                // Content-provenance invariants. Both need the parser's
                 // decoded `value: String` — `YamlWithSourceInfo::new_scalar`
                 // only ever sees the resolved `Yaml` and cannot check
                 // either — so they live here, at the point of derivation,
@@ -677,15 +731,14 @@ impl<'a> MarkedEventReceiver for YamlBuilder<'a> {
                 if content_provenance.is_none() {
                     panic!(
                         "content-provenance desync: derivation ran for this scalar but \
-                         produced no provenance (source cursor: byte offset {} in source; \
-                         value cursor: {value:?}, {} bytes)",
-                        self.byte_offset(&marker),
+                         produced no provenance (source cursor: byte offset {start} in \
+                         source; value cursor: {value:?}, {} bytes)",
                         value.len(),
                     );
                 }
 
                 // Create the Yaml value
-                let yaml = resolve_scalar(&value, style, tag.as_ref());
+                let yaml = resolve_scalar(value, style, tag);
                 let mut node = YamlWithSourceInfo::new_scalar_with_tag(yaml, source_info, tag_info);
                 if let Some(si) = content_provenance {
                     node = node.with_content_provenance(si);
@@ -697,7 +750,7 @@ impl<'a> MarkedEventReceiver for YamlBuilder<'a> {
             Event::SequenceStart(_anchor_id, tag) => {
                 self.stack.push(BuildNode::Sequence {
                     start_offset: self.byte_offset(&marker),
-                    tag,
+                    tag: tag.map(Cow::into_owned),
                     items: Vec::new(),
                 });
             }
@@ -735,7 +788,7 @@ impl<'a> MarkedEventReceiver for YamlBuilder<'a> {
             Event::MappingStart(_anchor_id, tag) => {
                 self.stack.push(BuildNode::Mapping {
                     start_offset: self.byte_offset(&marker),
-                    tag,
+                    tag: tag.map(Cow::into_owned),
                     entries: Vec::new(),
                 });
             }
@@ -843,12 +896,12 @@ impl<'a> MarkedEventReceiver for YamlBuilder<'a> {
 /// Application-specific tags (`!expr`, `!path`, …) do not affect resolution.
 /// Every tag, standard or not, is reported in [`YamlWithSourceInfo::tag`] with
 /// its own span, for consumers to interpret.
-fn resolve_scalar(value: &str, style: TScalarStyle, tag: Option<&Tag>) -> Yaml {
+fn resolve_scalar(value: &str, style: ScalarStyle, tag: Option<&Tag>) -> Yaml {
     if let Some(suffix) = tag.and_then(standard_tag_suffix) {
         return resolve_tagged_scalar(value, suffix);
     }
 
-    if style != TScalarStyle::Plain {
+    if style != ScalarStyle::Plain {
         return Yaml::String(value.to_string());
     }
 
@@ -965,7 +1018,7 @@ fn resolve_plain_scalar(value: &str) -> Yaml {
 /// Length in bytes of a quoted scalar in the source, quotes included.
 ///
 /// `rest` must start at the opening quote. Returns `None` if it doesn't, or if
-/// the closing quote is missing (which yaml-rust2 would have rejected already).
+/// the closing quote is missing (which the parser would have rejected already).
 fn quoted_scalar_len(rest: &str, quote: u8) -> Option<usize> {
     let bytes = rest.as_bytes();
     if bytes.first() != Some(&quote) {
@@ -1065,7 +1118,7 @@ fn block_scalar_len(rest: &str, indent: usize) -> usize {
     end
 }
 
-/// Walk `value` (already decoded by yaml-rust2) lockstep against `raw` (the
+/// Walk `value` (already decoded by the parser) lockstep against `raw` (the
 /// source text starting at the scalar's walk-start offset), feeding
 /// `builder` the pieces that tile `value` against the source bytes it came
 /// from. Returns `Err` on desync.
@@ -2641,6 +2694,133 @@ file: !path ./data.csv
                 );
             }
         }
+    }
+
+    #[test]
+    fn test_spans_after_block_scalars_with_multibyte_content() {
+        // yaml-rust2 advanced its marker by bytes instead of chars for the
+        // part of a block-scalar line past its lookahead buffer, so every
+        // span after a non-ASCII `|`/`>` scalar drifted (strand
+        // qy-block-scalar-utf8-drift-7dccrmto). saphyr-parser counts chars.
+        for header in [">", "|"] {
+            let source = format!("status: {header}\n  v2 — x\nbeads: y\n");
+            let parsed = parse(&source).unwrap();
+            let entries = parsed.as_hash().unwrap();
+            assert_eq!(span_text(&source, &entries[0].value), "v2 — x");
+            assert_eq!(
+                entries[0].value.content_source_info().map(|si| si.length()),
+                Some("v2 — x\n".len()),
+                "content provenance of the block scalar ({header})"
+            );
+            let beads = &entries[1];
+            assert_eq!(
+                span_text(&source, &beads.key),
+                "beads",
+                "key after {header}"
+            );
+            assert_eq!(
+                span_text(&source, &beads.value),
+                "y",
+                "value after {header}"
+            );
+            assert!(
+                beads.key.content_source_info().is_some()
+                    && beads.value.content_source_info().is_some(),
+                "content provenance after {header}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_spans_after_two_block_scalars_with_multibyte_content() {
+        // The drift accumulated across block scalars; two in a row cover that.
+        let source = "a: |\n  é—ü\n  second\nb: |\n  ✓✓\nc: y\n";
+        let parsed = parse(source).unwrap();
+        let entries = parsed.as_hash().unwrap();
+        assert_eq!(span_text(source, &entries[0].value), "é—ü\n  second");
+        assert_eq!(span_text(source, &entries[1].key), "b");
+        assert_eq!(span_text(source, &entries[1].value), "✓✓");
+        assert_eq!(span_text(source, &entries[2].key), "c");
+        assert_eq!(span_text(source, &entries[2].value), "y");
+        assert!(entries[2].value.content_source_info().is_some());
+    }
+
+    #[test]
+    fn test_empty_block_scalar_followed_by_a_key_has_an_empty_span() {
+        // Strand qy-ky0yjkim: the marker of a block scalar with no content
+        // lines sits on the next token, and the span used to swallow it.
+        for source in ["a: |\nb: y\n", "a: >\n  \nb: 1\n", "k:\n  a: |\nj: 1\n"] {
+            let parsed = parse(source).unwrap();
+            let entries = parsed.as_hash().unwrap();
+            let hash = if entries[0].value.is_hash() {
+                entries[0].value.as_hash().unwrap()
+            } else {
+                entries
+            };
+            let value = &hash[0].value;
+            assert_eq!(value.yaml.as_str(), Some(""), "{source:?}");
+            assert_eq!(span_text(source, value), "", "{source:?}");
+            assert_eq!(
+                value.content_source_info().map(|si| si.length()),
+                Some(0),
+                "{source:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_missing_value_sits_just_after_the_colon() {
+        let source = "a:\nb: 1\n";
+        let parsed = parse(source).unwrap();
+        let entries = parsed.as_hash().unwrap();
+        let a = &entries[0];
+        assert_eq!(a.value.yaml, Yaml::Null);
+        assert_eq!(
+            (
+                a.value.source_info.start_offset(),
+                a.value.source_info.end_offset()
+            ),
+            (2, 2)
+        );
+        assert_eq!(
+            &source[a.entry_span.start_offset()..a.entry_span.end_offset()],
+            "a:"
+        );
+
+        // At the end of the input, too.
+        let source = "a:";
+        let parsed = parse(source).unwrap();
+        let a = &parsed.as_hash().unwrap()[0];
+        assert_eq!(a.value.source_info.start_offset(), 2);
+        assert_eq!(a.value.source_info.end_offset(), 2);
+    }
+
+    #[test]
+    fn test_empty_key_stays_before_the_colon() {
+        // `: v` has an empty key whose marker is also the `:`, but a key
+        // sits before its colon, so it must not move past it. A tag on it
+        // is still found by the backward search from the key.
+        let source = ": v\n!!null : w\n";
+        let parsed = parse(source).unwrap();
+        let entries = parsed.as_hash().unwrap();
+        assert_eq!(entries[0].key.source_info.start_offset(), 0);
+        assert_eq!(span_text(source, &entries[0].value), "v");
+        assert_eq!(entries[1].key.source_info.start_offset(), 11);
+        assert_tag(source, &entries[1].key, "null", "!!null");
+        assert_eq!(span_text(source, &entries[1].value), "w");
+    }
+
+    #[test]
+    fn test_missing_item_in_block_sequence() {
+        let source = "d:\n  - \n  - x\n";
+        let parsed = parse(source).unwrap();
+        let items = parsed.get_hash_value("d").unwrap();
+        let items = items.as_array().unwrap();
+        assert_eq!(items[0].yaml, Yaml::Null);
+        // Zero-width at the end of the `- ` line, where the item would be.
+        assert_eq!(items[0].source_info.start_offset(), 7);
+        assert_eq!(items[0].source_info.end_offset(), 7);
+        assert_eq!(span_text(source, &items[1]), "x");
     }
 
     #[test]

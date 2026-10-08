@@ -251,27 +251,45 @@ phase is where the golden diff earns its keep.
 Option 2 above, once q2 imports `quarto_yaml::Yaml`. Removes the last
 yaml-rust2 dependency and the hashlink coupling.
 
-## Decisions needed
+## Decisions (2026-10-08, Carlos)
 
-1. Value type: option 1 (keep `yaml_rust2::Yaml`, add the re-export) for
-   the swap? Phase 3 as a separate strand?
-2. Empty missing value span. Options: zero-width at the `:` (saphyr's
-   marker, so `entry_span` for `a:\n` becomes `"a"`); zero-width just
-   after the `:` (`entry_span` = `"a:"`, my preference); keep today's
-   zero-width at the next token (requires looking ahead, which the event
-   stream does not give us, so effectively not available).
-3. Phase 2 block-scalar span rule: include the final newline (what saphyr
-   reports) or keep today's "through the last content char"? Consumers
-   underline these spans; the newline is invisible either way, but
-   `|+` blank lines are not.
-4. Whether to also pin `saphyr-parser` by exact version at first, given
-   0.x semver and the project's stated API churn. I suggest `"0.1"` with
-   `Cargo.lock` doing the pinning, as for other deps.
-5. Where the golden corpus and dumper live: `crates/quarto-yaml/tests/`
-   with insta snapshots (my preference), or the investigation directory.
-6. Whether I may run the corpus against q2 fixtures: q2 is not checked out
-   on this machine, so its `yaml_rust2::Yaml` usage and any
-   location-sensitive tests are unmeasured.
+1. Value type: option 1 (keep `yaml_rust2::Yaml`, re-export it as
+   `quarto_yaml::Yaml`), with README and rustdoc text steering consumers to
+   the `quarto_yaml` paths. Phase 3 is the follow-up strand `qy-0qodo40x`.
+2. Empty missing value span: zero-width just after the `:`
+   (`YamlBuilder::scalar_start`; only for values, an empty *key* stays on
+   its colon so tag lookup keeps working).
+3. Block-scalar span rule: keep today's "through the last content char".
+   Phase 2 is therefore not planned; `span.end` is used only to detect the
+   empty block scalar (`qy-ky0yjkim`).
+4. `saphyr-parser = "0.1"`, patch version pinned by `Cargo.lock`; periodic
+   monitoring is the chore strand `qy-hpp43tsj`.
+5. Golden corpus and dumper live in `crates/quarto-yaml/tests/`.
+6. q2 is at `~/rooms/room-5/q2`; its dependent crates' tests are run
+   against the branch with a `[patch.crates-io]` (results in the PR).
+
+## Phase 1 outcome
+
+Golden diff (yaml-rust2 baseline → saphyr), every change classified:
+
+- Fix: spans and content provenance after non-ASCII block scalars. In
+  `definitions.yml` the baseline had 3,687 scalars with `content=NONE`
+  (a curly apostrophe in a block scalar near byte 17k shifted everything
+  after it); now 0.
+- Fix: empty block scalar no longer spans the next entry (`qy-ky0yjkim`).
+- Fix: flow-pair mappings inside flow sequences (`[ {a: b}:c ]`) no longer
+  extend to the closing `]`.
+- Change (decision 2): missing values sit just after the `:`, or at the end
+  of a `- ` line; `entry_span` of `a:` is `"a:"` instead of `"a:\n"`.
+- Change: "did not find expected key" on bad indentation points at the
+  start of the under-indented key, not at its colon.
+- Change: yaml-test-suite cases 4H7K (extra `]`) and BS4K (comment
+  intercepting a multi-line plain scalar) are now rejected, as the suite
+  requires; two messages on already-rejected inputs changed. Disagreements
+  with the suite went from 9 to 7; no new ones.
+- Pre-existing, unchanged: 15 inputs the provenance walk cannot derive
+  (`qy-0ongzhi7`); the golden tests are ignored under `strict-provenance`
+  because of them.
 
 ## Checklist
 
@@ -283,25 +301,24 @@ yaml-rust2 dependency and the hashlink coupling.
 
 ### Phase 1: swap
 - [x] File the confirmed discovered bug (`qy-ky0yjkim`, empty block scalar spans the next entry)
-- [ ] Check the two unconfirmed observations (`|+` span vs provenance; `a: |\n\n` provenance) under `strict-provenance` and file them if real
-- [ ] Add `saphyr-parser` to the workspace deps; set `yaml-rust2` to `default-features = false`
-- [ ] Port `YamlBuilder` to `SpannedEventReceiver`
-- [ ] Re-export `Yaml`, `Array`, `Hash` from `quarto_yaml`
-- [ ] Decide and implement the empty-value span rule
-- [ ] Short-circuit `block_scalar_len` on zero-length spans
-- [ ] Tests from the related strand (`>`/`|` with non-ASCII, two in a row) and for the empty-value rule
-- [ ] Run the golden diff; classify every change in the PR; update snapshots
-- [ ] `cargo test --workspace`, with and without `strict-provenance`; clippy; fmt
-- [ ] Benches: switch the baseline or keep yaml-rust2 as a dev-dependency; run `scaling_overhead` before/after
-- [ ] Docs: README, `lib.rs`, `YAML-1.2-REQUIREMENT.md`, release notes
-- [ ] Version 0.5.0, PR, merge; record the release in the strands; close `qy-block-scalar-utf8-drift-7dccrmto`
+- [x] The `strict-provenance` golden run surfaced the real desyncs: filed as `qy-0ongzhi7`. (`|+` span vs provenance is by design under decision 3; `a: |\n\n` does not desync.)
+- [x] Add `saphyr-parser` to the workspace deps; set `yaml-rust2` to `default-features = false`
+- [x] Port `YamlBuilder` to `SpannedEventReceiver`
+- [x] Re-export `Yaml`, `Array`, `Hash` from `quarto_yaml`
+- [x] Decide and implement the empty-value span rule
+- [x] Short-circuit `block_scalar_len` on zero-length spans
+- [x] Tests from the related strand (`>`/`|` with non-ASCII, two in a row) and for the empty-value rule
+- [x] Run the golden diff; classify every change (above and in the PR); update snapshots
+- [x] `cargo test --workspace`, with and without `strict-provenance`; clippy; fmt
+- [x] Benches: unchanged (they use `yaml_rust2::YamlLoader` as the memory baseline, which still builds without the `encoding` feature)
+- [x] Docs: README, `lib.rs`, `YAML-1.2-REQUIREMENT.md`; release notes in the PR
+- [x] Version 0.5.0
+- [ ] q2 dependent-crate tests against the branch
+- [ ] PR, merge; record the release in the strands; close `qy-block-scalar-utf8-drift-7dccrmto` and `qy-ky0yjkim`
 
-### Phase 2: end markers
-- [ ] Use `span.end` for scalar and collection lengths; keep the old functions as `strict-provenance` cross-checks
-- [ ] Decide block-scalar and alias span rules; update tests and snapshots
-- [ ] Version 0.6.0, PR, merge
+### Phase 2: end markers (not planned; decision 3 keeps today's span rules)
 
-### Phase 3: own `Yaml` type (separate strand, after q2 moves to the re-export)
+### Phase 3: own `Yaml` type (strand `qy-0qodo40x`, after q2 moves to the re-export)
 - [ ] Define `quarto_yaml::Yaml` with yaml-rust2's shape and accessors
 - [ ] Port quarto-yaml-validation
 - [ ] Drop yaml-rust2

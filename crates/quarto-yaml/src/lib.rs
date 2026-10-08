@@ -2,9 +2,11 @@
 //!
 //! YAML parsing with source location tracking.
 //!
-//! This crate provides `YamlWithSourceInfo`, which wraps `yaml-rust2::Yaml` with
-//! source location information for every node in the YAML tree. This enables
-//! precise error reporting and source tracking through transformations.
+//! This crate provides `YamlWithSourceInfo`, which wraps a [`Yaml`] value
+//! (yaml-rust2's value type) with source location information for every node
+//! in the YAML tree. This enables precise error reporting and source tracking
+//! through transformations. Parsing is done with `saphyr-parser`; the
+//! `yaml-rust2` dependency supplies only the value type.
 //!
 //! ## Design
 //!
@@ -42,3 +44,16 @@ pub use error::{Error, Result};
 pub use parser::{file_id_for_filename, parse, parse_file, parse_with_parent};
 pub use quarto_source_map::SourceInfo; // Re-export from quarto-source-map
 pub use yaml_with_source_info::{YamlHashEntry, YamlWithSourceInfo};
+
+/// The value type held in [`YamlWithSourceInfo::yaml`].
+///
+/// Currently `yaml_rust2::Yaml`, re-exported so consumers can name it
+/// without depending on `yaml-rust2` themselves. Prefer these paths: a
+/// future release will replace the re-export with a type defined in this
+/// crate, and code that names `yaml_rust2` directly will have to change then.
+pub use yaml_rust2::Yaml;
+
+/// [`Yaml`] together with its collection types (`Array`, `Hash`).
+pub mod yaml {
+    pub use yaml_rust2::yaml::{Array, Hash, Yaml};
+}

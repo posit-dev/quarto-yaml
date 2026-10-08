@@ -8,9 +8,9 @@ expression: dump_corpus(&files)
  entry 0..20
   0..6 "status" String("status") content=0..6
   12..20 "v2 — x" String("v2 — x\n") content=12..21
- entry 23..30
-  23..28 "ads: " String("beads") content=NONE
-  30..30 "" String("y") content=NONE
+ entry 21..29
+  21..26 "beads" String("beads") content=21..26
+  28..29 "y" String("y") content=28..29
 
 ==== 01-literal-with-em-dash-two-in-a-row.yaml
 "a: |\n  é—ü\n  second\nb: |\n  ✓✓\nc: y\n"
@@ -18,12 +18,12 @@ expression: dump_corpus(&files)
  entry 0..23
   0..1 "a" String("a") content=0..1
   7..23 "é—ü\n  second" String("é—ü\nsecond\n") content=[7..14,14..17=>1,17..24]
- entry 27..42
-  27..28 "|" String("b") content=NONE
-  38..42 "c: y" String("✓✓\n") content=NONE
- entry 41..43
-  41..42 "y" String("c") content=NONE
-  43..43 "" String("y") content=NONE
+ entry 24..37
+  24..25 "b" String("b") content=24..25
+  31..37 "✓✓" String("✓✓\n") content=31..38
+ entry 38..42
+  38..39 "c" String("c") content=38..39
+  41..42 "y" String("y") content=41..42
 
 ==== 02-literal-long-non-ascii-line-16-chars.yaml
 "a: |\n  éééééééééééééééééééééééééééééééééééééééé\nb: y\n"
@@ -31,9 +31,9 @@ expression: dump_corpus(&files)
  entry 0..87
   0..1 "a" String("a") content=0..1
   7..87 "éééééééééééééééééééééééééééééééééééééééé" String("éééééééééééééééééééééééééééééééééééééééé\n") content=7..88
- entry 93..93
-  93..93 "" String("b") content=NONE
-  93..93 "" String("y") content=NONE
+ entry 88..92
+  88..89 "b" String("b") content=88..89
+  91..92 "y" String("y") content=91..92
 
 ==== 03-plain-non-ascii-then-key.yaml
 "a: héllo ✓\nb: y\n"
@@ -136,9 +136,9 @@ expression: dump_corpus(&files)
 ==== 11-empty-values.yaml
 "a:\nb: ~\nc: ''\nd:\n  - \n  - x\n"
 0..28 "a:\nb: ~\nc: ''\nd:\n  - \n  - x\n" Hash(4)
- entry 0..3
+ entry 0..2
   0..1 "a" String("a") content=0..1
-  3..3 "" Null content=3..3
+  2..2 "" Null content=2..2
  entry 3..7
   3..4 "b" String("b") content=3..4
   6..7 "~" Null content=6..7
@@ -148,7 +148,7 @@ expression: dump_corpus(&files)
  entry 14..28
   14..15 "d" String("d") content=14..15
   19..28 "- \n  - x\n" Array(2)
-    26..26 "" Null content=26..26
+    21..21 "" Null content=21..21
     26..27 "x" String("x") content=26..27
 
 ==== 12-tags-and-anchors.yaml
@@ -236,9 +236,9 @@ expression: dump_corpus(&files)
 ==== 19-empty-block-scalar.yaml
 "a: |\nb: y\n"
 0..10 "a: |\nb: y\n" Hash(2)
- entry 0..9
+ entry 0..5
   0..1 "a" String("a") content=0..1
-  5..9 "b: y" String("") content=5..5
+  5..5 "" String("") content=5..5
  entry 5..9
   5..6 "b" String("b") content=5..6
   8..9 "y" String("y") content=8..9
@@ -304,7 +304,7 @@ ERROR "while parsing a flow sequence, expected ',' or ']'" @ 22..22
 
 ==== 29-err-bad-indentation.yaml
 "a:\n  b: 1\n c: 2\n"
-ERROR "while parsing a block mapping, did not find expected key" @ 12..13
+ERROR "while parsing a block mapping, did not find expected key" @ 11..12
 
 ==== 30-err-unknown-anchor.yaml
 "a: *nope\n"
@@ -346,9 +346,9 @@ ERROR "invalid indentation in quoted scalar" @ 3..4
 ==== 37-blank-only-folded-then-key.yaml
 "a: >\n  \nb: 1\n"
 0..13 "a: >\n  \nb: 1\n" Hash(2)
- entry 0..12
+ entry 0..8
   0..1 "a" String("a") content=0..1
-  8..12 "b: 1" String("") content=8..8
+  8..8 "" String("") content=8..8
  entry 8..12
   8..9 "b" String("b") content=8..9
   11..12 "1" Integer(1) content=11..12
@@ -359,9 +359,9 @@ ERROR "invalid indentation in quoted scalar" @ 3..4
  entry 0..10
   0..1 "k" String("k") content=0..1
   5..10 "a: |\n" Hash(1)
-   entry 5..14
+   entry 5..10
     5..6 "a" String("a") content=5..6
-    10..14 "j: 1" String("") content=10..10
+    10..10 "" String("") content=10..10
  entry 10..14
   10..11 "j" String("j") content=10..11
   13..14 "1" Integer(1) content=13..14
@@ -376,9 +376,9 @@ ERROR "invalid indentation in quoted scalar" @ 3..4
 ==== 40-empty-value-mid-map-then-nested.yaml
 "a:\nb:\n  c: 1\n"
 0..13 "a:\nb:\n  c: 1\n" Hash(2)
- entry 0..3
+ entry 0..2
   0..1 "a" String("a") content=0..1
-  3..3 "" Null content=3..3
+  2..2 "" Null content=2..2
  entry 3..13
   3..4 "b" String("b") content=3..4
   8..13 "c: 1\n" Hash(1)

@@ -2,13 +2,11 @@
 source: crates/quarto-yaml/tests/golden.rs
 expression: out
 ---
-cases: 402  parsed: 307  rejected: 95  panicked: 0
-disagreements with the suite (9):
-  4H7K.fail.yaml: accepted (suite says it must fail)
+cases: 402  parsed: 305  rejected: 97  panicked: 0
+disagreements with the suite (7):
   8G76.yaml: rejected
   98YD.yaml: rejected
   AVM7.yaml: rejected
-  BS4K.fail.yaml: accepted (suite says it must fail)
   HWV9.yaml: rejected
   KS4U.fail.yaml: accepted (suite says it must fail)
   QLJ7.fail.yaml: accepted (suite says it must fail)
@@ -265,9 +263,9 @@ ERROR "invalid content after document end marker" @ 19..20
  entry 25..39
   25..39 "http://foo.com" String("http://foo.com") content=25..39
   39..39 "" Null content=39..39
- entry 41..54
+ entry 41..55
   41..54 "omitted value" String("omitted value") content=41..54
-  54..54 "" Null content=54..54
+  55..55 "" Null content=55..55
 
 ==== 4CQQ.yaml
 "plain:\n  This unquoted scalar\n  spans many lines.\n\nquoted: \"So does this\n  quoted scalar.\\n\"\n"
@@ -307,10 +305,7 @@ ERROR "tabs disallowed within this context (block indentation)" @ 8..9
 
 ==== 4H7K.fail.yaml
 "---\n[ a, b, c ] ]\n"
-4..15 "[ a, b, c ]" Array(3)
-  6..7 "a" String("a") content=6..7
-  9..10 "b" String("b") content=9..10
-  12..13 "c" String("c") content=12..13
+ERROR "misplaced bracket" @ 16..17
 
 ==== 4HVU.fail.yaml
 "key:\n   - ok\n   - also ok\n  - wrong\n"
@@ -840,9 +835,9 @@ ERROR "simple key expect ':'" @ 24..24
  entry 6..8
   6..7 "b" String("b") content=6..7
   8..8 "" Null content=8..8
- entry 8..11
+ entry 8..10
   8..9 "c" String("c") content=8..9
-  11..11 "" Null content=11..11
+  10..10 "" Null content=10..10
 
 ==== 7Z25.yaml
 "---\nscalar1\n...\nkey: value\n"
@@ -1090,7 +1085,7 @@ ERROR "did not find expected <document start>" @ 10..10
       26..37 "\"JSON like\"" String("JSON like") content=27..36
       38..46 "adjacent" String("adjacent") content=38..46
   51..76 "[ {JSON: like}:adjacent ]" Array(1)
-    53..77 "{JSON: like}:adjacent ]\n" Hash(1)
+    53..74 "{JSON: like}:adjacent" Hash(1)
      entry 53..74
       53..65 "{JSON: like}" Hash(1)
        entry 54..64
@@ -1250,11 +1245,11 @@ ERROR "while parsing a block collection, did not find expected '-' indicator" @ 
 
 ==== BF9H.fail.yaml
 "---\nplain: a\n       b # end of scalar\n       c\n"
-ERROR "while parsing a block mapping, did not find expected key" @ 45..46
+ERROR "comment intercepting the multiline text" @ 22..23
 
 ==== BS4K.fail.yaml
 "word1  # comment\nword2\n"
-0..5 "word1" String("word1") content=0..5
+ERROR "comment intercepting the multiline text" @ 7..8
 
 ==== BU8L.yaml
 "key: &anchor\n !!map\n  a: b\n"
@@ -1275,9 +1270,9 @@ ERROR "while parsing a block mapping, did not find expected key" @ 45..46
  entry 20..37
   20..30 "\"readable\"" String("readable") content=21..29
   32..37 "value" String("value") content=32..37
- entry 39..46
+ entry 39..47
   39..46 "\"empty\"" String("empty") content=40..45
-  46..46 "" Null content=46..46
+  47..47 "" Null content=47..47
 
 ==== C2SP.fail.yaml
 "[23\n]: 42\n"
@@ -1379,7 +1374,7 @@ ERROR "while scanning a quoted scalar, found unexpected end of stream" @ 9..10
 ==== CT4Q.yaml
 "[\n? foo\n bar : baz\n]\n"
 0..20 "[\n? foo\n bar : baz\n]" Array(1)
-  4..20 "foo\n bar : baz\n]" Hash(1)
+  4..18 "foo\n bar : baz" Hash(1)
    entry 4..18
     4..12 "foo\n bar" String("foo bar") content=[4..7,7..9=>1,9..12]
     15..18 "baz" String("baz") content=15..18
@@ -1575,7 +1570,7 @@ ERROR "while scanning a plain scalar, found a tab" @ 10..11
 
 ==== DMG6.fail.yaml
 "key:\n  ok: 1\n wrong: 2\n"
-ERROR "while parsing a block mapping, did not find expected key" @ 19..20
+ERROR "while parsing a block mapping, did not find expected key" @ 14..15
 
 ==== DWX9.yaml
 "|\n \n  \n  literal\n   \n  \n  text\n\n # Comment\n"
@@ -1593,7 +1588,7 @@ ERROR "while parsing a block mapping, did not find expected key" @ 19..20
 
 ==== EB22.fail.yaml
 "---\nscalar1 # comment\n%YAML 1.2\n---\nscalar2\n"
-ERROR "missing explicit document end marker before directive" @ 22..23
+ERROR "comment intercepting the multiline text" @ 12..13
 
 ==== EHF6.yaml
 "!!map {\n  k: !!seq\n  [ a, !!str b]\n}\n"
@@ -1708,9 +1703,9 @@ ERROR "mapping values are not allowed in this context" @ 10..11
 ==== FRK4.yaml
 "{\n  ? foo :,\n  : bar,\n}\n"
 0..20 "{\n  ? foo :,\n  : bar" Hash(2)
- entry 6..10
+ entry 6..11
   6..9 "foo" String("foo") content=6..9
-  10..10 "" Null content=10..10
+  11..11 "" Null content=11..11
  entry 15..20
   15..15 "" Null content=15..15
   17..20 "bar" String("bar") content=17..20
@@ -2037,12 +2032,12 @@ ERROR "invalid trailing content after double-quoted scalar" @ 32..33
 ==== K858.yaml
 "strip: >-\n\nclip: >\n\nkeep: |+\n\n"
 0..30 "strip: >-\n\nclip: >\n\nkeep: |+\n\n" Hash(3)
- entry 0..28
+ entry 0..11
   0..5 "strip" String("strip") content=0..5
-  11..28 "clip: >\n\nkeep: |+" String("") content=11..11
- entry 11..28
+  11..11 "" String("") content=11..11
+ entry 11..20
   11..15 "clip" String("clip") content=11..15
-  20..28 "keep: |+" String("") content=20..20
+  20..20 "" String("") content=20..20
  entry 20..28
   20..24 "keep" String("keep") content=20..24
   26..28 "|+" String("\n") content=[28..30=>1]
@@ -2086,9 +2081,9 @@ ERROR "invalid trailing content after double-quoted scalar" @ 32..33
  entry 72..98
   72..80 "complex4" String("complex4") content=72..80
   92..98 "a\n  :\n" Hash(1)
-   entry 92..98
+   entry 92..97
     92..93 "a" String("a\n") content=[92..93,93..96=>1]
-    98..98 "" Null content=98..98
+    97..97 "" Null content=97..97
  entry 98..124
   98..106 "complex5" String("complex5") content=98..106
   112..124 "- a\n  : - b\n" Hash(1)
@@ -2355,7 +2350,7 @@ ERROR "missing explicit document end marker before directive" @ 14..15
 
 ==== N4JP.fail.yaml
 "map:\n  key1: \"quoted1\"\n key2: \"bad indentation\"\n"
-ERROR "while parsing a block mapping, did not find expected key" @ 28..29
+ERROR "while parsing a block mapping, did not find expected key" @ 24..25
 
 ==== N782.fail.yaml
 "[\n--- ,\n...\n]\n"
@@ -2399,9 +2394,9 @@ ERROR "while parsing a node, did not find expected node content" @ 2..3
 ==== NHX8.yaml
 ":\n\n\n"
 0..4 ":\n\n\n" Hash(1)
- entry 0..4
+ entry 0..1
   0..0 "" Null content=0..0
-  4..4 "" Null content=4..4
+  1..1 "" Null content=1..1
 
 ==== NJ66.yaml
 "---\n- { single line: value}\n- { multi\n  line: value}\n"
@@ -2677,9 +2672,9 @@ ERROR "while scanning a quoted scalar, found unexpected document indicator" @ 4.
  entry 0..24
   0..9 "plain key" String("plain key") content=0..9
   11..24 "in-line value" String("in-line value") content=11..24
- entry 25..40
+ entry 25..26
   25..25 "" Null content=25..25
-  40..40 "" Null content=40..40
+  26..26 "" Null content=26..26
  entry 40..62
   40..52 "\"quoted key\"" String("quoted key") content=41..51
   56..62 "entry\n" Array(1)
@@ -2886,7 +2881,7 @@ ERROR "simple key expect ':'" @ 24..24
 
 ==== U44R.fail.yaml
 "map:\n  key1: \"quoted1\"\n   key2: \"bad indentation\"\n"
-ERROR "while parsing a block mapping, did not find expected key" @ 30..31
+ERROR "while parsing a block mapping, did not find expected key" @ 26..27
 
 ==== U99R.fail.yaml
 "- !!str, xxx\n"
@@ -3010,16 +3005,16 @@ ERROR "while scanning a tag, did not find expected whitespace or line break" @ 2
 "- :\n"
 0..4 "- :\n" Array(1)
   2..4 ":\n" Hash(1)
-   entry 2..4
+   entry 2..3
     2..2 "" Null content=2..2
-    4..4 "" Null content=4..4
+    3..3 "" Null content=3..3
 
 ==== UKK6-01.yaml
 "::\n"
 0..3 "::\n" Hash(1)
- entry 0..3
+ entry 0..2
   0..1 ":" String(":") content=0..1
-  3..3 "" Null content=3..3
+  2..2 "" Null content=2..2
 
 ==== UKK6-02.yaml
 "!\n"
@@ -3083,7 +3078,7 @@ ERROR "invalid indentation" @ 5..6
 ==== W42U.yaml
 "- # Empty\n- |\n block node\n- - one # Compact\n  - two # sequence\n- one: two # Compact mapping\n"
 0..92 "- # Empty\n- |\n block node\n- - one # Compact\n  - two # sequence\n- one: two # Compact mapping\n" Array(4)
-  12..12 "" Null content=12..12
+  9..9 "" Null content=9..9
   15..25 "block node" String("block node\n") content=15..26
   28..63 "- one # Compact\n  - two # sequence\n" Array(2)
     30..33 "one" String("one") content=30..33
