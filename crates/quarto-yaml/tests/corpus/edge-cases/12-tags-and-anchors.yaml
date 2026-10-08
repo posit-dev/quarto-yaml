@@ -1,0 +1,5 @@
+a: !expr x + 1
+b: !!str 5
+c: &anc !t [1]
+d: *anc
+e: !<tag:yaml.org,2002:int> 7

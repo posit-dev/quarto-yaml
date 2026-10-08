@@ -1,0 +1,385 @@
+---
+source: crates/quarto-yaml/tests/golden.rs
+expression: dump(&src)
+---
+0..4325 "- name: engine\n  schema:\n    string:\n      completions: [jupyter, knitr, julia]\n  description: \"Engine used for executable code blocks.\"\n\n- name: jupyter\n  schema:\n    anyOf:\n      - boolean\n      - string\n      - object:\n          hidden: true # don't complete through a single-key object\n          properties:\n            kernelspec:\n              object:\n                properties:\n                  display_name:\n                    string:\n                      description: The name to display in the UI.\n                  language:\n                    string:\n                      description: The name of the language the kernel implements.\n                  name:\n                    string:\n                      description: The name of the kernel.\n                required: all\n  description: Configures the Jupyter engine.\n\n- name: julia\n  schema:\n    object:\n      properties:\n        exeflags:\n          schema:\n            arrayOf: string\n            description: Arguments to pass to the Julia worker process.\n        env:\n          schema:\n            arrayOf: string\n            description: Environment variables to pass to the Julia worker process.\n  description: Configures the Julia engine.\n\n- name: knitr\n  schema:\n    anyOf:\n      - boolean\n      - object:\n          closed: true\n          properties:\n            opts_knit:\n              object:\n                description: Knit options.\n            opts_chunk:\n              object:\n                description: Knitr chunk options.\n  description: Set Knitr options.\n\n- name: cache\n  tags:\n    execute-only: true\n  schema:\n    anyOf:\n      - boolean\n      - enum: [refresh]\n  default: false\n  description:\n    short: \"Cache results of computations.\"\n    long: |\n      Cache results of computations (using the [knitr cache](https://yihui.org/knitr/demo/cache/) \n      for R documents, and [Jupyter Cache](https://jupyter-cache.readthedocs.io/en/latest/) \n      for Jupyter documents).\n\n      Note that cache invalidation is triggered by changes in chunk source code \n      (or other cache attributes you've defined). \n\n      - `true`: Cache results\n      - `false`: Do not cache results\n      - `refresh`: Force a refresh of the cache even if has not been otherwise invalidated.\n\n- name: freeze\n  tags:\n    execute-only: true\n  schema:\n    anyOf:\n      - boolean\n      - enum: [auto]\n  default: false\n  description:\n    short: \"Re-use previous computational output when rendering\"\n    long: |\n      Control the re-use of previous computational output when rendering.\n\n      - `true`: Never recompute previously generated computational output during a global project render\n      - `false` (default): Recompute previously generated computational output\n      - `auto`: Re-compute previously generated computational output only in case their source file changes\n\n- name: server\n  hidden: true\n  schema:\n    anyOf:\n      - enum: [shiny]\n      - object:\n          properties:\n            type:\n              enum: [shiny]\n              description: Type of server to run behind the document (e.g. `shiny`)\n            ojs-export:\n              maybeArrayOf: string\n              description: OJS variables to export to server.\n            ojs-import:\n              maybeArrayOf: string\n              description: Server reactive values to import into OJS.\n  description: Document server\n\n- name: daemon\n  hidden: true\n  schema:\n    anyOf: [number, boolean]\n  default: 300\n  description:\n    short: \"Run Jupyter kernels within a peristent daemon (to mitigate kernel startup time).\"\n    long: |\n      Run Jupyter kernels within a peristent daemon (to mitigate kernel startup time).\n      By default a daemon with a timeout of 300 seconds will be used. Set `daemon`\n      to another timeout value or to `false` to disable it altogether.\n\n- name: daemon-restart\n  schema: boolean\n  hidden: true\n  default: false\n  description: \"Restart any running Jupyter daemon before rendering.\"\n\n- name: enabled\n  schema: boolean\n  default: true\n  hidden: true\n  description: \"Enable code cell execution.\"\n\n- name: ipynb\n  schema: boolean\n  default: false\n  hidden: true\n  description: \"Execute code cell execution in Jupyter notebooks.\"\n\n- name: debug\n  hidden: true\n  schema: boolean\n  default: false\n  description: \"Show code-execution related debug information.\"\n" Array(12)
+  2..138 "name: engine\n  schema:\n    string:\n      completions: [jupyter, knitr, julia]\n  description: \"Engine used for executable code blocks.\"\n\n" Hash(3)
+   entry 2..14
+    2..6 "name" String("name") content=2..6
+    8..14 "engine" String("engine") content=8..14
+   entry 17..82
+    17..23 "schema" String("schema") content=17..23
+    29..82 "string:\n      completions: [jupyter, knitr, julia]\n  " Hash(1)
+     entry 29..82
+      29..35 "string" String("string") content=29..35
+      43..82 "completions: [jupyter, knitr, julia]\n  " Hash(1)
+       entry 43..79
+        43..54 "completions" String("completions") content=43..54
+        56..79 "[jupyter, knitr, julia]" Array(3)
+          57..64 "jupyter" String("jupyter") content=57..64
+          66..71 "knitr" String("knitr") content=66..71
+          73..78 "julia" String("julia") content=73..78
+   entry 82..136
+    82..93 "description" String("description") content=82..93
+    95..136 "\"Engine used for executable code blocks.\"" String("Engine used for executable code blocks.") content=96..135
+  140..839 "name: jupyter\n  schema:\n    anyOf:\n      - boolean\n      - string\n      - object:\n          hidden: true # don't complete through a single-key object\n          properties:\n            kernelspec:\n              object:\n                properties:\n                  display_name:\n                    string:\n                      description: The name to display in the UI.\n                  language:\n                    string:\n                      description: The name of the language the kernel implements.\n                  name:\n                    string:\n                      description: The name of the kernel.\n                required: all\n  description: Configures the Jupyter engine.\n\n" Hash(3)
+   entry 140..153
+    140..144 "name" String("name") content=140..144
+    146..153 "jupyter" String("jupyter") content=146..153
+   entry 156..794
+    156..162 "schema" String("schema") content=156..162
+    168..794 "anyOf:\n      - boolean\n      - string\n      - object:\n          hidden: true # don't complete through a single-key object\n          properties:\n            kernelspec:\n              object:\n                properties:\n                  display_name:\n                    string:\n                      description: The name to display in the UI.\n                  language:\n                    string:\n                      description: The name of the language the kernel implements.\n                  name:\n                    string:\n                      description: The name of the kernel.\n                required: all\n  " Hash(1)
+     entry 168..794
+      168..173 "anyOf" String("anyOf") content=168..173
+      181..794 "- boolean\n      - string\n      - object:\n          hidden: true # don't complete through a single-key object\n          properties:\n            kernelspec:\n              object:\n                properties:\n                  display_name:\n                    string:\n                      description: The name to display in the UI.\n                  language:\n                    string:\n                      description: The name of the language the kernel implements.\n                  name:\n                    string:\n                      description: The name of the kernel.\n                required: all\n  " Array(3)
+        183..190 "boolean" String("boolean") content=183..190
+        199..205 "string" String("string") content=199..205
+        214..794 "object:\n          hidden: true # don't complete through a single-key object\n          properties:\n            kernelspec:\n              object:\n                properties:\n                  display_name:\n                    string:\n                      description: The name to display in the UI.\n                  language:\n                    string:\n                      description: The name of the language the kernel implements.\n                  name:\n                    string:\n                      description: The name of the kernel.\n                required: all\n  " Hash(1)
+         entry 214..794
+          214..220 "object" String("object") content=214..220
+          232..794 "hidden: true # don't complete through a single-key object\n          properties:\n            kernelspec:\n              object:\n                properties:\n                  display_name:\n                    string:\n                      description: The name to display in the UI.\n                  language:\n                    string:\n                      description: The name of the language the kernel implements.\n                  name:\n                    string:\n                      description: The name of the kernel.\n                required: all\n  " Hash(2)
+           entry 232..244
+            232..238 "hidden" String("hidden") content=232..238
+            240..244 "true" Boolean(true) content=240..244
+           entry 300..794
+            300..310 "properties" String("properties") content=300..310
+            324..794 "kernelspec:\n              object:\n                properties:\n                  display_name:\n                    string:\n                      description: The name to display in the UI.\n                  language:\n                    string:\n                      description: The name of the language the kernel implements.\n                  name:\n                    string:\n                      description: The name of the kernel.\n                required: all\n  " Hash(1)
+             entry 324..794
+              324..334 "kernelspec" String("kernelspec") content=324..334
+              350..794 "object:\n                properties:\n                  display_name:\n                    string:\n                      description: The name to display in the UI.\n                  language:\n                    string:\n                      description: The name of the language the kernel implements.\n                  name:\n                    string:\n                      description: The name of the kernel.\n                required: all\n  " Hash(1)
+               entry 350..794
+                350..356 "object" String("object") content=350..356
+                374..794 "properties:\n                  display_name:\n                    string:\n                      description: The name to display in the UI.\n                  language:\n                    string:\n                      description: The name of the language the kernel implements.\n                  name:\n                    string:\n                      description: The name of the kernel.\n                required: all\n  " Hash(2)
+                 entry 374..778
+                  374..384 "properties" String("properties") content=374..384
+                  404..778 "display_name:\n                    string:\n                      description: The name to display in the UI.\n                  language:\n                    string:\n                      description: The name of the language the kernel implements.\n                  name:\n                    string:\n                      description: The name of the kernel.\n                " Hash(3)
+                   entry 404..530
+                    404..416 "display_name" String("display_name") content=404..416
+                    438..530 "string:\n                      description: The name to display in the UI.\n                  " Hash(1)
+                     entry 438..530
+                      438..444 "string" String("string") content=438..444
+                      468..530 "description: The name to display in the UI.\n                  " Hash(1)
+                       entry 468..511
+                        468..479 "description" String("description") content=468..479
+                        481..511 "The name to display in the UI." String("The name to display in the UI.") content=481..511
+                   entry 530..669
+                    530..538 "language" String("language") content=530..538
+                    560..669 "string:\n                      description: The name of the language the kernel implements.\n                  " Hash(1)
+                     entry 560..669
+                      560..566 "string" String("string") content=560..566
+                      590..669 "description: The name of the language the kernel implements.\n                  " Hash(1)
+                       entry 590..650
+                        590..601 "description" String("description") content=590..601
+                        603..650 "The name of the language the kernel implements." String("The name of the language the kernel implements.") content=603..650
+                   entry 669..778
+                    669..673 "name" String("name") content=669..673
+                    695..778 "string:\n                      description: The name of the kernel.\n                " Hash(1)
+                     entry 695..778
+                      695..701 "string" String("string") content=695..701
+                      725..778 "description: The name of the kernel.\n                " Hash(1)
+                       entry 725..761
+                        725..736 "description" String("description") content=725..736
+                        738..761 "The name of the kernel." String("The name of the kernel.") content=738..761
+                 entry 778..791
+                  778..786 "required" String("required") content=778..786
+                  788..791 "all" String("all") content=788..791
+   entry 794..837
+    794..805 "description" String("description") content=794..805
+    807..837 "Configures the Jupyter engine." String("Configures the Jupyter engine.") content=807..837
+  841..1217 "name: julia\n  schema:\n    object:\n      properties:\n        exeflags:\n          schema:\n            arrayOf: string\n            description: Arguments to pass to the Julia worker process.\n        env:\n          schema:\n            arrayOf: string\n            description: Environment variables to pass to the Julia worker process.\n  description: Configures the Julia engine.\n\n" Hash(3)
+   entry 841..852
+    841..845 "name" String("name") content=841..845
+    847..852 "julia" String("julia") content=847..852
+   entry 855..1174
+    855..861 "schema" String("schema") content=855..861
+    867..1174 "object:\n      properties:\n        exeflags:\n          schema:\n            arrayOf: string\n            description: Arguments to pass to the Julia worker process.\n        env:\n          schema:\n            arrayOf: string\n            description: Environment variables to pass to the Julia worker process.\n  " Hash(1)
+     entry 867..1174
+      867..873 "object" String("object") content=867..873
+      881..1174 "properties:\n        exeflags:\n          schema:\n            arrayOf: string\n            description: Arguments to pass to the Julia worker process.\n        env:\n          schema:\n            arrayOf: string\n            description: Environment variables to pass to the Julia worker process.\n  " Hash(1)
+       entry 881..1174
+        881..891 "properties" String("properties") content=881..891
+        901..1174 "exeflags:\n          schema:\n            arrayOf: string\n            description: Arguments to pass to the Julia worker process.\n        env:\n          schema:\n            arrayOf: string\n            description: Environment variables to pass to the Julia worker process.\n  " Hash(2)
+         entry 901..1037
+          901..909 "exeflags" String("exeflags") content=901..909
+          921..1037 "schema:\n            arrayOf: string\n            description: Arguments to pass to the Julia worker process.\n        " Hash(1)
+           entry 921..1037
+            921..927 "schema" String("schema") content=921..927
+            941..1037 "arrayOf: string\n            description: Arguments to pass to the Julia worker process.\n        " Hash(2)
+             entry 941..956
+              941..948 "arrayOf" String("arrayOf") content=941..948
+              950..956 "string" String("string") content=950..956
+             entry 969..1028
+              969..980 "description" String("description") content=969..980
+              982..1028 "Arguments to pass to the Julia worker process." String("Arguments to pass to the Julia worker process.") content=982..1028
+         entry 1037..1174
+          1037..1040 "env" String("env") content=1037..1040
+          1052..1174 "schema:\n            arrayOf: string\n            description: Environment variables to pass to the Julia worker process.\n  " Hash(1)
+           entry 1052..1174
+            1052..1058 "schema" String("schema") content=1052..1058
+            1072..1174 "arrayOf: string\n            description: Environment variables to pass to the Julia worker process.\n  " Hash(2)
+             entry 1072..1087
+              1072..1079 "arrayOf" String("arrayOf") content=1072..1079
+              1081..1087 "string" String("string") content=1081..1087
+             entry 1100..1171
+              1100..1111 "description" String("description") content=1100..1111
+              1113..1171 "Environment variables to pass to the Julia worker process." String("Environment variables to pass to the Julia worker process.") content=1113..1171
+   entry 1174..1215
+    1174..1185 "description" String("description") content=1174..1185
+    1187..1215 "Configures the Julia engine." String("Configures the Julia engine.") content=1187..1215
+  1219..1548 "name: knitr\n  schema:\n    anyOf:\n      - boolean\n      - object:\n          closed: true\n          properties:\n            opts_knit:\n              object:\n                description: Knit options.\n            opts_chunk:\n              object:\n                description: Knitr chunk options.\n  description: Set Knitr options.\n\n" Hash(3)
+   entry 1219..1230
+    1219..1223 "name" String("name") content=1219..1223
+    1225..1230 "knitr" String("knitr") content=1225..1230
+   entry 1233..1515
+    1233..1239 "schema" String("schema") content=1233..1239
+    1245..1515 "anyOf:\n      - boolean\n      - object:\n          closed: true\n          properties:\n            opts_knit:\n              object:\n                description: Knit options.\n            opts_chunk:\n              object:\n                description: Knitr chunk options.\n  " Hash(1)
+     entry 1245..1515
+      1245..1250 "anyOf" String("anyOf") content=1245..1250
+      1258..1515 "- boolean\n      - object:\n          closed: true\n          properties:\n            opts_knit:\n              object:\n                description: Knit options.\n            opts_chunk:\n              object:\n                description: Knitr chunk options.\n  " Array(2)
+        1260..1267 "boolean" String("boolean") content=1260..1267
+        1276..1515 "object:\n          closed: true\n          properties:\n            opts_knit:\n              object:\n                description: Knit options.\n            opts_chunk:\n              object:\n                description: Knitr chunk options.\n  " Hash(1)
+         entry 1276..1515
+          1276..1282 "object" String("object") content=1276..1282
+          1294..1515 "closed: true\n          properties:\n            opts_knit:\n              object:\n                description: Knit options.\n            opts_chunk:\n              object:\n                description: Knitr chunk options.\n  " Hash(2)
+           entry 1294..1306
+            1294..1300 "closed" String("closed") content=1294..1300
+            1302..1306 "true" Boolean(true) content=1302..1306
+           entry 1317..1515
+            1317..1327 "properties" String("properties") content=1317..1327
+            1341..1515 "opts_knit:\n              object:\n                description: Knit options.\n            opts_chunk:\n              object:\n                description: Knitr chunk options.\n  " Hash(2)
+             entry 1341..1429
+              1341..1350 "opts_knit" String("opts_knit") content=1341..1350
+              1366..1429 "object:\n                description: Knit options.\n            " Hash(1)
+               entry 1366..1429
+                1366..1372 "object" String("object") content=1366..1372
+                1390..1429 "description: Knit options.\n            " Hash(1)
+                 entry 1390..1416
+                  1390..1401 "description" String("description") content=1390..1401
+                  1403..1416 "Knit options." String("Knit options.") content=1403..1416
+             entry 1429..1515
+              1429..1439 "opts_chunk" String("opts_chunk") content=1429..1439
+              1455..1515 "object:\n                description: Knitr chunk options.\n  " Hash(1)
+               entry 1455..1515
+                1455..1461 "object" String("object") content=1455..1461
+                1479..1515 "description: Knitr chunk options.\n  " Hash(1)
+                 entry 1479..1512
+                  1479..1490 "description" String("description") content=1479..1490
+                  1492..1512 "Knitr chunk options." String("Knitr chunk options.") content=1492..1512
+   entry 1515..1546
+    1515..1526 "description" String("description") content=1515..1526
+    1528..1546 "Set Knitr options." String("Set Knitr options.") content=1528..1546
+  1550..2259 "name: cache\n  tags:\n    execute-only: true\n  schema:\n    anyOf:\n      - boolean\n      - enum: [refresh]\n  default: false\n  description:\n    short: \"Cache results of computations.\"\n    long: |\n      Cache results of computations (using the [knitr cache](https://yihui.org/knitr/demo/cache/) \n      for R documents, and [Jupyter Cache](https://jupyter-cache.readthedocs.io/en/latest/) \n      for Jupyter documents).\n\n      Note that cache invalidation is triggered by changes in chunk source code \n      (or other cache attributes you've defined). \n\n      - `true`: Cache results\n      - `false`: Do not cache results\n      - `refresh`: Force a refresh of the cache even if has not been otherwise invalidated.\n\n" Hash(5)
+   entry 1550..1561
+    1550..1554 "name" String("name") content=1550..1554
+    1556..1561 "cache" String("cache") content=1556..1561
+   entry 1564..1595
+    1564..1568 "tags" String("tags") content=1564..1568
+    1574..1595 "execute-only: true\n  " Hash(1)
+     entry 1574..1592
+      1574..1586 "execute-only" String("execute-only") content=1574..1586
+      1588..1592 "true" Boolean(true) content=1588..1592
+   entry 1595..1656
+    1595..1601 "schema" String("schema") content=1595..1601
+    1607..1656 "anyOf:\n      - boolean\n      - enum: [refresh]\n  " Hash(1)
+     entry 1607..1656
+      1607..1612 "anyOf" String("anyOf") content=1607..1612
+      1620..1656 "- boolean\n      - enum: [refresh]\n  " Array(2)
+        1622..1629 "boolean" String("boolean") content=1622..1629
+        1638..1656 "enum: [refresh]\n  " Hash(1)
+         entry 1638..1653
+          1638..1642 "enum" String("enum") content=1638..1642
+          1644..1653 "[refresh]" Array(1)
+            1645..1652 "refresh" String("refresh") content=1645..1652
+   entry 1656..1670
+    1656..1663 "default" String("default") content=1656..1663
+    1665..1670 "false" Boolean(false) content=1665..1670
+   entry 1673..2259
+    1673..1684 "description" String("description") content=1673..1684
+    1690..2259 "short: \"Cache results of computations.\"\n    long: |\n      Cache results of computations (using the [knitr cache](https://yihui.org/knitr/demo/cache/) \n      for R documents, and [Jupyter Cache](https://jupyter-cache.readthedocs.io/en/latest/) \n      for Jupyter documents).\n\n      Note that cache invalidation is triggered by changes in chunk source code \n      (or other cache attributes you've defined). \n\n      - `true`: Cache results\n      - `false`: Do not cache results\n      - `refresh`: Force a refresh of the cache even if has not been otherwise invalidated.\n\n" Hash(2)
+     entry 1690..1729
+      1690..1695 "short" String("short") content=1690..1695
+      1697..1729 "\"Cache results of computations.\"" String("Cache results of computations.") content=1698..1728
+     entry 1734..2257
+      1734..1738 "long" String("long") content=1734..1738
+      1748..2257 "Cache results of computations (using the [knitr cache](https://yihui.org/knitr/demo/cache/) \n      for R documents, and [Jupyter Cache](https://jupyter-cache.readthedocs.io/en/latest/) \n      for Jupyter documents).\n\n      Note that cache invalidation is triggered by changes in chunk source code \n      (or other cache attributes you've defined). \n\n      - `true`: Cache results\n      - `false`: Do not cache results\n      - `refresh`: Force a refresh of the cache even if has not been otherwise invalidated." String("Cache results of computations (using the [knitr cache](https://yihui.org/knitr/demo/cache/) \nfor R documents, and [Jupyter Cache](https://jupyter-cache.readthedocs.io/en/latest/) \nfor Jupyter documents).\n\nNote that cache invalidation is triggered by changes in chunk source code \n(or other cache attributes you've defined). \n\n- `true`: Cache results\n- `false`: Do not cache results\n- `refresh`: Force a refresh of the cache even if has not been otherwise invalidated.\n") content=[1748..1840,1840..1847=>1,1847..1933,1933..1940=>1,1940..1963,1963..1971=>2,1971..2045,2045..2052=>1,2052..2096,2096..2104=>2,2104..2127,2127..2134=>1,2134..2165,2165..2172=>1,2172..2257,2257..2259=>1]
+  2261..2840 "name: freeze\n  tags:\n    execute-only: true\n  schema:\n    anyOf:\n      - boolean\n      - enum: [auto]\n  default: false\n  description:\n    short: \"Re-use previous computational output when rendering\"\n    long: |\n      Control the re-use of previous computational output when rendering.\n\n      - `true`: Never recompute previously generated computational output during a global project render\n      - `false` (default): Recompute previously generated computational output\n      - `auto`: Re-compute previously generated computational output only in case their source file changes\n\n" Hash(5)
+   entry 2261..2273
+    2261..2265 "name" String("name") content=2261..2265
+    2267..2273 "freeze" String("freeze") content=2267..2273
+   entry 2276..2307
+    2276..2280 "tags" String("tags") content=2276..2280
+    2286..2307 "execute-only: true\n  " Hash(1)
+     entry 2286..2304
+      2286..2298 "execute-only" String("execute-only") content=2286..2298
+      2300..2304 "true" Boolean(true) content=2300..2304
+   entry 2307..2365
+    2307..2313 "schema" String("schema") content=2307..2313
+    2319..2365 "anyOf:\n      - boolean\n      - enum: [auto]\n  " Hash(1)
+     entry 2319..2365
+      2319..2324 "anyOf" String("anyOf") content=2319..2324
+      2332..2365 "- boolean\n      - enum: [auto]\n  " Array(2)
+        2334..2341 "boolean" String("boolean") content=2334..2341
+        2350..2365 "enum: [auto]\n  " Hash(1)
+         entry 2350..2362
+          2350..2354 "enum" String("enum") content=2350..2354
+          2356..2362 "[auto]" Array(1)
+            2357..2361 "auto" String("auto") content=2357..2361
+   entry 2365..2379
+    2365..2372 "default" String("default") content=2365..2372
+    2374..2379 "false" Boolean(false) content=2374..2379
+   entry 2382..2840
+    2382..2393 "description" String("description") content=2382..2393
+    2399..2840 "short: \"Re-use previous computational output when rendering\"\n    long: |\n      Control the re-use of previous computational output when rendering.\n\n      - `true`: Never recompute previously generated computational output during a global project render\n      - `false` (default): Recompute previously generated computational output\n      - `auto`: Re-compute previously generated computational output only in case their source file changes\n\n" Hash(2)
+     entry 2399..2459
+      2399..2404 "short" String("short") content=2399..2404
+      2406..2459 "\"Re-use previous computational output when rendering\"" String("Re-use previous computational output when rendering") content=2407..2458
+     entry 2464..2838
+      2464..2468 "long" String("long") content=2464..2468
+      2478..2838 "Control the re-use of previous computational output when rendering.\n\n      - `true`: Never recompute previously generated computational output during a global project render\n      - `false` (default): Recompute previously generated computational output\n      - `auto`: Re-compute previously generated computational output only in case their source file changes" String("Control the re-use of previous computational output when rendering.\n\n- `true`: Never recompute previously generated computational output during a global project render\n- `false` (default): Recompute previously generated computational output\n- `auto`: Re-compute previously generated computational output only in case their source file changes\n") content=[2478..2545,2545..2553=>2,2553..2651,2651..2658=>1,2658..2730,2730..2737=>1,2737..2838,2838..2840=>1]
+  2842..3363 "name: server\n  hidden: true\n  schema:\n    anyOf:\n      - enum: [shiny]\n      - object:\n          properties:\n            type:\n              enum: [shiny]\n              description: Type of server to run behind the document (e.g. `shiny`)\n            ojs-export:\n              maybeArrayOf: string\n              description: OJS variables to export to server.\n            ojs-import:\n              maybeArrayOf: string\n              description: Server reactive values to import into OJS.\n  description: Document server\n\n" Hash(4)
+   entry 2842..2854
+    2842..2846 "name" String("name") content=2842..2846
+    2848..2854 "server" String("server") content=2848..2854
+   entry 2857..2869
+    2857..2863 "hidden" String("hidden") content=2857..2863
+    2865..2869 "true" Boolean(true) content=2865..2869
+   entry 2872..3333
+    2872..2878 "schema" String("schema") content=2872..2878
+    2884..3333 "anyOf:\n      - enum: [shiny]\n      - object:\n          properties:\n            type:\n              enum: [shiny]\n              description: Type of server to run behind the document (e.g. `shiny`)\n            ojs-export:\n              maybeArrayOf: string\n              description: OJS variables to export to server.\n            ojs-import:\n              maybeArrayOf: string\n              description: Server reactive values to import into OJS.\n  " Hash(1)
+     entry 2884..3333
+      2884..2889 "anyOf" String("anyOf") content=2884..2889
+      2897..3333 "- enum: [shiny]\n      - object:\n          properties:\n            type:\n              enum: [shiny]\n              description: Type of server to run behind the document (e.g. `shiny`)\n            ojs-export:\n              maybeArrayOf: string\n              description: OJS variables to export to server.\n            ojs-import:\n              maybeArrayOf: string\n              description: Server reactive values to import into OJS.\n  " Array(2)
+        2899..2919 "enum: [shiny]\n      " Hash(1)
+         entry 2899..2912
+          2899..2903 "enum" String("enum") content=2899..2903
+          2905..2912 "[shiny]" Array(1)
+            2906..2911 "shiny" String("shiny") content=2906..2911
+        2921..3333 "object:\n          properties:\n            type:\n              enum: [shiny]\n              description: Type of server to run behind the document (e.g. `shiny`)\n            ojs-export:\n              maybeArrayOf: string\n              description: OJS variables to export to server.\n            ojs-import:\n              maybeArrayOf: string\n              description: Server reactive values to import into OJS.\n  " Hash(1)
+         entry 2921..3333
+          2921..2927 "object" String("object") content=2921..2927
+          2939..3333 "properties:\n            type:\n              enum: [shiny]\n              description: Type of server to run behind the document (e.g. `shiny`)\n            ojs-export:\n              maybeArrayOf: string\n              description: OJS variables to export to server.\n            ojs-import:\n              maybeArrayOf: string\n              description: Server reactive values to import into OJS.\n  " Hash(1)
+           entry 2939..3333
+            2939..2949 "properties" String("properties") content=2939..2949
+            2963..3333 "type:\n              enum: [shiny]\n              description: Type of server to run behind the document (e.g. `shiny`)\n            ojs-export:\n              maybeArrayOf: string\n              description: OJS variables to export to server.\n            ojs-import:\n              maybeArrayOf: string\n              description: Server reactive values to import into OJS.\n  " Hash(3)
+             entry 2963..3093
+              2963..2967 "type" String("type") content=2963..2967
+              2983..3093 "enum: [shiny]\n              description: Type of server to run behind the document (e.g. `shiny`)\n            " Hash(2)
+               entry 2983..2996
+                2983..2987 "enum" String("enum") content=2983..2987
+                2989..2996 "[shiny]" Array(1)
+                  2990..2995 "shiny" String("shiny") content=2990..2995
+               entry 3011..3080
+                3011..3022 "description" String("description") content=3011..3022
+                3024..3080 "Type of server to run behind the document (e.g. `shiny`)" String("Type of server to run behind the document (e.g. `shiny`)") content=3024..3080
+             entry 3093..3214
+              3093..3103 "ojs-export" String("ojs-export") content=3093..3103
+              3119..3214 "maybeArrayOf: string\n              description: OJS variables to export to server.\n            " Hash(2)
+               entry 3119..3139
+                3119..3131 "maybeArrayOf" String("maybeArrayOf") content=3119..3131
+                3133..3139 "string" String("string") content=3133..3139
+               entry 3154..3201
+                3154..3165 "description" String("description") content=3154..3165
+                3167..3201 "OJS variables to export to server." String("OJS variables to export to server.") content=3167..3201
+             entry 3214..3333
+              3214..3224 "ojs-import" String("ojs-import") content=3214..3224
+              3240..3333 "maybeArrayOf: string\n              description: Server reactive values to import into OJS.\n  " Hash(2)
+               entry 3240..3260
+                3240..3252 "maybeArrayOf" String("maybeArrayOf") content=3240..3252
+                3254..3260 "string" String("string") content=3254..3260
+               entry 3275..3330
+                3275..3286 "description" String("description") content=3275..3286
+                3288..3330 "Server reactive values to import into OJS." String("Server reactive values to import into OJS.") content=3288..3330
+   entry 3333..3361
+    3333..3344 "description" String("description") content=3333..3344
+    3346..3361 "Document server" String("Document server") content=3346..3361
+  3365..3810 "name: daemon\n  hidden: true\n  schema:\n    anyOf: [number, boolean]\n  default: 300\n  description:\n    short: \"Run Jupyter kernels within a peristent daemon (to mitigate kernel startup time).\"\n    long: |\n      Run Jupyter kernels within a peristent daemon (to mitigate kernel startup time).\n      By default a daemon with a timeout of 300 seconds will be used. Set `daemon`\n      to another timeout value or to `false` to disable it altogether.\n\n" Hash(5)
+   entry 3365..3377
+    3365..3369 "name" String("name") content=3365..3369
+    3371..3377 "daemon" String("daemon") content=3371..3377
+   entry 3380..3392
+    3380..3386 "hidden" String("hidden") content=3380..3386
+    3388..3392 "true" Boolean(true) content=3388..3392
+   entry 3395..3434
+    3395..3401 "schema" String("schema") content=3395..3401
+    3407..3434 "anyOf: [number, boolean]\n  " Hash(1)
+     entry 3407..3431
+      3407..3412 "anyOf" String("anyOf") content=3407..3412
+      3414..3431 "[number, boolean]" Array(2)
+        3415..3421 "number" String("number") content=3415..3421
+        3423..3430 "boolean" String("boolean") content=3423..3430
+   entry 3434..3446
+    3434..3441 "default" String("default") content=3434..3441
+    3443..3446 "300" Integer(300) content=3443..3446
+   entry 3449..3810
+    3449..3460 "description" String("description") content=3449..3460
+    3466..3810 "short: \"Run Jupyter kernels within a peristent daemon (to mitigate kernel startup time).\"\n    long: |\n      Run Jupyter kernels within a peristent daemon (to mitigate kernel startup time).\n      By default a daemon with a timeout of 300 seconds will be used. Set `daemon`\n      to another timeout value or to `false` to disable it altogether.\n\n" Hash(2)
+     entry 3466..3555
+      3466..3471 "short" String("short") content=3466..3471
+      3473..3555 "\"Run Jupyter kernels within a peristent daemon (to mitigate kernel startup time).\"" String("Run Jupyter kernels within a peristent daemon (to mitigate kernel startup time).") content=3474..3554
+     entry 3560..3808
+      3560..3564 "long" String("long") content=3560..3564
+      3574..3808 "Run Jupyter kernels within a peristent daemon (to mitigate kernel startup time).\n      By default a daemon with a timeout of 300 seconds will be used. Set `daemon`\n      to another timeout value or to `false` to disable it altogether." String("Run Jupyter kernels within a peristent daemon (to mitigate kernel startup time).\nBy default a daemon with a timeout of 300 seconds will be used. Set `daemon`\nto another timeout value or to `false` to disable it altogether.\n") content=[3574..3654,3654..3661=>1,3661..3737,3737..3744=>1,3744..3808,3808..3810=>1]
+  3812..3954 "name: daemon-restart\n  schema: boolean\n  hidden: true\n  default: false\n  description: \"Restart any running Jupyter daemon before rendering.\"\n\n" Hash(5)
+   entry 3812..3832
+    3812..3816 "name" String("name") content=3812..3816
+    3818..3832 "daemon-restart" String("daemon-restart") content=3818..3832
+   entry 3835..3850
+    3835..3841 "schema" String("schema") content=3835..3841
+    3843..3850 "boolean" String("boolean") content=3843..3850
+   entry 3853..3865
+    3853..3859 "hidden" String("hidden") content=3853..3859
+    3861..3865 "true" Boolean(true) content=3861..3865
+   entry 3868..3882
+    3868..3875 "default" String("default") content=3868..3875
+    3877..3882 "false" Boolean(false) content=3877..3882
+   entry 3885..3952
+    3885..3896 "description" String("description") content=3885..3896
+    3898..3952 "\"Restart any running Jupyter daemon before rendering.\"" String("Restart any running Jupyter daemon before rendering.") content=3899..3951
+  3956..4065 "name: enabled\n  schema: boolean\n  default: true\n  hidden: true\n  description: \"Enable code cell execution.\"\n\n" Hash(5)
+   entry 3956..3969
+    3956..3960 "name" String("name") content=3956..3960
+    3962..3969 "enabled" String("enabled") content=3962..3969
+   entry 3972..3987
+    3972..3978 "schema" String("schema") content=3972..3978
+    3980..3987 "boolean" String("boolean") content=3980..3987
+   entry 3990..4003
+    3990..3997 "default" String("default") content=3990..3997
+    3999..4003 "true" Boolean(true) content=3999..4003
+   entry 4006..4018
+    4006..4012 "hidden" String("hidden") content=4006..4012
+    4014..4018 "true" Boolean(true) content=4014..4018
+   entry 4021..4063
+    4021..4032 "description" String("description") content=4021..4032
+    4034..4063 "\"Enable code cell execution.\"" String("Enable code cell execution.") content=4035..4062
+  4067..4197 "name: ipynb\n  schema: boolean\n  default: false\n  hidden: true\n  description: \"Execute code cell execution in Jupyter notebooks.\"\n\n" Hash(5)
+   entry 4067..4078
+    4067..4071 "name" String("name") content=4067..4071
+    4073..4078 "ipynb" String("ipynb") content=4073..4078
+   entry 4081..4096
+    4081..4087 "schema" String("schema") content=4081..4087
+    4089..4096 "boolean" String("boolean") content=4089..4096
+   entry 4099..4113
+    4099..4106 "default" String("default") content=4099..4106
+    4108..4113 "false" Boolean(false) content=4108..4113
+   entry 4116..4128
+    4116..4122 "hidden" String("hidden") content=4116..4122
+    4124..4128 "true" Boolean(true) content=4124..4128
+   entry 4131..4195
+    4131..4142 "description" String("description") content=4131..4142
+    4144..4195 "\"Execute code cell execution in Jupyter notebooks.\"" String("Execute code cell execution in Jupyter notebooks.") content=4145..4194
+  4199..4325 "name: debug\n  hidden: true\n  schema: boolean\n  default: false\n  description: \"Show code-execution related debug information.\"\n" Hash(5)
+   entry 4199..4210
+    4199..4203 "name" String("name") content=4199..4203
+    4205..4210 "debug" String("debug") content=4205..4210
+   entry 4213..4225
+    4213..4219 "hidden" String("hidden") content=4213..4219
+    4221..4225 "true" Boolean(true) content=4221..4225
+   entry 4228..4243
+    4228..4234 "schema" String("schema") content=4228..4234
+    4236..4243 "boolean" String("boolean") content=4236..4243
+   entry 4246..4260
+    4246..4253 "default" String("default") content=4246..4253
+    4255..4260 "false" Boolean(false) content=4255..4260
+   entry 4263..4324
+    4263..4274 "description" String("description") content=4263..4274
+    4276..4324 "\"Show code-execution related debug information.\"" String("Show code-execution related debug information.") content=4277..4323

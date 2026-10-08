@@ -1,0 +1,13 @@
+[package]
+name = "probe"
+version = "0.0.0"
+edition = "2024"
+
+[dependencies]
+yaml-rust2 = "=0.11.1"
+yr13 = { package = "yaml-rust2", version = "0.13" }
+saphyr-parser = "0.1.0"
+saphyr = "0.1.0"
+quarto-yaml = { path = "../../../../crates/quarto-yaml" }
+
+[workspace]

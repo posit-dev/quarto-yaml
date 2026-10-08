@@ -1,0 +1,210 @@
+---
+source: crates/quarto-yaml/tests/golden.rs
+expression: dump(&src)
+---
+0..3957 "- name: wrap\n  tags:\n    formats:\n      [\"!$pdf-all\", \"!$office-all\", \"!$odt-all\", \"!$html-all\", \"!$docbook-all\"]\n  schema:\n    enum: [auto, none, preserve]\n  default: auto\n  description:\n    short: \"Determine how text is wrapped in the output (`auto`, `none`, or `preserve`).\"\n    long: |\n      Determine how text is wrapped in the output (the source code, not the rendered\n      version). \n\n      - `auto` (default): Pandoc will attempt to wrap lines to the column width specified by `columns` (default 72). \n      - `none`: Pandoc will not wrap lines at all. \n      - `preserve`: Pandoc will attempt to preserve the wrapping from the source\n        document. Where there are nonsemantic newlines in the source, there will be\n        nonsemantic newlines in the output as well.\n\n- name: columns\n  tags:\n    formats:\n      [\n        \"!$pdf-all\",\n        \"!$office-all\",\n        \"!$odt-all\",\n        \"!$html-all\",\n        \"!$docbook-all\",\n        \"typst\",\n      ]\n  schema: number\n  description:\n    short: For text formats, specify length of lines in characters. For `typst`, number of columns for body text.\n    long: |\n      Specify length of lines in characters. This affects text wrapping in generated source\n      code (see `wrap`). It also affects calculation of column widths for plain text\n      tables. \n\n      For `typst`, number of columns for body text.\n\n- name: tab-stop\n  tags:\n    formats:\n      [\"!$pdf-all\", \"!$office-all\", \"!$odt-all\", \"!$html-all\", \"!$docbook-all\"]\n  schema: number\n  description:\n    short: \"Specify the number of spaces per tab (default is 4).\"\n    long: |\n      Specify the number of spaces per tab (default is 4). Note that tabs\n      within normal textual input are always converted to spaces. Tabs \n      within code are also converted, however this can be disabled with\n      `preserve-tabs: false`.\n\n- name: preserve-tabs\n  tags:\n    formats:\n      [\"!$pdf-all\", \"!$office-all\", \"!$odt-all\", \"!$html-all\", \"!$docbook-all\"]\n  schema: boolean\n  default: false\n  description:\n    short: |\n      Preserve tabs within code instead of converting them to spaces.\n    long: |\n      Preserve tabs within code instead of converting them to spaces.\n      (By default, pandoc converts tabs to spaces before parsing its input.) \n      Note that this will only affect tabs in literal code spans and code blocks. \n      Tabs in regular text are always treated as spaces.\n\n- name: eol\n  tags:\n    formats:\n      [\"!$pdf-all\", \"!$office-all\", \"!$odt-all\", \"!$html-all\", \"!$docbook-all\"]\n  schema:\n    enum: [lf, crlf, native]\n  description:\n    short: \"Manually specify line endings (`lf`, `crlf`, or `native`).\"\n    long: |\n      Manually specify line endings: \n\n      - `crlf`: Use Windows line endings\n      - `lf`: Use macOS/Linux/UNIX line endings\n      - `native` (default): Use line endings appropriate to the OS on which pandoc is being run).\n\n- name: strip-comments\n  schema: boolean\n  tags:\n    formats: [$markdown-all, textile, $html-files]\n  description:\n    short: \"Strip out HTML comments in source, rather than passing them on to output.\"\n    long: |\n      Strip out HTML comments in the Markdown source,\n      rather than passing them on to Markdown, Textile or HTML\n      output as raw HTML.  This does not apply to HTML comments\n      inside raw HTML blocks when the `markdown_in_html_blocks`\n      extension is not set.\n\n- name: ascii\n  tags:\n    formats: [$html-all, $pdf-all, $markdown-all, ms]\n  schema: boolean\n  description:\n    short: \"Use only ASCII characters in output.\"\n    long: |\n      Use only ASCII characters in output. Currently supported for XML\n      and HTML formats (which use entities instead of UTF-8 when this\n      option is selected), CommonMark, gfm, and Markdown (which use\n      entities), roff ms (which use hexadecimal escapes), and to a\n      limited degree LaTeX (which uses standard commands for accented\n      characters when possible). roff man output uses ASCII by default.\n" Array(7)
+  2..781 "name: wrap\n  tags:\n    formats:\n      [\"!$pdf-all\", \"!$office-all\", \"!$odt-all\", \"!$html-all\", \"!$docbook-all\"]\n  schema:\n    enum: [auto, none, preserve]\n  default: auto\n  description:\n    short: \"Determine how text is wrapped in the output (`auto`, `none`, or `preserve`).\"\n    long: |\n      Determine how text is wrapped in the output (the source code, not the rendered\n      version). \n\n      - `auto` (default): Pandoc will attempt to wrap lines to the column width specified by `columns` (default 72). \n      - `none`: Pandoc will not wrap lines at all. \n      - `preserve`: Pandoc will attempt to preserve the wrapping from the source\n        document. Where there are nonsemantic newlines in the source, there will be\n        nonsemantic newlines in the output as well.\n\n" Hash(5)
+   entry 2..12
+    2..6 "name" String("name") content=2..6
+    8..12 "wrap" String("wrap") content=8..12
+   entry 15..116
+    15..19 "tags" String("tags") content=15..19
+    25..116 "formats:\n      [\"!$pdf-all\", \"!$office-all\", \"!$odt-all\", \"!$html-all\", \"!$docbook-all\"]\n  " Hash(1)
+     entry 25..113
+      25..32 "formats" String("formats") content=25..32
+      40..113 "[\"!$pdf-all\", \"!$office-all\", \"!$odt-all\", \"!$html-all\", \"!$docbook-all\"]" Array(5)
+        41..52 "\"!$pdf-all\"" String("!$pdf-all") content=42..51
+        54..68 "\"!$office-all\"" String("!$office-all") content=55..67
+        70..81 "\"!$odt-all\"" String("!$odt-all") content=71..80
+        83..95 "\"!$html-all\"" String("!$html-all") content=84..94
+        97..112 "\"!$docbook-all\"" String("!$docbook-all") content=98..111
+   entry 116..159
+    116..122 "schema" String("schema") content=116..122
+    128..159 "enum: [auto, none, preserve]\n  " Hash(1)
+     entry 128..156
+      128..132 "enum" String("enum") content=128..132
+      134..156 "[auto, none, preserve]" Array(3)
+        135..139 "auto" String("auto") content=135..139
+        141..145 "none" String("none") content=141..145
+        147..155 "preserve" String("preserve") content=147..155
+   entry 159..172
+    159..166 "default" String("default") content=159..166
+    168..172 "auto" String("auto") content=168..172
+   entry 175..781
+    175..186 "description" String("description") content=175..186
+    192..781 "short: \"Determine how text is wrapped in the output (`auto`, `none`, or `preserve`).\"\n    long: |\n      Determine how text is wrapped in the output (the source code, not the rendered\n      version). \n\n      - `auto` (default): Pandoc will attempt to wrap lines to the column width specified by `columns` (default 72). \n      - `none`: Pandoc will not wrap lines at all. \n      - `preserve`: Pandoc will attempt to preserve the wrapping from the source\n        document. Where there are nonsemantic newlines in the source, there will be\n        nonsemantic newlines in the output as well.\n\n" Hash(2)
+     entry 192..277
+      192..197 "short" String("short") content=192..197
+      199..277 "\"Determine how text is wrapped in the output (`auto`, `none`, or `preserve`).\"" String("Determine how text is wrapped in the output (`auto`, `none`, or `preserve`).") content=200..276
+     entry 282..779
+      282..286 "long" String("long") content=282..286
+      296..779 "Determine how text is wrapped in the output (the source code, not the rendered\n      version). \n\n      - `auto` (default): Pandoc will attempt to wrap lines to the column width specified by `columns` (default 72). \n      - `none`: Pandoc will not wrap lines at all. \n      - `preserve`: Pandoc will attempt to preserve the wrapping from the source\n        document. Where there are nonsemantic newlines in the source, there will be\n        nonsemantic newlines in the output as well." String("Determine how text is wrapped in the output (the source code, not the rendered\nversion). \n\n- `auto` (default): Pandoc will attempt to wrap lines to the column width specified by `columns` (default 72). \n- `none`: Pandoc will not wrap lines at all. \n- `preserve`: Pandoc will attempt to preserve the wrapping from the source\n  document. Where there are nonsemantic newlines in the source, there will be\n  nonsemantic newlines in the output as well.\n") content=[296..374,374..381=>1,381..391,391..399=>2,399..510,510..517=>1,517..562,562..569=>1,569..643,643..650=>1,650..727,727..734=>1,734..779,779..781=>1]
+  783..1368 "name: columns\n  tags:\n    formats:\n      [\n        \"!$pdf-all\",\n        \"!$office-all\",\n        \"!$odt-all\",\n        \"!$html-all\",\n        \"!$docbook-all\",\n        \"typst\",\n      ]\n  schema: number\n  description:\n    short: For text formats, specify length of lines in characters. For `typst`, number of columns for body text.\n    long: |\n      Specify length of lines in characters. This affects text wrapping in generated source\n      code (see `wrap`). It also affects calculation of column widths for plain text\n      tables. \n\n      For `typst`, number of columns for body text.\n\n" Hash(4)
+   entry 783..796
+    783..787 "name" String("name") content=783..787
+    789..796 "columns" String("columns") content=789..796
+   entry 799..966
+    799..803 "tags" String("tags") content=799..803
+    809..966 "formats:\n      [\n        \"!$pdf-all\",\n        \"!$office-all\",\n        \"!$odt-all\",\n        \"!$html-all\",\n        \"!$docbook-all\",\n        \"typst\",\n      ]\n  " Hash(1)
+     entry 809..963
+      809..816 "formats" String("formats") content=809..816
+      824..963 "[\n        \"!$pdf-all\",\n        \"!$office-all\",\n        \"!$odt-all\",\n        \"!$html-all\",\n        \"!$docbook-all\",\n        \"typst\",\n      ]" Array(6)
+        834..845 "\"!$pdf-all\"" String("!$pdf-all") content=835..844
+        855..869 "\"!$office-all\"" String("!$office-all") content=856..868
+        879..890 "\"!$odt-all\"" String("!$odt-all") content=880..889
+        900..912 "\"!$html-all\"" String("!$html-all") content=901..911
+        922..937 "\"!$docbook-all\"" String("!$docbook-all") content=923..936
+        947..954 "\"typst\"" String("typst") content=948..953
+   entry 966..980
+    966..972 "schema" String("schema") content=966..972
+    974..980 "number" String("number") content=974..980
+   entry 983..1368
+    983..994 "description" String("description") content=983..994
+    1000..1368 "short: For text formats, specify length of lines in characters. For `typst`, number of columns for body text.\n    long: |\n      Specify length of lines in characters. This affects text wrapping in generated source\n      code (see `wrap`). It also affects calculation of column widths for plain text\n      tables. \n\n      For `typst`, number of columns for body text.\n\n" Hash(2)
+     entry 1000..1109
+      1000..1005 "short" String("short") content=1000..1005
+      1007..1109 "For text formats, specify length of lines in characters. For `typst`, number of columns for body text." String("For text formats, specify length of lines in characters. For `typst`, number of columns for body text.") content=1007..1109
+     entry 1114..1366
+      1114..1118 "long" String("long") content=1114..1118
+      1128..1366 "Specify length of lines in characters. This affects text wrapping in generated source\n      code (see `wrap`). It also affects calculation of column widths for plain text\n      tables. \n\n      For `typst`, number of columns for body text." String("Specify length of lines in characters. This affects text wrapping in generated source\ncode (see `wrap`). It also affects calculation of column widths for plain text\ntables. \n\nFor `typst`, number of columns for body text.\n") content=[1128..1213,1213..1220=>1,1220..1298,1298..1305=>1,1305..1313,1313..1321=>2,1321..1366,1366..1368=>1]
+  1370..1845 "name: tab-stop\n  tags:\n    formats:\n      [\"!$pdf-all\", \"!$office-all\", \"!$odt-all\", \"!$html-all\", \"!$docbook-all\"]\n  schema: number\n  description:\n    short: \"Specify the number of spaces per tab (default is 4).\"\n    long: |\n      Specify the number of spaces per tab (default is 4). Note that tabs\n      within normal textual input are always converted to spaces. Tabs \n      within code are also converted, however this can be disabled with\n      `preserve-tabs: false`.\n\n" Hash(4)
+   entry 1370..1384
+    1370..1374 "name" String("name") content=1370..1374
+    1376..1384 "tab-stop" String("tab-stop") content=1376..1384
+   entry 1387..1488
+    1387..1391 "tags" String("tags") content=1387..1391
+    1397..1488 "formats:\n      [\"!$pdf-all\", \"!$office-all\", \"!$odt-all\", \"!$html-all\", \"!$docbook-all\"]\n  " Hash(1)
+     entry 1397..1485
+      1397..1404 "formats" String("formats") content=1397..1404
+      1412..1485 "[\"!$pdf-all\", \"!$office-all\", \"!$odt-all\", \"!$html-all\", \"!$docbook-all\"]" Array(5)
+        1413..1424 "\"!$pdf-all\"" String("!$pdf-all") content=1414..1423
+        1426..1440 "\"!$office-all\"" String("!$office-all") content=1427..1439
+        1442..1453 "\"!$odt-all\"" String("!$odt-all") content=1443..1452
+        1455..1467 "\"!$html-all\"" String("!$html-all") content=1456..1466
+        1469..1484 "\"!$docbook-all\"" String("!$docbook-all") content=1470..1483
+   entry 1488..1502
+    1488..1494 "schema" String("schema") content=1488..1494
+    1496..1502 "number" String("number") content=1496..1502
+   entry 1505..1845
+    1505..1516 "description" String("description") content=1505..1516
+    1522..1845 "short: \"Specify the number of spaces per tab (default is 4).\"\n    long: |\n      Specify the number of spaces per tab (default is 4). Note that tabs\n      within normal textual input are always converted to spaces. Tabs \n      within code are also converted, however this can be disabled with\n      `preserve-tabs: false`.\n\n" Hash(2)
+     entry 1522..1583
+      1522..1527 "short" String("short") content=1522..1527
+      1529..1583 "\"Specify the number of spaces per tab (default is 4).\"" String("Specify the number of spaces per tab (default is 4).") content=1530..1582
+     entry 1588..1843
+      1588..1592 "long" String("long") content=1588..1592
+      1602..1843 "Specify the number of spaces per tab (default is 4). Note that tabs\n      within normal textual input are always converted to spaces. Tabs \n      within code are also converted, however this can be disabled with\n      `preserve-tabs: false`." String("Specify the number of spaces per tab (default is 4). Note that tabs\nwithin normal textual input are always converted to spaces. Tabs \nwithin code are also converted, however this can be disabled with\n`preserve-tabs: false`.\n") content=[1602..1669,1669..1676=>1,1676..1741,1741..1748=>1,1748..1813,1813..1820=>1,1820..1843,1843..1845=>1]
+  1847..2402 "name: preserve-tabs\n  tags:\n    formats:\n      [\"!$pdf-all\", \"!$office-all\", \"!$odt-all\", \"!$html-all\", \"!$docbook-all\"]\n  schema: boolean\n  default: false\n  description:\n    short: |\n      Preserve tabs within code instead of converting them to spaces.\n    long: |\n      Preserve tabs within code instead of converting them to spaces.\n      (By default, pandoc converts tabs to spaces before parsing its input.) \n      Note that this will only affect tabs in literal code spans and code blocks. \n      Tabs in regular text are always treated as spaces.\n\n" Hash(5)
+   entry 1847..1866
+    1847..1851 "name" String("name") content=1847..1851
+    1853..1866 "preserve-tabs" String("preserve-tabs") content=1853..1866
+   entry 1869..1970
+    1869..1873 "tags" String("tags") content=1869..1873
+    1879..1970 "formats:\n      [\"!$pdf-all\", \"!$office-all\", \"!$odt-all\", \"!$html-all\", \"!$docbook-all\"]\n  " Hash(1)
+     entry 1879..1967
+      1879..1886 "formats" String("formats") content=1879..1886
+      1894..1967 "[\"!$pdf-all\", \"!$office-all\", \"!$odt-all\", \"!$html-all\", \"!$docbook-all\"]" Array(5)
+        1895..1906 "\"!$pdf-all\"" String("!$pdf-all") content=1896..1905
+        1908..1922 "\"!$office-all\"" String("!$office-all") content=1909..1921
+        1924..1935 "\"!$odt-all\"" String("!$odt-all") content=1925..1934
+        1937..1949 "\"!$html-all\"" String("!$html-all") content=1938..1948
+        1951..1966 "\"!$docbook-all\"" String("!$docbook-all") content=1952..1965
+   entry 1970..1985
+    1970..1976 "schema" String("schema") content=1970..1976
+    1978..1985 "boolean" String("boolean") content=1978..1985
+   entry 1988..2002
+    1988..1995 "default" String("default") content=1988..1995
+    1997..2002 "false" Boolean(false) content=1997..2002
+   entry 2005..2402
+    2005..2016 "description" String("description") content=2005..2016
+    2022..2402 "short: |\n      Preserve tabs within code instead of converting them to spaces.\n    long: |\n      Preserve tabs within code instead of converting them to spaces.\n      (By default, pandoc converts tabs to spaces before parsing its input.) \n      Note that this will only affect tabs in literal code spans and code blocks. \n      Tabs in regular text are always treated as spaces.\n\n" Hash(2)
+     entry 2022..2100
+      2022..2027 "short" String("short") content=2022..2027
+      2037..2100 "Preserve tabs within code instead of converting them to spaces." String("Preserve tabs within code instead of converting them to spaces.\n") content=[2037..2100,2100..2105=>1]
+     entry 2105..2400
+      2105..2109 "long" String("long") content=2105..2109
+      2119..2400 "Preserve tabs within code instead of converting them to spaces.\n      (By default, pandoc converts tabs to spaces before parsing its input.) \n      Note that this will only affect tabs in literal code spans and code blocks. \n      Tabs in regular text are always treated as spaces." String("Preserve tabs within code instead of converting them to spaces.\n(By default, pandoc converts tabs to spaces before parsing its input.) \nNote that this will only affect tabs in literal code spans and code blocks. \nTabs in regular text are always treated as spaces.\n") content=[2119..2182,2182..2189=>1,2189..2260,2260..2267=>1,2267..2343,2343..2350=>1,2350..2400,2400..2402=>1]
+  2404..2880 "name: eol\n  tags:\n    formats:\n      [\"!$pdf-all\", \"!$office-all\", \"!$odt-all\", \"!$html-all\", \"!$docbook-all\"]\n  schema:\n    enum: [lf, crlf, native]\n  description:\n    short: \"Manually specify line endings (`lf`, `crlf`, or `native`).\"\n    long: |\n      Manually specify line endings: \n\n      - `crlf`: Use Windows line endings\n      - `lf`: Use macOS/Linux/UNIX line endings\n      - `native` (default): Use line endings appropriate to the OS on which pandoc is being run).\n\n" Hash(4)
+   entry 2404..2413
+    2404..2408 "name" String("name") content=2404..2408
+    2410..2413 "eol" String("eol") content=2410..2413
+   entry 2416..2517
+    2416..2420 "tags" String("tags") content=2416..2420
+    2426..2517 "formats:\n      [\"!$pdf-all\", \"!$office-all\", \"!$odt-all\", \"!$html-all\", \"!$docbook-all\"]\n  " Hash(1)
+     entry 2426..2514
+      2426..2433 "formats" String("formats") content=2426..2433
+      2441..2514 "[\"!$pdf-all\", \"!$office-all\", \"!$odt-all\", \"!$html-all\", \"!$docbook-all\"]" Array(5)
+        2442..2453 "\"!$pdf-all\"" String("!$pdf-all") content=2443..2452
+        2455..2469 "\"!$office-all\"" String("!$office-all") content=2456..2468
+        2471..2482 "\"!$odt-all\"" String("!$odt-all") content=2472..2481
+        2484..2496 "\"!$html-all\"" String("!$html-all") content=2485..2495
+        2498..2513 "\"!$docbook-all\"" String("!$docbook-all") content=2499..2512
+   entry 2517..2556
+    2517..2523 "schema" String("schema") content=2517..2523
+    2529..2556 "enum: [lf, crlf, native]\n  " Hash(1)
+     entry 2529..2553
+      2529..2533 "enum" String("enum") content=2529..2533
+      2535..2553 "[lf, crlf, native]" Array(3)
+        2536..2538 "lf" String("lf") content=2536..2538
+        2540..2544 "crlf" String("crlf") content=2540..2544
+        2546..2552 "native" String("native") content=2546..2552
+   entry 2556..2880
+    2556..2567 "description" String("description") content=2556..2567
+    2573..2880 "short: \"Manually specify line endings (`lf`, `crlf`, or `native`).\"\n    long: |\n      Manually specify line endings: \n\n      - `crlf`: Use Windows line endings\n      - `lf`: Use macOS/Linux/UNIX line endings\n      - `native` (default): Use line endings appropriate to the OS on which pandoc is being run).\n\n" Hash(2)
+     entry 2573..2640
+      2573..2578 "short" String("short") content=2573..2578
+      2580..2640 "\"Manually specify line endings (`lf`, `crlf`, or `native`).\"" String("Manually specify line endings (`lf`, `crlf`, or `native`).") content=2581..2639
+     entry 2645..2878
+      2645..2649 "long" String("long") content=2645..2649
+      2659..2878 "Manually specify line endings: \n\n      - `crlf`: Use Windows line endings\n      - `lf`: Use macOS/Linux/UNIX line endings\n      - `native` (default): Use line endings appropriate to the OS on which pandoc is being run)." String("Manually specify line endings: \n\n- `crlf`: Use Windows line endings\n- `lf`: Use macOS/Linux/UNIX line endings\n- `native` (default): Use line endings appropriate to the OS on which pandoc is being run).\n") content=[2659..2690,2690..2698=>2,2698..2732,2732..2739=>1,2739..2780,2780..2787=>1,2787..2878,2878..2880=>1]
+  2882..3368 "name: strip-comments\n  schema: boolean\n  tags:\n    formats: [$markdown-all, textile, $html-files]\n  description:\n    short: \"Strip out HTML comments in source, rather than passing them on to output.\"\n    long: |\n      Strip out HTML comments in the Markdown source,\n      rather than passing them on to Markdown, Textile or HTML\n      output as raw HTML.  This does not apply to HTML comments\n      inside raw HTML blocks when the `markdown_in_html_blocks`\n      extension is not set.\n\n" Hash(4)
+   entry 2882..2902
+    2882..2886 "name" String("name") content=2882..2886
+    2888..2902 "strip-comments" String("strip-comments") content=2888..2902
+   entry 2905..2920
+    2905..2911 "schema" String("schema") content=2905..2911
+    2913..2920 "boolean" String("boolean") content=2913..2920
+   entry 2923..2982
+    2923..2927 "tags" String("tags") content=2923..2927
+    2933..2982 "formats: [$markdown-all, textile, $html-files]\n  " Hash(1)
+     entry 2933..2979
+      2933..2940 "formats" String("formats") content=2933..2940
+      2942..2979 "[$markdown-all, textile, $html-files]" Array(3)
+        2943..2956 "$markdown-all" String("$markdown-all") content=2943..2956
+        2958..2965 "textile" String("textile") content=2958..2965
+        2967..2978 "$html-files" String("$html-files") content=2967..2978
+   entry 2982..3368
+    2982..2993 "description" String("description") content=2982..2993
+    2999..3368 "short: \"Strip out HTML comments in source, rather than passing them on to output.\"\n    long: |\n      Strip out HTML comments in the Markdown source,\n      rather than passing them on to Markdown, Textile or HTML\n      output as raw HTML.  This does not apply to HTML comments\n      inside raw HTML blocks when the `markdown_in_html_blocks`\n      extension is not set.\n\n" Hash(2)
+     entry 2999..3081
+      2999..3004 "short" String("short") content=2999..3004
+      3006..3081 "\"Strip out HTML comments in source, rather than passing them on to output.\"" String("Strip out HTML comments in source, rather than passing them on to output.") content=3007..3080
+     entry 3086..3366
+      3086..3090 "long" String("long") content=3086..3090
+      3100..3366 "Strip out HTML comments in the Markdown source,\n      rather than passing them on to Markdown, Textile or HTML\n      output as raw HTML.  This does not apply to HTML comments\n      inside raw HTML blocks when the `markdown_in_html_blocks`\n      extension is not set." String("Strip out HTML comments in the Markdown source,\nrather than passing them on to Markdown, Textile or HTML\noutput as raw HTML.  This does not apply to HTML comments\ninside raw HTML blocks when the `markdown_in_html_blocks`\nextension is not set.\n") content=[3100..3147,3147..3154=>1,3154..3210,3210..3217=>1,3217..3274,3274..3281=>1,3281..3338,3338..3345=>1,3345..3366,3366..3368=>1]
+  3370..3957 "name: ascii\n  tags:\n    formats: [$html-all, $pdf-all, $markdown-all, ms]\n  schema: boolean\n  description:\n    short: \"Use only ASCII characters in output.\"\n    long: |\n      Use only ASCII characters in output. Currently supported for XML\n      and HTML formats (which use entities instead of UTF-8 when this\n      option is selected), CommonMark, gfm, and Markdown (which use\n      entities), roff ms (which use hexadecimal escapes), and to a\n      limited degree LaTeX (which uses standard commands for accented\n      characters when possible). roff man output uses ASCII by default.\n" Hash(4)
+   entry 3370..3381
+    3370..3374 "name" String("name") content=3370..3374
+    3376..3381 "ascii" String("ascii") content=3376..3381
+   entry 3384..3446
+    3384..3388 "tags" String("tags") content=3384..3388
+    3394..3446 "formats: [$html-all, $pdf-all, $markdown-all, ms]\n  " Hash(1)
+     entry 3394..3443
+      3394..3401 "formats" String("formats") content=3394..3401
+      3403..3443 "[$html-all, $pdf-all, $markdown-all, ms]" Array(4)
+        3404..3413 "$html-all" String("$html-all") content=3404..3413
+        3415..3423 "$pdf-all" String("$pdf-all") content=3415..3423
+        3425..3438 "$markdown-all" String("$markdown-all") content=3425..3438
+        3440..3442 "ms" String("ms") content=3440..3442
+   entry 3446..3461
+    3446..3452 "schema" String("schema") content=3446..3452
+    3454..3461 "boolean" String("boolean") content=3454..3461
+   entry 3464..3957
+    3464..3475 "description" String("description") content=3464..3475
+    3481..3957 "short: \"Use only ASCII characters in output.\"\n    long: |\n      Use only ASCII characters in output. Currently supported for XML\n      and HTML formats (which use entities instead of UTF-8 when this\n      option is selected), CommonMark, gfm, and Markdown (which use\n      entities), roff ms (which use hexadecimal escapes), and to a\n      limited degree LaTeX (which uses standard commands for accented\n      characters when possible). roff man output uses ASCII by default.\n" Hash(2)
+     entry 3481..3526
+      3481..3486 "short" String("short") content=3481..3486
+      3488..3526 "\"Use only ASCII characters in output.\"" String("Use only ASCII characters in output.") content=3489..3525
+     entry 3531..3956
+      3531..3535 "long" String("long") content=3531..3535
+      3545..3956 "Use only ASCII characters in output. Currently supported for XML\n      and HTML formats (which use entities instead of UTF-8 when this\n      option is selected), CommonMark, gfm, and Markdown (which use\n      entities), roff ms (which use hexadecimal escapes), and to a\n      limited degree LaTeX (which uses standard commands for accented\n      characters when possible). roff man output uses ASCII by default." String("Use only ASCII characters in output. Currently supported for XML\nand HTML formats (which use entities instead of UTF-8 when this\noption is selected), CommonMark, gfm, and Markdown (which use\nentities), roff ms (which use hexadecimal escapes), and to a\nlimited degree LaTeX (which uses standard commands for accented\ncharacters when possible). roff man output uses ASCII by default.\n") content=[3545..3609,3609..3616=>1,3616..3679,3679..3686=>1,3686..3747,3747..3754=>1,3754..3814,3814..3821=>1,3821..3884,3884..3891=>1,3891..3957]

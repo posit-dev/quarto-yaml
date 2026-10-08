@@ -28,6 +28,7 @@ quarto-source-map = { workspace = true }
 
 [dev-dependencies]
 regex = { workspace = true }
+insta = { workspace = true }
 
 [[bench]]
 name = "memory_overhead"

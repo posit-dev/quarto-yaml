@@ -1,0 +1,543 @@
+---
+source: crates/quarto-yaml/tests/golden.rs
+expression: dump_corpus(&files)
+---
+==== 00-strand-repro-folded-with-em-dash.yaml
+"status: >\n  v2 — x\nbeads: y\n"
+0..30 "status: >\n  v2 — x\nbeads: y\n" Hash(2)
+ entry 0..20
+  0..6 "status" String("status") content=0..6
+  12..20 "v2 — x" String("v2 — x\n") content=12..21
+ entry 23..30
+  23..28 "ads: " String("beads") content=NONE
+  30..30 "" String("y") content=NONE
+
+==== 01-literal-with-em-dash-two-in-a-row.yaml
+"a: |\n  é—ü\n  second\nb: |\n  ✓✓\nc: y\n"
+0..43 "a: |\n  é—ü\n  second\nb: |\n  ✓✓\nc: y\n" Hash(3)
+ entry 0..23
+  0..1 "a" String("a") content=0..1
+  7..23 "é—ü\n  second" String("é—ü\nsecond\n") content=[7..14,14..17=>1,17..24]
+ entry 27..42
+  27..28 "|" String("b") content=NONE
+  38..42 "c: y" String("✓✓\n") content=NONE
+ entry 41..43
+  41..42 "y" String("c") content=NONE
+  43..43 "" String("y") content=NONE
+
+==== 02-literal-long-non-ascii-line-16-chars.yaml
+"a: |\n  éééééééééééééééééééééééééééééééééééééééé\nb: y\n"
+0..93 "a: |\n  éééééééééééééééééééééééééééééééééééééééé\nb: y\n" Hash(2)
+ entry 0..87
+  0..1 "a" String("a") content=0..1
+  7..87 "éééééééééééééééééééééééééééééééééééééééé" String("éééééééééééééééééééééééééééééééééééééééé\n") content=7..88
+ entry 93..93
+  93..93 "" String("b") content=NONE
+  93..93 "" String("y") content=NONE
+
+==== 03-plain-non-ascii-then-key.yaml
+"a: héllo ✓\nb: y\n"
+0..19 "a: héllo ✓\nb: y\n" Hash(2)
+ entry 0..13
+  0..1 "a" String("a") content=0..1
+  3..13 "héllo ✓" String("héllo ✓") content=3..13
+ entry 14..18
+  14..15 "b" String("b") content=14..15
+  17..18 "y" String("y") content=17..18
+
+==== 04-double-quoted-non-ascii-then-key.yaml
+"a: \"héllo ✓\"\nb: y\n"
+0..21 "a: \"héllo ✓\"\nb: y\n" Hash(2)
+ entry 0..15
+  0..1 "a" String("a") content=0..1
+  3..15 "\"héllo ✓\"" String("héllo ✓") content=4..14
+ entry 16..20
+  16..17 "b" String("b") content=16..17
+  19..20 "y" String("y") content=19..20
+
+==== 05-single-quoted-with-doubled-quote.yaml
+"a: 'it''s'\nb: y\n"
+0..16 "a: 'it''s'\nb: y\n" Hash(2)
+ entry 0..10
+  0..1 "a" String("a") content=0..1
+  3..10 "'it''s'" String("it's") content=[4..6,6..8=>1,8..9]
+ entry 11..15
+  11..12 "b" String("b") content=11..12
+  14..15 "y" String("y") content=14..15
+
+==== 06-double-quoted-escapes.yaml
+"a: \"x\\ty\\n\\u00e9\\\"\"\nb: y\n"
+0..25 "a: \"x\\ty\\n\\u00e9\\\"\"\nb: y\n" Hash(2)
+ entry 0..19
+  0..1 "a" String("a") content=0..1
+  3..19 "\"x\\ty\\n\\u00e9\\\"\"" String("x\ty\né\"") content=[4..5,5..7=>1,7..8,8..10=>1,10..16=>2,16..18=>1]
+ entry 20..24
+  20..21 "b" String("b") content=20..21
+  23..24 "y" String("y") content=23..24
+
+==== 07-comment-with-non-ascii-then-key.yaml
+"a: 1 # héllo ✓ comment\nb: y\n"
+0..31 "a: 1 # héllo ✓ comment\nb: y\n" Hash(2)
+ entry 0..4
+  0..1 "a" String("a") content=0..1
+  3..4 "1" Integer(1) content=3..4
+ entry 26..30
+  26..27 "b" String("b") content=26..27
+  29..30 "y" String("y") content=29..30
+
+==== 08-comment-only-line-with-non-ascii.yaml
+"# ✓✓✓\na: 1\nb: y\n"
+12..22 "a: 1\nb: y\n" Hash(2)
+ entry 12..16
+  12..13 "a" String("a") content=12..13
+  15..16 "1" Integer(1) content=15..16
+ entry 17..21
+  17..18 "b" String("b") content=17..18
+  20..21 "y" String("y") content=20..21
+
+==== 09-block-mapping-nested.yaml
+"p:\n  t: x\n  l:\n    - a\n    - b\nq: 1\n"
+0..36 "p:\n  t: x\n  l:\n    - a\n    - b\nq: 1\n" Hash(2)
+ entry 0..31
+  0..1 "p" String("p") content=0..1
+  5..31 "t: x\n  l:\n    - a\n    - b\n" Hash(2)
+   entry 5..9
+    5..6 "t" String("t") content=5..6
+    8..9 "x" String("x") content=8..9
+   entry 12..31
+    12..13 "l" String("l") content=12..13
+    19..31 "- a\n    - b\n" Array(2)
+      21..22 "a" String("a") content=21..22
+      29..30 "b" String("b") content=29..30
+ entry 31..35
+  31..32 "q" String("q") content=31..32
+  34..35 "1" Integer(1) content=34..35
+
+==== 10-flow-collections.yaml
+"a: [1, 2, {k: v}]\nb: {x: [y]}\n"
+0..30 "a: [1, 2, {k: v}]\nb: {x: [y]}\n" Hash(2)
+ entry 0..17
+  0..1 "a" String("a") content=0..1
+  3..17 "[1, 2, {k: v}]" Array(3)
+    4..5 "1" Integer(1) content=4..5
+    7..8 "2" Integer(2) content=7..8
+    10..16 "{k: v}" Hash(1)
+     entry 11..15
+      11..12 "k" String("k") content=11..12
+      14..15 "v" String("v") content=14..15
+ entry 18..29
+  18..19 "b" String("b") content=18..19
+  21..29 "{x: [y]}" Hash(1)
+   entry 22..28
+    22..23 "x" String("x") content=22..23
+    25..28 "[y]" Array(1)
+      26..27 "y" String("y") content=26..27
+
+==== 11-empty-values.yaml
+"a:\nb: ~\nc: ''\nd:\n  - \n  - x\n"
+0..28 "a:\nb: ~\nc: ''\nd:\n  - \n  - x\n" Hash(4)
+ entry 0..3
+  0..1 "a" String("a") content=0..1
+  3..3 "" Null content=3..3
+ entry 3..7
+  3..4 "b" String("b") content=3..4
+  6..7 "~" Null content=6..7
+ entry 8..13
+  8..9 "c" String("c") content=8..9
+  11..13 "''" String("") content=11..11
+ entry 14..28
+  14..15 "d" String("d") content=14..15
+  19..28 "- \n  - x\n" Array(2)
+    26..26 "" Null content=26..26
+    26..27 "x" String("x") content=26..27
+
+==== 12-tags-and-anchors.yaml
+"a: !expr x + 1\nb: !!str 5\nc: &anc !t [1]\nd: *anc\ne: !<tag:yaml.org,2002:int> 7\n"
+0..79 "a: !expr x + 1\nb: !!str 5\nc: &anc !t [1]\nd: *anc\ne: !<tag:yaml.org,2002:int> 7\n" Hash(5)
+ entry 0..14
+  0..1 "a" String("a") content=0..1
+  9..14 "x + 1" String("x + 1") content=9..14 tag=expr@3..8
+ entry 15..25
+  15..16 "b" String("b") content=15..16
+  24..25 "5" String("5") content=24..25 tag=str@18..23
+ entry 26..40
+  26..27 "c" String("c") content=26..27
+  37..40 "[1]" Array(1) tag=t@34..36
+    38..39 "1" Integer(1) content=38..39
+ entry 41..44
+  41..42 "d" String("d") content=41..42
+  44..44 "" Null content=NONE
+ entry 49..78
+  49..50 "e" String("e") content=49..50
+  77..78 "7" Integer(7) content=77..78 tag=tag:yaml.org,2002:int@52..76
+
+==== 13-tag-on-block-mapping.yaml
+"!t\na: 1\nb: 2\n"
+3..13 "a: 1\nb: 2\n" Hash(2) tag=t@0..2
+ entry 3..7
+  3..4 "a" String("a") content=3..4
+  6..7 "1" Integer(1) content=6..7
+ entry 8..12
+  8..9 "b" String("b") content=8..9
+  11..12 "2" Integer(2) content=11..12
+
+==== 14-tag-on-block-seq.yaml
+"k: !t\n  - a\n  - b\n"
+0..18 "k: !t\n  - a\n  - b\n" Hash(1)
+ entry 0..18
+  0..1 "k" String("k") content=0..1
+  8..18 "- a\n  - b\n" Array(2) tag=t@3..5
+    10..11 "a" String("a") content=10..11
+    16..17 "b" String("b") content=16..17
+
+==== 15-quoted-keys-and-multi-line-plain.yaml
+"\"k\": a\n  b\n\n  c\n'j': 2\n"
+0..23 "\"k\": a\n  b\n\n  c\n'j': 2\n" Hash(2)
+ entry 0..15
+  0..3 "\"k\"" String("k") content=1..2
+  5..15 "a\n  b\n\n  c" String("a b\nc") content=[5..6,6..9=>1,9..10,10..14=>1,14..15]
+ entry 16..22
+  16..19 "'j'" String("j") content=17..18
+  21..22 "2" Integer(2) content=21..22
+
+==== 16-multi-line-double-quoted.yaml
+"a: \"x\n  y\"\nb: 1\n"
+0..16 "a: \"x\n  y\"\nb: 1\n" Hash(2)
+ entry 0..10
+  0..1 "a" String("a") content=0..1
+  3..10 "\"x\n  y\"" String("x y") content=[4..5,5..8=>1,8..9]
+ entry 11..15
+  11..12 "b" String("b") content=11..12
+  14..15 "1" Integer(1) content=14..15
+
+==== 17-crlf.yaml
+"a: |\r\n  x\r\nb: y\r\n"
+0..17 "a: |\r\n  x\r\nb: y\r\n" Hash(2)
+ entry 0..9
+  0..1 "a" String("a") content=0..1
+  8..9 "x" String("x\n") content=[8..9,9..11=>1]
+ entry 11..15
+  11..12 "b" String("b") content=11..12
+  14..15 "y" String("y") content=14..15
+
+==== 18-block-scalar-keep-strip-trailing-blanks.yaml
+"a: |+\n  x\n\n\nb: |-\n  y\nc: z\n"
+0..27 "a: |+\n  x\n\n\nb: |-\n  y\nc: z\n" Hash(3)
+ entry 0..9
+  0..1 "a" String("a") content=0..1
+  8..9 "x" String("x\n\n\n") content=8..12
+ entry 12..21
+  12..13 "b" String("b") content=12..13
+  20..21 "y" String("y") content=20..21
+ entry 22..26
+  22..23 "c" String("c") content=22..23
+  25..26 "z" String("z") content=25..26
+
+==== 19-empty-block-scalar.yaml
+"a: |\nb: y\n"
+0..10 "a: |\nb: y\n" Hash(2)
+ entry 0..9
+  0..1 "a" String("a") content=0..1
+  5..9 "b: y" String("") content=5..5
+ entry 5..9
+  5..6 "b" String("b") content=5..6
+  8..9 "y" String("y") content=8..9
+
+==== 20-explicit-doc-markers.yaml
+"---\na: 1\n...\n"
+4..9 "a: 1\n" Hash(1)
+ entry 4..8
+  4..5 "a" String("a") content=4..5
+  7..8 "1" Integer(1) content=7..8
+
+==== 21-root-scalar.yaml
+"hello"
+0..5 "hello" String("hello") content=0..5
+
+==== 22-empty-input.yaml
+""
+ERROR "No YAML document found" @ 0..0
+
+==== 23-tab-in-block-literal.yaml
+"a: |\n  x\ty\nb: 1\n"
+0..16 "a: |\n  x\ty\nb: 1\n" Hash(2)
+ entry 0..10
+  0..1 "a" String("a") content=0..1
+  7..10 "x\ty" String("x\ty\n") content=7..11
+ entry 11..15
+  11..12 "b" String("b") content=11..12
+  14..15 "1" Integer(1) content=14..15
+
+==== 24-indentless-sequence.yaml
+"a:\n- x\n- y\nb: 1\n"
+0..16 "a:\n- x\n- y\nb: 1\n" Hash(2)
+ entry 0..11
+  0..1 "a" String("a") content=0..1
+  5..11 "x\n- y\n" Array(2)
+    5..6 "x" String("x") content=5..6
+    9..10 "y" String("y") content=9..10
+ entry 11..15
+  11..12 "b" String("b") content=11..12
+  14..15 "1" Integer(1) content=14..15
+
+==== 25-more-indented-folded.yaml
+"a: >\n  x\n    y\n  z\nb: 1\n"
+0..24 "a: >\n  x\n    y\n  z\nb: 1\n" Hash(2)
+ entry 0..18
+  0..1 "a" String("a") content=0..1
+  7..18 "x\n    y\n  z" String("x\n  y\nz\n") content=[7..8,8..11=>1,11..14,14..17=>1,17..19]
+ entry 19..23
+  19..20 "b" String("b") content=19..20
+  22..23 "1" Integer(1) content=22..23
+
+==== 26-err-unclosed-flow-seq.yaml
+"title: x\nauthor: [a, b\nformat: html\n"
+ERROR "illegal placement of ':' indicator" @ 29..30
+
+==== 27-err-unclosed-flow-seq-non-ascii-before.yaml
+"title: \"héllo ✓\"\nauthor: [a, b\nformat: html\n"
+ERROR "illegal placement of ':' indicator" @ 40..41
+
+==== 28-err-eof-in-flow-seq.yaml
+"title: x\nauthor: [a, b"
+ERROR "while parsing a flow sequence, expected ',' or ']'" @ 22..22
+
+==== 29-err-bad-indentation.yaml
+"a:\n  b: 1\n c: 2\n"
+ERROR "while parsing a block mapping, did not find expected key" @ 12..13
+
+==== 30-err-unknown-anchor.yaml
+"a: *nope\n"
+ERROR "while parsing node, found unknown anchor" @ 3..4
+
+==== 31-err-duplicate-ish-mapping-values-not-allowed.yaml
+"a: b: c\n"
+ERROR "mapping values are not allowed in this context" @ 4..5
+
+==== 32-err-tab-indentation.yaml
+"a:\n\tb: 1\n"
+ERROR "tabs disallowed within this context (block indentation)" @ 4..5
+
+==== 33-err-unclosed-quote.yaml
+"a: \"x\nb: 1\n"
+ERROR "invalid indentation in quoted scalar" @ 3..4
+
+==== 34-empty-block-scalar-at-eof-no-newline.yaml
+"a: |"
+0..4 "a: |" Hash(1)
+ entry 0..4
+  0..1 "a" String("a") content=0..1
+  3..4 "|" String("") content=3..3
+
+==== 35-empty-block-scalar-at-eof-with-newline.yaml
+"a: |\n"
+0..5 "a: |\n" Hash(1)
+ entry 0..4
+  0..1 "a" String("a") content=0..1
+  3..4 "|" String("\n") content=4..5
+
+==== 36-empty-block-scalar-then-blank-line-eof.yaml
+"a: |\n\n"
+0..6 "a: |\n\n" Hash(1)
+ entry 0..4
+  0..1 "a" String("a") content=0..1
+  3..4 "|" String("\n") content=[4..6=>1]
+
+==== 37-blank-only-folded-then-key.yaml
+"a: >\n  \nb: 1\n"
+0..13 "a: >\n  \nb: 1\n" Hash(2)
+ entry 0..12
+  0..1 "a" String("a") content=0..1
+  8..12 "b: 1" String("") content=8..8
+ entry 8..12
+  8..9 "b" String("b") content=8..9
+  11..12 "1" Integer(1) content=11..12
+
+==== 38-empty-literal-next-key-indented-less.yaml
+"k:\n  a: |\nj: 1\n"
+0..15 "k:\n  a: |\nj: 1\n" Hash(2)
+ entry 0..10
+  0..1 "k" String("k") content=0..1
+  5..10 "a: |\n" Hash(1)
+   entry 5..14
+    5..6 "a" String("a") content=5..6
+    10..14 "j: 1" String("") content=10..10
+ entry 10..14
+  10..11 "j" String("j") content=10..11
+  13..14 "1" Integer(1) content=13..14
+
+==== 39-empty-value-at-eof.yaml
+"a:"
+0..2 "a:" Hash(1)
+ entry 0..2
+  0..1 "a" String("a") content=0..1
+  2..2 "" Null content=2..2
+
+==== 40-empty-value-mid-map-then-nested.yaml
+"a:\nb:\n  c: 1\n"
+0..13 "a:\nb:\n  c: 1\n" Hash(2)
+ entry 0..3
+  0..1 "a" String("a") content=0..1
+  3..3 "" Null content=3..3
+ entry 3..13
+  3..4 "b" String("b") content=3..4
+  8..13 "c: 1\n" Hash(1)
+   entry 8..12
+    8..9 "c" String("c") content=8..9
+    11..12 "1" Integer(1) content=11..12
+
+==== 41-saphyr-span-rs-nested-seq-in-seq-item.yaml
+"foo:\n  - a\n  - bar:\n    - b\n    - c"
+0..35 "foo:\n  - a\n  - bar:\n    - b\n    - c" Hash(1)
+ entry 0..35
+  0..3 "foo" String("foo") content=0..3
+  7..35 "- a\n  - bar:\n    - b\n    - c" Array(2)
+    9..10 "a" String("a") content=9..10
+    15..35 "bar:\n    - b\n    - c" Hash(1)
+     entry 15..35
+      15..18 "bar" String("bar") content=15..18
+      26..35 "b\n    - c" Array(2)
+        26..27 "b" String("b") content=26..27
+        34..35 "c" String("c") content=34..35
+
+==== 42-mapping-inside-seq-item.yaml
+"- a: 1\n  b: 2\n- c\n"
+0..18 "- a: 1\n  b: 2\n- c\n" Array(2)
+  2..14 "a: 1\n  b: 2\n" Hash(2)
+   entry 2..6
+    2..3 "a" String("a") content=2..3
+    5..6 "1" Integer(1) content=5..6
+   entry 9..13
+    9..10 "b" String("b") content=9..10
+    12..13 "2" Integer(2) content=12..13
+  16..17 "c" String("c") content=16..17
+
+==== 43-complex-key.yaml
+"? [a, b]\n: v\nk: 1\n"
+2..18 "[a, b]\n: v\nk: 1\n" Hash(2)
+ entry 2..12
+  2..8 "[a, b]" Array(2)
+    3..4 "a" String("a") content=3..4
+    6..7 "b" String("b") content=6..7
+  11..12 "v" String("v") content=11..12
+ entry 13..17
+  13..14 "k" String("k") content=13..14
+  16..17 "1" Integer(1) content=16..17
+
+==== 44-non-ascii-anchor-and-tag-names.yaml
+"a: &ñ !é x\nb: *ñ\nc: 1\n"
+ERROR "while scanning a tag, did not find expected whitespace or line break" @ 7..8
+
+==== 45-single-quoted-non-ascii-doubled-quote-then-key.yaml
+"a: 'é''ü'\nb: y\n"
+0..17 "a: 'é''ü'\nb: y\n" Hash(2)
+ entry 0..11
+  0..1 "a" String("a") content=0..1
+  3..11 "'é''ü'" String("é'ü") content=[4..6,6..8=>1,8..10]
+ entry 12..16
+  12..13 "b" String("b") content=12..13
+  15..16 "y" String("y") content=15..16
+
+==== 46-more-indented-non-ascii-in-literal-then-key.yaml
+"a: |\n  x\n    éé\n  y\nb: 1\n"
+0..27 "a: |\n  x\n    éé\n  y\nb: 1\n" Hash(2)
+ entry 0..21
+  0..1 "a" String("a") content=0..1
+  7..21 "x\n    éé\n  y" String("x\n  éé\ny\n") content=[7..8,8..11=>1,11..17,17..20=>1,20..22]
+ entry 22..26
+  22..23 "b" String("b") content=22..23
+  25..26 "1" Integer(1) content=25..26
+
+==== 47-block-scalar-with-indentation-indicator.yaml
+"a: |2\n   x\nb: 1\n"
+0..16 "a: |2\n   x\nb: 1\n" Hash(2)
+ entry 0..10
+  0..1 "a" String("a") content=0..1
+  8..10 " x" String(" x\n") content=8..11
+ entry 11..15
+  11..12 "b" String("b") content=11..12
+  14..15 "1" Integer(1) content=14..15
+
+==== 48-block-scalar-followed-by-comment-lines.yaml
+"a: |\n  x\n# c\n\nb: 1\n"
+0..19 "a: |\n  x\n# c\n\nb: 1\n" Hash(2)
+ entry 0..8
+  0..1 "a" String("a") content=0..1
+  7..8 "x" String("x\n") content=7..9
+ entry 14..18
+  14..15 "b" String("b") content=14..15
+  17..18 "1" Integer(1) content=17..18
+
+==== 49-plain-scalar-with-hash-no-space.yaml
+"a: x#y\nb: 1\n"
+0..12 "a: x#y\nb: 1\n" Hash(2)
+ entry 0..6
+  0..1 "a" String("a") content=0..1
+  3..6 "x#y" String("x#y") content=3..6
+ entry 7..11
+  7..8 "b" String("b") content=7..8
+  10..11 "1" Integer(1) content=10..11
+
+==== 50-multi-document.yaml
+"a: 1\n---\nb: 2\n"
+0..5 "a: 1\n" Hash(1)
+ entry 0..4
+  0..1 "a" String("a") content=0..1
+  3..4 "1" Integer(1) content=3..4
+
+==== 51-anchor-on-block-mapping.yaml
+"&m\na: 1\n"
+3..8 "a: 1\n" Hash(1)
+ entry 3..7
+  3..4 "a" String("a") content=3..4
+  6..7 "1" Integer(1) content=6..7
+
+==== 52-empty-flow-collections.yaml
+"a: []\nb: {}\nc: 1\n"
+0..17 "a: []\nb: {}\nc: 1\n" Hash(3)
+ entry 0..5
+  0..1 "a" String("a") content=0..1
+  3..5 "[]" Array(0)
+ entry 6..11
+  6..7 "b" String("b") content=6..7
+  9..11 "{}" Hash(0)
+ entry 12..16
+  12..13 "c" String("c") content=12..13
+  15..16 "1" Integer(1) content=15..16
+
+==== 53-trailing-comment-after-block-map.yaml
+"a: 1\n# end\n"
+0..11 "a: 1\n# end\n" Hash(1)
+ entry 0..4
+  0..1 "a" String("a") content=0..1
+  3..4 "1" Integer(1) content=3..4
+
+==== 54-only-whitespace.yaml
+"  \n\n"
+ERROR "No YAML document found" @ 0..0
+
+==== 55-only-comment.yaml
+"# nothing\n"
+ERROR "No YAML document found" @ 0..0
+
+==== 56-err-duplicate-anchor-ok-bad-flow-key.yaml
+"a: {b c}\n"
+0..9 "a: {b c}\n" Hash(1)
+ entry 0..8
+  0..1 "a" String("a") content=0..1
+  3..8 "{b c}" Hash(1)
+   entry 4..7
+    4..7 "b c" String("b c") content=4..7
+    7..7 "" Null content=7..7
+
+==== 57-err-tag-handle-undeclared.yaml
+"a: !x!y z\n"
+ERROR "the handle wasn't declared" @ 3..4
+
+==== 58-err-block-seq-in-map-value-wrong-indent.yaml
+"a: 1\n- b\n"
+ERROR "while parsing a block mapping, did not find expected key" @ 7..8
+
+==== 59-err-comment-intercepts-plain.yaml
+"a: x\n# c\n  y\n"
+ERROR "while parsing a block mapping, did not find expected key" @ 11..12
