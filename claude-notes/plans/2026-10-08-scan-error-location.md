@@ -128,5 +128,5 @@ Status 2026-10-08: all accepted (2: remove `From<ScanError>`, note migration in 
 ### Release
 - [x] Bump the workspace version to 0.4.0 (both places in root `Cargo.toml`) and refresh `Cargo.lock`.
 - [x] Branch (`scan-error-location`) and PR
-- [ ] Merge (CI publishes 0.4.0)
-- [ ] Record the published version in the strand comment so q2 `bd-x30aq7ae` can bump; close the strand.
+- [x] Merge (CI published 0.4.0 on 2026-10-08)
+- [x] Record the published version in the strand comment so q2 `bd-x30aq7ae` can bump; close the strand.
